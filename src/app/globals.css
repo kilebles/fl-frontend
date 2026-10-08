@@ -1,26 +1,164 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --font-sans: var(--font-onest);
+  --font-mono: var(--font-jetbrains);
+  --font-heading: var(--font-onest);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-elev: var(--elev);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --color-electric: var(--electric);
+  --color-electric-soft: var(--electric-soft);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  --ease-out-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --animate-shimmer: shimmer 1.8s linear infinite;
+  --animate-pulse-dot: pulse-dot 1.6s ease-in-out infinite;
+
+  @keyframes shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+  }
+  @keyframes pulse-dot {
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, currentColor 55%, transparent); }
+    50% { box-shadow: 0 0 0 5px transparent; }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+:root {
+  color-scheme: dark;
+
+  --background: #09090c;
+  --surface: #111116;
+  --surface-2: #17171d;
+  --elev: #1f1f27;
+  --line: rgb(255 255 255 / 0.06);
+  --line-strong: rgb(255 255 255 / 0.11);
+
+  --foreground: #f4f4f6;
+  --muted-foreground: #9b9ba7;
+  --faint: #62626d;
+
+  --electric: #3d6bff;
+  --electric-soft: color-mix(in oklab, var(--electric) 14%, transparent);
+  --ok: #3ecf8e;
+  --warn: #f0b35a;
+  --danger: #f2555f;
+
+  --card: var(--surface);
+  --card-foreground: var(--foreground);
+  --popover: #15151b;
+  --popover-foreground: var(--foreground);
+  --primary: var(--electric);
+  --primary-foreground: #ffffff;
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--foreground);
+  --muted: var(--surface-2);
+  --accent: var(--elev);
+  --accent-foreground: var(--foreground);
+  --destructive: var(--danger);
+  --border: var(--line);
+  --input: var(--line-strong);
+  --ring: var(--electric);
+
+  --radius: 0.75rem;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--electric) 45%, transparent);
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--elev) transparent;
+  }
+}
+
+@layer components {
+  /* Faint grid with a blue glow at the top: the backdrop of the main panel. */
+  .panel-backdrop {
+    background-image:
+      radial-gradient(60rem 26rem at 50% -8rem, color-mix(in oklab, var(--electric) 16%, transparent), transparent 70%),
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 100% 100%, 48px 48px, 48px 48px;
+    background-position: 0 0, -1px -1px, -1px -1px;
+    mask-image: linear-gradient(to bottom, black, black 40%, transparent 95%);
+  }
+
+  .glow-electric {
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--electric) 60%, white 10%) inset,
+      0 8px 28px -8px color-mix(in oklab, var(--electric) 75%, transparent),
+      0 2px 6px -2px color-mix(in oklab, var(--electric) 60%, transparent);
+  }
+
+  .shimmer {
+    background: linear-gradient(
+      100deg,
+      var(--surface-2) 30%,
+      color-mix(in oklab, var(--electric) 10%, var(--elev)) 50%,
+      var(--surface-2) 70%
+    );
+    background-size: 200% 100%;
+    animation: var(--animate-shimmer);
+  }
+
+  .bar-running {
+    background-image: linear-gradient(
+      90deg,
+      var(--electric),
+      color-mix(in oklab, var(--electric) 55%, #8fb0ff),
+      var(--electric)
+    );
+    background-size: 200% 100%;
+    animation: var(--animate-shimmer);
+  }
 }

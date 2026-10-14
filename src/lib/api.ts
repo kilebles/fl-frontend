@@ -130,3 +130,99 @@ export const isFinished = (state: JobState) => FINISHED.includes(state)
 
 /** A one-prompt generation from the Create page; everything else is a batch. */
 export const isSingle = (job: JobStatus) => job.progress.total === 1 && job.mode !== "f2v"
+
+// Prompts
+
+export interface PromptPairSpec {
+  number: number
+  id: string
+  title: string
+  intent: string
+  frame: string
+  people: string
+  camera: string
+}
+
+export interface PromptTemplateData {
+  title: string
+  targets: { image: string; video: string }
+  sub_periods: { id: string; title: string; when: string }[]
+  lore: string
+  pairs: PromptPairSpec[]
+  color_palette: string
+  lighting: string
+  textures: string
+  image_rules: string
+  video_rules: string
+  deterministic: { image_suffix: string; video_suffix: string; negatives: string }
+}
+
+export interface PromptTemplate {
+  id: string
+  title: string
+  pairs: number
+  image_target: string
+  video_target: string
+  created_at: string
+}
+
+export interface PromptTemplateDetail extends PromptTemplate {
+  data: PromptTemplateData
+}
+
+export type RunState = "queued" | "running" | "done" | "failed"
+
+export interface PromptRun {
+  id: string
+  template_id: string
+  template_title: string
+  model: string
+  pair_count: number
+  scenario_name: string
+  state: RunState
+  done: number
+  total: number
+  error: string | null
+  created_at: string
+  finished_at: string | null
+}
+
+export interface GeneratedPair {
+  paragraph_number: number
+  pair_number: number
+  img: string
+  vid: string
+  stock_queries: string[]
+  paragraph_text: string
+}
+
+export interface PromptRunDetail extends PromptRun {
+  rows: GeneratedPair[]
+}
+
+export const prompts = {
+  models: () => request<{ id: string; label: string }[]>("/api/prompts/models"),
+  templates: () => request<PromptTemplate[]>("/api/prompts/templates"),
+  template: (id: string) => request<PromptTemplateDetail>(`/api/prompts/templates/${id}`),
+  createTemplate: (file: File) => {
+    const form = new FormData()
+    form.append("file", file)
+    return request<PromptTemplateDetail>("/api/prompts/templates", { method: "POST", body: form })
+  },
+  renameTemplate: (id: string, title: string) => request<PromptTemplateDetail>(`/api/prompts/templates/${id}`, json("PATCH", { title })),
+  removeTemplate: (id: string) => request<void>(`/api/prompts/templates/${id}`, { method: "DELETE" }),
+  runs: () => request<PromptRun[]>("/api/prompts/runs"),
+  run: (id: string) => request<PromptRunDetail>(`/api/prompts/runs/${id}`),
+  createRun: (file: File, templateId: string, model: string, pairCount: number) => {
+    const form = new FormData()
+    form.append("file", file)
+    form.append("template_id", templateId)
+    form.append("model", model)
+    form.append("pair_count", String(pairCount))
+    return request<PromptRun>("/api/prompts/runs", { method: "POST", body: form })
+  },
+  removeRun: (id: string) => request<void>(`/api/prompts/runs/${id}`, { method: "DELETE" }),
+  xlsxUrl: (id: string) => `${API_URL}/api/prompts/runs/${id}/xlsx`,
+}
+
+export const runActive = (run: Pick<PromptRun, "state">) => run.state === "queued" || run.state === "running"

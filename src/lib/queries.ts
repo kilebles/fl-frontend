@@ -4,12 +4,17 @@ import { useEffect, useSyncExternalStore } from "react"
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query"
 import { toast } from "sonner"
 
-import { api, isFinished, type JobDetail, type JobStatus } from "@/lib/api"
+import { api, isFinished, prompts, runActive, type JobDetail, type JobStatus } from "@/lib/api"
 
 export const keys = {
   jobs: ["jobs"] as const,
   job: (id: string) => ["job", id] as const,
   files: (id: string) => ["files", id] as const,
+  templates: ["prompt-templates"] as const,
+  template: (id: string) => ["prompt-template", id] as const,
+  runs: ["prompt-runs"] as const,
+  run: (id: string) => ["prompt-run", id] as const,
+  models: ["prompt-models"] as const,
 }
 
 const subscribeNothing = () => () => {}
@@ -37,6 +42,32 @@ export function useJob(id: string) {
 export function useJobFiles(id: string, live: boolean) {
   const ready = useHydrated()
   return hydrated(useQuery({ queryKey: keys.files(id), queryFn: () => api.files(id), refetchInterval: live ? 15_000 : false }), ready)
+}
+
+export function usePromptModels() {
+  return hydrated(useQuery({ queryKey: keys.models, queryFn: prompts.models, staleTime: Infinity }), useHydrated())
+}
+
+export function useTemplates() {
+  return hydrated(useQuery({ queryKey: keys.templates, queryFn: prompts.templates }), useHydrated())
+}
+
+export function useTemplate(id: string | null) {
+  return hydrated(useQuery({ queryKey: keys.template(id ?? ""), queryFn: () => prompts.template(id!), enabled: !!id }), useHydrated())
+}
+
+export function useRuns() {
+  return hydrated(
+    useQuery({ queryKey: keys.runs, queryFn: prompts.runs, refetchInterval: (q) => (q.state.data?.some(runActive) ? 2_000 : 30_000) }),
+    useHydrated()
+  )
+}
+
+export function useRun(id: string) {
+  return hydrated(
+    useQuery({ queryKey: keys.run(id), queryFn: () => prompts.run(id), refetchInterval: (q) => (q.state.data && runActive(q.state.data) ? 2_000 : false) }),
+    useHydrated()
+  )
 }
 
 export function useJobActions() {

@@ -12,18 +12,22 @@ interface DropzoneProps {
   busy?: boolean
   preview?: string | null
   fileName?: string | null
-  onFile: (file: File) => void
+  multiple?: boolean
+  onFile?: (file: File) => void
+  onFiles?: (files: File[]) => void
   onClear?: () => void
   className?: string
 }
 
-export function Dropzone({ accept, title, hint, busy, preview, fileName, onFile, onClear, className }: DropzoneProps) {
+export function Dropzone({ accept, title, hint, busy, preview, fileName, multiple, onFile, onFiles, onClear, className }: DropzoneProps) {
   const input = useRef<HTMLInputElement>(null)
   const [over, setOver] = useState(false)
 
   const take = (files: FileList | null) => {
-    const file = files?.[0]
-    if (file) onFile(file)
+    const list = Array.from(files ?? [])
+    if (!list.length) return
+    onFiles?.(multiple ? list : list.slice(0, 1))
+    onFile?.(list[0])
   }
 
   if (fileName) {
@@ -83,6 +87,7 @@ export function Dropzone({ accept, title, hint, busy, preview, fileName, onFile,
         ref={input}
         type="file"
         accept={accept}
+        multiple={multiple}
         className="hidden"
         onChange={(e) => {
           take(e.target.files)

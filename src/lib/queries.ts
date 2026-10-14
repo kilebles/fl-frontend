@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useEffect, useSyncExternalStore } from "react"
+import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query"
 import { toast } from "sonner"
 
 import { api, isFinished, type JobDetail, type JobStatus } from "@/lib/api"
@@ -10,23 +10,33 @@ export const keys = {
   jobs: ["jobs"] as const,
   job: (id: string) => ["job", id] as const,
   files: (id: string) => ["files", id] as const,
-  accounts: ["accounts"] as const,
+}
+
+const subscribeNothing = () => () => {}
+
+/** False during SSR and hydration, true after: parts of the tree hydrate late (Suspense),
+ *  by then the cache may hold data the server HTML did not have. */
+export function useHydrated() {
+  return useSyncExternalStore(subscribeNothing, () => true, () => false)
+}
+
+function hydrated<T>(query: UseQueryResult<T>, ready: boolean): UseQueryResult<T> {
+  return ready ? query : ({ ...query, data: undefined, isLoading: true } as UseQueryResult<T>)
 }
 
 export function useJobs() {
-  return useQuery({ queryKey: keys.jobs, queryFn: api.jobs, refetchInterval: 30_000 })
+  const ready = useHydrated()
+  return hydrated(useQuery({ queryKey: keys.jobs, queryFn: api.jobs, refetchInterval: 30_000 }), ready)
 }
 
 export function useJob(id: string) {
-  return useQuery({ queryKey: keys.job(id), queryFn: () => api.job(id), retry: (n, e) => n < 2 && !("status" in e && e.status === 404) })
+  const ready = useHydrated()
+  return hydrated(useQuery({ queryKey: keys.job(id), queryFn: () => api.job(id), retry: (n, e) => n < 2 && !("status" in e && e.status === 404) }), ready)
 }
 
 export function useJobFiles(id: string, live: boolean) {
-  return useQuery({ queryKey: keys.files(id), queryFn: () => api.files(id), refetchInterval: live ? 15_000 : false })
-}
-
-export function useAccounts() {
-  return useQuery({ queryKey: keys.accounts, queryFn: api.accounts, refetchInterval: 15_000 })
+  const ready = useHydrated()
+  return hydrated(useQuery({ queryKey: keys.files(id), queryFn: () => api.files(id), refetchInterval: live ? 15_000 : false }), ready)
 }
 
 export function useJobActions() {
@@ -53,17 +63,13 @@ export function useJobActions() {
 
 /**
  * Subscribes to the API's server-sent events and merges every job update into the
- * query cache, so lists, the top bar and the job page update live. Returns whether
- * the stream is connected.
+ * query cache, so lists, the top bar and the job page update live.
  */
-export function useJobEvents(): boolean {
+export function useJobEvents() {
   const qc = useQueryClient()
-  const [connected, setConnected] = useState(false)
 
   useEffect(() => {
     const source = new EventSource(api.eventsUrl())
-    source.onopen = () => setConnected(true)
-    source.onerror = () => setConnected(false)
     source.addEventListener("job", (event) => {
       const status: JobStatus = JSON.parse((event as MessageEvent).data)
       qc.setQueryData<JobStatus[]>(keys.jobs, (jobs) => {
@@ -87,6 +93,4 @@ export function useJobEvents(): boolean {
     })
     return () => source.close()
   }, [qc])
-
-  return connected
 }

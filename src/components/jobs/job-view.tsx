@@ -59,8 +59,8 @@ export function JobView({ id }: { id: string }) {
       <div className="mx-auto max-w-xl px-6 pt-24 text-center">
         <h1 className="text-2xl font-semibold">Задача не найдена</h1>
         <p className="mt-2 text-muted-foreground">{error.message}</p>
-        <Link href="/jobs" className="mt-6 inline-flex items-center gap-2 text-sm text-electric">
-          <ArrowLeft className="size-4" /> Все задачи
+        <Link href="/batch" className="mt-6 inline-flex items-center gap-2 text-sm text-electric">
+          <ArrowLeft className="size-4" /> Производство
         </Link>
       </div>
     )
@@ -79,8 +79,8 @@ export function JobView({ id }: { id: string }) {
 
   return (
     <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 md:pt-8 pb-20 lg:px-10">
-      <Link href="/jobs" className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
-        <ArrowLeft className="size-4" /> Задачи
+      <Link href="/batch" className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
+        <ArrowLeft className="size-4" /> Производство
       </Link>
 
       <motion.header initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mb-6 flex flex-wrap items-start gap-4">
@@ -90,7 +90,7 @@ export function JobView({ id }: { id: string }) {
             <span className="inline-flex h-7 items-center rounded-full border border-line-strong px-3 text-xs text-muted-foreground">{modeLabel(job.mode)}</span>
             {job.position !== null && job.position > 0 && <span className="text-xs text-faint">#{job.position} в очереди</span>}
           </div>
-          <h1 className="truncate text-3xl font-semibold tracking-tight md:text-4xl">{jobTitle(job)}</h1>
+          <h1 className="truncate text-2xl font-semibold tracking-tight">{jobTitle(job)}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Создана {timeAgo(job.created_at)}
             {job.strategy === "sequential" && " · аккаунты по очереди"}
@@ -167,7 +167,7 @@ export function JobView({ id }: { id: string }) {
       </div>
 
       {shown.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-line-strong p-10 text-center text-sm text-muted-foreground">Здесь пока ничего нет</p>
+        <p className="rounded-2xl border border-dashed border-line-strong p-10 text-center text-sm text-muted-foreground">Пусто</p>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {shown.map((r) => (

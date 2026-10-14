@@ -122,15 +122,9 @@
 }
 
 @layer components {
-  /* Faint grid with a blue glow at the top: the backdrop of the main panel. */
+  /* Soft blue glow at the top: the backdrop of the main panel. */
   .panel-backdrop {
-    background-image:
-      radial-gradient(60rem 26rem at 50% -8rem, color-mix(in oklab, var(--electric) 16%, transparent), transparent 70%),
-      linear-gradient(var(--line) 1px, transparent 1px),
-      linear-gradient(90deg, var(--line) 1px, transparent 1px);
-    background-size: 100% 100%, 48px 48px, 48px 48px;
-    background-position: 0 0, -1px -1px, -1px -1px;
-    mask-image: linear-gradient(to bottom, black, black 40%, transparent 95%);
+    background-image: radial-gradient(60rem 26rem at 50% -8rem, color-mix(in oklab, var(--electric) 16%, transparent), transparent 70%);
   }
 
   .glow-electric {

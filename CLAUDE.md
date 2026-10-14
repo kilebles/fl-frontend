@@ -11,9 +11,10 @@ Next.js 16 (App Router, `cacheComponents` + `partialPrefetching` on), React 19, 
 ## Layout
 
 ```
-src/app/            layout.tsx (shell), page.tsx (Создать), jobs/, jobs/[id]/ (Suspense over params), accounts/
-src/components/     shell/ (topbar with live queue pill, sidebar library), create/ (mode cards, form, dropzone),
-                    jobs/ (list, job page, result card, lightbox, state badge, menu), accounts/
+src/app/            layout.tsx (shell), page.tsx (Создать: composer + feed of single generations), batch/ (list), batch/new/ (form),
+                    jobs/[id]/ (job page, Suspense over params), prompts/ (placeholder — prompt generation comes later)
+src/components/     shell/ (topbar with job search, sidebar: nav + batch list), create/ (composer, mode-picker, feed, form-parts, dropzone),
+                    batch/ (batch-list, batch-form), jobs/ (job page, result card, lightbox, state badge, menu)
 src/lib/            api.ts (types + fetchers, mirrors fl-api schemas), queries.ts (React Query + SSE → cache),
                     modes.ts (Russian mode metadata), format.ts
 ```
@@ -22,3 +23,6 @@ src/lib/            api.ts (types + fetchers, mirrors fl-api schemas), queries.t
 - Cache Components rules: no `Date.now()` during render (use effects), `usePathname`/params under `<Suspense>`.
 - Design tokens in `globals.css` (`--electric` #3d6bff accent, layered dark surfaces, faint grid backdrop `.panel-backdrop`, `.glow-electric`, `.shimmer`, `.bar-running`). References: whitenetwork.cloud (tokens) + rythm.fm (shell).
 - Check visually with Playwright (MCP) after UI changes; `npx next build` catches prerender errors.
+
+- Client-facing: no accounts/strategy in the UI (internal), minimal copy — no slogans or explanatory subtitles. No logo/brand yet.
+- Single vs batch is not stored in the API: `isSingle(job)` = 1 row and not f2v (feed on Создать); everything else is a batch.

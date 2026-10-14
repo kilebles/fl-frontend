@@ -1,19 +1,15 @@
 "use client"
 
-import { createContext, useContext, useState } from "react"
+import { useState } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { useJobEvents } from "@/lib/queries"
 
-const LiveContext = createContext(false)
-
-export const useLive = () => useContext(LiveContext)
-
-function LiveEvents({ children }: { children: React.ReactNode }) {
-  const connected = useJobEvents()
-  return <LiveContext.Provider value={connected}>{children}</LiveContext.Provider>
+function LiveEvents() {
+  useJobEvents()
+  return null
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -23,7 +19,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={client}>
       <TooltipProvider delay={250}>
-        <LiveEvents>{children}</LiveEvents>
+        <LiveEvents />
+        {children}
       </TooltipProvider>
       <Toaster theme="dark" position="bottom-right" />
     </QueryClientProvider>

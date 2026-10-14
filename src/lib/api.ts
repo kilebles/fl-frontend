@@ -52,16 +52,6 @@ export interface JobFile {
   created_at: string
 }
 
-export interface Account {
-  name: string
-  dolphin_id: string | null
-  proxies: number
-  dead_proxies: number
-  cooldown: number
-  image_pause: number
-  video_pause: number
-}
-
 export interface JobRequest {
   mode: Mode
   rows: JobRow[]
@@ -121,7 +111,6 @@ export const api = {
   cancel: (id: string) => request<JobStatus>(`/api/jobs/${id}/cancel`, json("POST")),
   retry: (id: string) => request<JobStatus>(`/api/jobs/${id}/retry`, json("POST")),
   remove: (id: string) => request<void>(`/api/jobs/${id}`, { method: "DELETE" }),
-  accounts: () => request<Account[]>("/api/accounts"),
   upload: (file: File) => {
     const form = new FormData()
     form.append("file", file)
@@ -138,3 +127,6 @@ export const api = {
 
 export const FINISHED: JobState[] = ["done", "stopped", "failed", "cancelled"]
 export const isFinished = (state: JobState) => FINISHED.includes(state)
+
+/** A one-prompt generation from the Create page; everything else is a batch. */
+export const isSingle = (job: JobStatus) => job.progress.total === 1 && job.mode !== "f2v"

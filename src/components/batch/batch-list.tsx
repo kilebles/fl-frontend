@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "motion/react"
 
 import { JobMenu } from "@/components/jobs/job-menu"
 import { StateBadge } from "@/components/jobs/state"
-import { isFinished, type JobStatus } from "@/lib/api"
+import { isFinished, isSingle, type JobStatus } from "@/lib/api"
 import { jobTitle, percent, timeAgo } from "@/lib/format"
 import { MODE_BY_ID, modeLabel } from "@/lib/modes"
 import { useJobs } from "@/lib/queries"
@@ -55,19 +55,22 @@ function JobCard({ job }: { job: JobStatus }) {
   )
 }
 
-export function JobsView() {
-  const { data: jobs, isLoading, error } = useJobs()
+export function BatchList() {
+  const { data: all, isLoading, error } = useJobs()
+  const jobs = all?.filter((j) => !isSingle(j))
   const active = jobs?.filter((j) => !isFinished(j.state)) ?? []
   const done = jobs?.filter((j) => isFinished(j.state)) ?? []
 
   return (
     <div className="mx-auto max-w-5xl px-4 pt-8 sm:px-6 md:pt-12 pb-20 lg:px-10">
-      <header className="mb-8 flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Задачи</h1>
-          <p className="mt-2 text-muted-foreground">Задачи выполняются по одной — все используют одни и те же аккаунты.</p>
-        </div>
-      </header>
+<div className="mb-6 flex min-h-10 items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold tracking-tight">Производство</h1>
+        {!!jobs?.length && (
+          <Link href="/batch/new" className="glow-electric inline-flex h-10 items-center gap-2 rounded-full bg-electric px-4 text-sm font-semibold text-white transition hover:brightness-110">
+            <Plus className="size-4" /> Новая задача
+          </Link>
+        )}
+      </div>
 
       {error && <p className="rounded-2xl border border-danger/25 bg-danger/10 p-4 text-sm text-danger">{error.message}</p>}
 
@@ -84,9 +87,8 @@ export function JobsView() {
           <span className="mb-4 grid size-14 place-items-center rounded-2xl bg-electric/15 text-electric">
             <ListVideo className="size-6" />
           </span>
-          <h2 className="text-lg font-semibold">Пока пусто</h2>
-          <p className="mt-1 max-w-sm text-sm text-muted-foreground">Запустите первую генерацию — прогресс и результаты появятся здесь.</p>
-          <Link href="/" className="glow-electric mt-6 inline-flex h-10 items-center gap-2 rounded-full bg-electric px-5 text-sm font-semibold text-white">
+          <h2 className="text-lg font-semibold">Задач нет</h2>
+          <Link href="/batch/new" className="glow-electric mt-6 inline-flex h-10 items-center gap-2 rounded-full bg-electric px-5 text-sm font-semibold text-white">
             <Plus className="size-4" /> Новая задача
           </Link>
         </div>

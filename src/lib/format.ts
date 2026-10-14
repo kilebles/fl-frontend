@@ -41,15 +41,6 @@ export function timeAgo(iso: string, now = Date.now()): string {
   return rtf.format(Math.round(seconds / 86400), "day")
 }
 
-export function duration(seconds: number): string {
-  const s = Math.max(0, Math.round(seconds))
-  const h = Math.floor(s / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  const sec = s % 60
-  const pad = (n: number) => n.toString().padStart(2, "0")
-  return h ? `${h}:${pad(m)}:${pad(sec)}` : `${m}:${pad(sec)}`
-}
-
 export function bytes(n: number): string {
   if (n < 1024) return `${n} Б`
   if (n < 1024 ** 2) return `${(n / 1024).toFixed(0)} КБ`

@@ -36,7 +36,7 @@ export function JobMenu({ job, redirect }: { job: JobStatus; redirect?: boolean 
           variant="destructive"
           onClick={() => {
             if (!confirm("Удалить задачу вместе со всеми результатами?")) return
-            actions.remove.mutate(job.id, { onSuccess: () => redirect && router.push("/jobs") })
+            actions.remove.mutate(job.id, { onSuccess: () => redirect && router.push("/batch") })
           }}
         >
           <Trash2 /> Удалить

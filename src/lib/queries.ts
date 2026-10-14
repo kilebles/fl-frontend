@@ -4,7 +4,7 @@ import { useEffect, useSyncExternalStore } from "react"
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query"
 import { toast } from "sonner"
 
-import { api, isFinished, prompts, runActive, type JobDetail, type JobStatus } from "@/lib/api"
+import { api, infographicActive, infographics, isFinished, prompts, runActive, type JobDetail, type JobStatus } from "@/lib/api"
 
 export const keys = {
   jobs: ["jobs"] as const,
@@ -15,6 +15,9 @@ export const keys = {
   runs: ["prompt-runs"] as const,
   run: (id: string) => ["prompt-run", id] as const,
   models: ["prompt-models"] as const,
+  categories: ["infographic-categories"] as const,
+  infographicRuns: ["infographic-runs"] as const,
+  infographicRun: (id: string) => ["infographic-run", id] as const,
 }
 
 const subscribeNothing = () => () => {}
@@ -66,6 +69,32 @@ export function useRuns() {
 export function useRun(id: string) {
   return hydrated(
     useQuery({ queryKey: keys.run(id), queryFn: () => prompts.run(id), refetchInterval: (q) => (q.state.data && runActive(q.state.data) ? 2_000 : false) }),
+    useHydrated()
+  )
+}
+
+export function useInfographicCategories() {
+  return hydrated(useQuery({ queryKey: keys.categories, queryFn: infographics.categories, staleTime: Infinity }), useHydrated())
+}
+
+export function useInfographicRuns() {
+  return hydrated(
+    useQuery({
+      queryKey: keys.infographicRuns,
+      queryFn: infographics.runs,
+      refetchInterval: (q) => (q.state.data?.some(infographicActive) ? 3_000 : 30_000),
+    }),
+    useHydrated()
+  )
+}
+
+export function useInfographicRun(id: string) {
+  return hydrated(
+    useQuery({
+      queryKey: keys.infographicRun(id),
+      queryFn: () => infographics.run(id),
+      refetchInterval: (q) => (q.state.data && infographicActive(q.state.data) ? 3_000 : false),
+    }),
     useHydrated()
   )
 }

@@ -226,3 +226,54 @@ export const prompts = {
 }
 
 export const runActive = (run: Pick<PromptRun, "state">) => run.state === "queued" || run.state === "running"
+
+// Infographics
+
+export type InfographicState = "queued" | "searching" | "rendering" | "done" | "failed"
+
+export interface InfographicRun {
+  id: string
+  scenario_name: string
+  categories: string[]
+  one_per_person: boolean
+  state: InfographicState
+  done: number
+  total: number
+  found: number
+  error: string | null
+  created_at: string
+  finished_at: string | null
+}
+
+export interface InfographicCard {
+  id: string
+  name: string
+  years: string
+  category: string
+  paragraph_number: number
+  paragraph: string
+  image_url: string | null
+  video_url: string | null
+  download_url: string | null
+}
+
+export interface InfographicRunDetail extends InfographicRun {
+  cards: InfographicCard[]
+}
+
+export const infographics = {
+  categories: () => request<{ id: string; label: string }[]>("/api/infographics/categories"),
+  runs: () => request<InfographicRun[]>("/api/infographics/runs"),
+  run: (id: string) => request<InfographicRunDetail>(`/api/infographics/runs/${id}`),
+  create: (file: File, categories: string[], onePerPerson: boolean) => {
+    const form = new FormData()
+    form.append("file", file)
+    form.append("categories", categories.join(","))
+    form.append("one_per_person", String(onePerPerson))
+    return request<InfographicRun>("/api/infographics/runs", { method: "POST", body: form })
+  },
+  retry: (id: string) => request<InfographicRun>(`/api/infographics/runs/${id}/retry`, json("POST")),
+  remove: (id: string) => request<void>(`/api/infographics/runs/${id}`, { method: "DELETE" }),
+}
+
+export const infographicActive = (run: Pick<InfographicRun, "state">) => run.state !== "done" && run.state !== "failed"

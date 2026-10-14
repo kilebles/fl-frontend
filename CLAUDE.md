@@ -12,9 +12,9 @@ Next.js 16 (App Router, `cacheComponents` + `partialPrefetching` on), React 19, 
 
 ```
 src/app/            layout.tsx (shell), page.tsx (Создать: composer + feed of single generations), batch/ (list), batch/new/ (form),
-                    jobs/[id]/ (job page, Suspense over params), prompts/ (Генерация | Шаблоны), prompts/runs/[id]/ (result table, xlsx, «В производство» → i2v/flash_i2v job), infographics/ (placeholder)
+                    jobs/[id]/ (job page, Suspense over params), prompts/ (Генерация | Шаблоны), prompts/runs/[id]/ (result table, xlsx, «В производство» → i2v/flash_i2v job), infographics/ (form + runs), infographics/runs/[id]/ (progress + gallery of cards)
 src/components/     shell/ (topbar with job search, sidebar: nav + batch list), create/ (composer, mode-picker, feed, form-parts, dropzone),
-                    batch/ (batch-list, batch-form), prompts/ (generate-panel, templates-panel, run-view, select), jobs/ (job page, result card, lightbox, state badge, menu)
+                    batch/ (batch-list, batch-form), prompts/ (generate-panel, templates-panel, run-view, select), infographics/ (infographics-view, run-view), jobs/ (job page, result card, lightbox, state badge, menu)
 src/lib/            api.ts (types + fetchers, mirrors fl-api schemas), queries.ts (React Query + SSE → cache),
                     modes.ts (Russian mode metadata), format.ts
 ```

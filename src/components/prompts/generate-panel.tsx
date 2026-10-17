@@ -11,6 +11,7 @@ import { Dropzone } from "@/components/create/dropzone"
 import { Select } from "@/components/prompts/select"
 import { prompts, runActive, type PromptRun } from "@/lib/api"
 import { plural, timeAgo } from "@/lib/format"
+import { useCurrentProject } from "@/lib/project"
 import { keys, usePromptModels, useRuns, useTemplates } from "@/lib/queries"
 import { cn } from "@/lib/utils"
 
@@ -74,7 +75,9 @@ export function GeneratePanel() {
   const qc = useQueryClient()
   const { data: templates } = useTemplates()
   const { data: models } = usePromptModels()
-  const { data: runs } = useRuns()
+  const { data: allRuns } = useRuns()
+  const [projectId] = useCurrentProject()
+  const runs = allRuns?.filter((r) => !projectId || r.project_id === projectId)
   const [templateId, setTemplateId] = useState<string | null>(null)
   const [model, setModel] = useState("gemini-2.5-flash")
   const [pairCount, setPairCount] = useState<number | null>(null)
@@ -85,7 +88,7 @@ export function GeneratePanel() {
   const pairs = pairCount && counts.some((c) => c.value === pairCount) ? pairCount : (counts.find((c) => c.value === 4)?.value ?? counts[0]?.value ?? null)
 
   const submit = useMutation({
-    mutationFn: () => prompts.createRun(file!, templateId!, model, pairs!),
+    mutationFn: () => prompts.createRun(file!, templateId!, model, pairs!, projectId),
     onSuccess: () => {
       setFile(null)
       qc.invalidateQueries({ queryKey: keys.runs })

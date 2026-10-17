@@ -12,7 +12,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { api, prompts, runActive, type GeneratedPair, type Mode } from "@/lib/api"
 import { plural, timeAgo } from "@/lib/format"
 import { modeLabel } from "@/lib/modes"
-import { keys, useRun } from "@/lib/queries"
+import { useCurrentProject, withStyle } from "@/lib/project"
+import { keys, useProjectStyle, useRun } from "@/lib/queries"
 
 const TARGET_MODES: Mode[] = ["i2v", "flash_i2v"]
 
@@ -20,6 +21,9 @@ export function RunView({ id }: { id: string }) {
   const router = useRouter()
   const qc = useQueryClient()
   const { data: run, error } = useRun(id)
+  const [currentProject] = useCurrentProject()
+  const projectId = run?.project_id ?? currentProject
+  const style = useProjectStyle(projectId)
 
   const paragraphs = useMemo(() => {
     const groups = new Map<number, GeneratedPair[]>()
@@ -32,7 +36,8 @@ export function RunView({ id }: { id: string }) {
       api.createJob({
         mode,
         title: run!.scenario_name,
-        rows: run!.rows.map((r) => ({ name: `${r.paragraph_number}.${r.pair_number}`, prompt: r.vid, image_prompt: r.img })),
+        project_id: projectId,
+        rows: run!.rows.map((r) => ({ name: `${r.paragraph_number}.${r.pair_number}`, prompt: withStyle(r.vid, style), image_prompt: withStyle(r.img, style) })),
       }),
     onSuccess: (job) => {
       qc.invalidateQueries({ queryKey: keys.jobs })
@@ -66,7 +71,7 @@ export function RunView({ id }: { id: string }) {
   const value = run.total ? Math.round((run.done / run.total) * 100) : 0
 
   return (
-    <div className="mx-auto max-w-6xl px-4 pt-6 pb-20 sm:px-6 md:pt-8 lg:px-10">
+    <div className="px-4 pt-6 pb-20 sm:px-7">
       <Link href="/prompts" className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
         <ArrowLeft className="size-4" /> Промпты
       </Link>

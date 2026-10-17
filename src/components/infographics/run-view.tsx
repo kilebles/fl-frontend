@@ -79,7 +79,7 @@ export function InfographicRunView({ id }: { id: string }) {
     mutationFn: () => infographics.remove(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: keys.infographicRuns })
-      router.push("/infographics")
+      router.push("/graphics")
     },
     onError: (e) => toast.error(e.message),
   })
@@ -88,8 +88,8 @@ export function InfographicRunView({ id }: { id: string }) {
     return (
       <div className="mx-auto max-w-xl px-6 pt-24 text-center">
         <p className="text-muted-foreground">{error.message}</p>
-        <Link href="/infographics" className="mt-4 inline-flex items-center gap-2 text-sm text-electric">
-          <ArrowLeft className="size-4" /> Инфографика
+        <Link href="/graphics" className="mt-4 inline-flex items-center gap-2 text-sm text-electric">
+          <ArrowLeft className="size-4" /> Графика
         </Link>
       </div>
     )
@@ -99,9 +99,9 @@ export function InfographicRunView({ id }: { id: string }) {
   const active = infographicActive(run)
 
   return (
-    <div className="mx-auto max-w-6xl px-4 pt-6 pb-20 sm:px-6 md:pt-8 lg:px-10">
-      <Link href="/infographics" className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
-        <ArrowLeft className="size-4" /> Инфографика
+    <div className="px-4 pt-6 pb-20 sm:px-7">
+      <Link href="/graphics" className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
+        <ArrowLeft className="size-4" /> Графика
       </Link>
 
       <div className="mb-6 flex flex-wrap items-start gap-3">

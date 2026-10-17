@@ -23,6 +23,7 @@ export interface JobProgress {
 export interface JobStatus {
   id: string
   title: string | null
+  project_id: string | null
   mode: Mode
   strategy: Strategy
   state: JobState
@@ -56,6 +57,7 @@ export interface JobRequest {
   mode: Mode
   rows: JobRow[]
   title?: string | null
+  project_id?: string | null
   strategy?: Strategy
   avatar?: string | null
   static_image?: string | null
@@ -104,7 +106,7 @@ function json(method: string, body?: unknown): RequestInit {
 }
 
 export const api = {
-  jobs: () => request<JobStatus[]>("/api/jobs"),
+  jobs: (projectId?: string | null) => request<JobStatus[]>(`/api/jobs${projectId ? `?project_id=${projectId}` : ""}`),
   job: (id: string) => request<JobDetail>(`/api/jobs/${id}`),
   files: (id: string) => request<JobFile[]>(`/api/jobs/${id}/files`),
   createJob: (body: JobRequest) => request<JobStatus>("/api/jobs", json("POST", body)),
@@ -174,6 +176,7 @@ export type RunState = "queued" | "running" | "done" | "failed"
 
 export interface PromptRun {
   id: string
+  project_id: string | null
   template_id: string
   template_title: string
   model: string
@@ -213,8 +216,9 @@ export const prompts = {
   removeTemplate: (id: string) => request<void>(`/api/prompts/templates/${id}`, { method: "DELETE" }),
   runs: () => request<PromptRun[]>("/api/prompts/runs"),
   run: (id: string) => request<PromptRunDetail>(`/api/prompts/runs/${id}`),
-  createRun: (file: File, templateId: string, model: string, pairCount: number) => {
+  createRun: (file: File, templateId: string, model: string, pairCount: number, projectId?: string | null) => {
     const form = new FormData()
+    if (projectId) form.append("project_id", projectId)
     form.append("file", file)
     form.append("template_id", templateId)
     form.append("model", model)
@@ -222,7 +226,7 @@ export const prompts = {
     return request<PromptRun>("/api/prompts/runs", { method: "POST", body: form })
   },
   removeRun: (id: string) => request<void>(`/api/prompts/runs/${id}`, { method: "DELETE" }),
-  xlsxUrl: (id: string) => `${API_URL}/api/prompts/runs/${id}/xlsx`,
+  xlsxUrl: (id: string) => `${API_URL}/api/prompts/runs/${id}/xlsx${API_TOKEN ? `?token=${encodeURIComponent(API_TOKEN)}` : ""}`,
 }
 
 export const runActive = (run: Pick<PromptRun, "state">) => run.state === "queued" || run.state === "running"
@@ -233,6 +237,7 @@ export type InfographicState = "queued" | "searching" | "rendering" | "done" | "
 
 export interface InfographicRun {
   id: string
+  project_id: string | null
   scenario_name: string
   categories: string[]
   one_per_person: boolean
@@ -265,8 +270,9 @@ export const infographics = {
   categories: () => request<{ id: string; label: string }[]>("/api/infographics/categories"),
   runs: () => request<InfographicRun[]>("/api/infographics/runs"),
   run: (id: string) => request<InfographicRunDetail>(`/api/infographics/runs/${id}`),
-  create: (file: File, categories: string[], onePerPerson: boolean) => {
+  create: (file: File, categories: string[], onePerPerson: boolean, projectId?: string | null) => {
     const form = new FormData()
+    if (projectId) form.append("project_id", projectId)
     form.append("file", file)
     form.append("categories", categories.join(","))
     form.append("one_per_person", String(onePerPerson))
@@ -277,3 +283,35 @@ export const infographics = {
 }
 
 export const infographicActive = (run: Pick<InfographicRun, "state">) => run.state !== "done" && run.state !== "failed"
+
+// Projects and avatars
+
+export interface Project {
+  id: string
+  title: string
+  style: string
+  created_at: string
+}
+
+export interface Avatar {
+  id: string
+  name: string
+  appearance: string
+  image_keys: string[]
+  image_urls: string[]
+  created_at: string
+}
+
+export const projects = {
+  list: () => request<Project[]>("/api/projects"),
+  create: (title: string) => request<Project>("/api/projects", json("POST", { title })),
+  update: (id: string, patch: Partial<Pick<Project, "title" | "style">>) => request<Project>(`/api/projects/${id}`, json("PATCH", patch)),
+  remove: (id: string) => request<void>(`/api/projects/${id}`, { method: "DELETE" }),
+}
+
+export const avatars = {
+  list: () => request<Avatar[]>("/api/avatars"),
+  create: (body: { name: string; appearance: string; image_keys: string[] }) => request<Avatar>("/api/avatars", json("POST", body)),
+  update: (id: string, patch: Partial<{ name: string; appearance: string; image_keys: string[] }>) => request<Avatar>(`/api/avatars/${id}`, json("PATCH", patch)),
+  remove: (id: string) => request<void>(`/api/avatars/${id}`, { method: "DELETE" }),
+}

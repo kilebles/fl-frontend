@@ -3,15 +3,23 @@
 import { useState } from "react"
 
 import { Segmented } from "@/components/create/form-parts"
+import { ProjectStyle } from "@/components/prompts/project-style"
+import { PageHeader } from "@/components/shell/page-header"
+import { ProjectPicker } from "@/components/shell/project-picker"
 import { GeneratePanel } from "@/components/prompts/generate-panel"
 import { TemplatesPanel } from "@/components/prompts/templates-panel"
 
 export function PromptsView() {
   const [tab, setTab] = useState<"generate" | "templates">("generate")
   return (
-    <div className="mx-auto max-w-6xl px-4 pt-8 pb-20 sm:px-6 md:pt-12 lg:px-10">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight">Промпты</h1>
+    <div className="px-4 pt-8 pb-20 sm:px-7">
+      <PageHeader
+        title="Промпты"
+        subtitle="Шаблон стиля из брифа, промпты по сценарию — и сразу в генерацию"
+        actions={<ProjectPicker />}
+      />
+      <ProjectStyle />
+      <div className="mb-5 flex">
         <Segmented
           value={tab}
           onChange={setTab}

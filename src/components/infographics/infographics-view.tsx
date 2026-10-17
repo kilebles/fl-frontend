@@ -10,6 +10,9 @@ import { toast } from "sonner"
 import { Dropzone } from "@/components/create/dropzone"
 import { infographicActive, infographics, type InfographicRun } from "@/lib/api"
 import { plural, timeAgo } from "@/lib/format"
+import { PageHeader } from "@/components/shell/page-header"
+import { ProjectPicker } from "@/components/shell/project-picker"
+import { useCurrentProject } from "@/lib/project"
 import { keys, useInfographicCategories, useInfographicRuns } from "@/lib/queries"
 import { cn } from "@/lib/utils"
 
@@ -40,7 +43,7 @@ function RunCard({ run }: { run: InfographicRun }) {
   const active = infographicActive(run)
   return (
     <Link
-      href={`/infographics/runs/${run.id}`}
+      href={`/graphics/runs/${run.id}`}
       className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-3 rounded-2xl border border-line bg-surface p-4 transition-colors hover:border-line-strong hover:bg-surface-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto]"
     >
       <div className="min-w-0">
@@ -72,7 +75,9 @@ function RunCard({ run }: { run: InfographicRun }) {
 export function InfographicsView() {
   const qc = useQueryClient()
   const { data: categories } = useInfographicCategories()
-  const { data: runs } = useInfographicRuns()
+  const { data: allRuns } = useInfographicRuns()
+  const [projectId] = useCurrentProject()
+  const runs = allRuns?.filter((r) => !projectId || r.project_id === projectId)
   const [file, setFile] = useState<File | null>(null)
   const [chosen, setChosen] = useState<string[]>(["people"])
   const [onePerPerson, setOnePerPerson] = useState(false)
@@ -80,7 +85,7 @@ export function InfographicsView() {
   const toggle = (id: string) => setChosen((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]))
 
   const submit = useMutation({
-    mutationFn: () => infographics.create(file!, chosen, onePerPerson),
+    mutationFn: () => infographics.create(file!, chosen, onePerPerson, projectId),
     onSuccess: () => {
       setFile(null)
       qc.invalidateQueries({ queryKey: keys.infographicRuns })
@@ -89,8 +94,12 @@ export function InfographicsView() {
   })
 
   return (
-    <div className="mx-auto max-w-6xl px-4 pt-8 pb-20 sm:px-6 md:pt-12 lg:px-10">
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight">Инфографика</h1>
+    <div className="px-4 pt-8 pb-20 sm:px-7">
+      <PageHeader
+        title="Графика"
+        subtitle="Анимированные карточки людей, битв и гербов по сценарию. Титры, карты и таймлайны появятся позже."
+        actions={<ProjectPicker />}
+      />
 
       <section className="mb-8 grid gap-4 rounded-2xl border border-line bg-surface p-5 lg:grid-cols-[1fr_1fr]">
         <Dropzone accept=".docx" title="Сценарий" hint=".docx" fileName={file?.name} onFile={setFile} onClear={() => setFile(null)} className="min-h-40 lg:h-full" />

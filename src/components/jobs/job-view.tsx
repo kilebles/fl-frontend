@@ -60,7 +60,7 @@ export function JobView({ id }: { id: string }) {
         <h1 className="text-2xl font-semibold">Задача не найдена</h1>
         <p className="mt-2 text-muted-foreground">{error.message}</p>
         <Link href="/batch" className="mt-6 inline-flex items-center gap-2 text-sm text-electric">
-          <ArrowLeft className="size-4" /> Производство
+          <ArrowLeft className="size-4" /> Генерации
         </Link>
       </div>
     )
@@ -80,7 +80,7 @@ export function JobView({ id }: { id: string }) {
   return (
     <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 md:pt-8 pb-20 lg:px-10">
       <Link href="/batch" className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
-        <ArrowLeft className="size-4" /> Производство
+        <ArrowLeft className="size-4" /> Генерации
       </Link>
 
       <motion.header initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mb-6 flex flex-wrap items-start gap-4">

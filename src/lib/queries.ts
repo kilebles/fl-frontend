@@ -4,7 +4,7 @@ import { useEffect, useSyncExternalStore } from "react"
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query"
 import { toast } from "sonner"
 
-import { api, infographicActive, infographics, isFinished, prompts, runActive, type JobDetail, type JobStatus } from "@/lib/api"
+import { api, avatars, infographicActive, infographics, isFinished, projects, prompts, runActive, type JobDetail, type JobStatus } from "@/lib/api"
 
 export const keys = {
   jobs: ["jobs"] as const,
@@ -18,6 +18,8 @@ export const keys = {
   categories: ["infographic-categories"] as const,
   infographicRuns: ["infographic-runs"] as const,
   infographicRun: (id: string) => ["infographic-run", id] as const,
+  projects: ["projects"] as const,
+  avatars: ["avatars"] as const,
 }
 
 const subscribeNothing = () => () => {}
@@ -34,7 +36,7 @@ function hydrated<T>(query: UseQueryResult<T>, ready: boolean): UseQueryResult<T
 
 export function useJobs() {
   const ready = useHydrated()
-  return hydrated(useQuery({ queryKey: keys.jobs, queryFn: api.jobs, refetchInterval: 30_000 }), ready)
+  return hydrated(useQuery({ queryKey: keys.jobs, queryFn: () => api.jobs(), refetchInterval: 30_000 }), ready)
 }
 
 export function useJob(id: string) {
@@ -99,6 +101,14 @@ export function useInfographicRun(id: string) {
   )
 }
 
+export function useProjects() {
+  return hydrated(useQuery({ queryKey: keys.projects, queryFn: projects.list }), useHydrated())
+}
+
+export function useAvatars() {
+  return hydrated(useQuery({ queryKey: keys.avatars, queryFn: avatars.list }), useHydrated())
+}
+
 export function useJobActions() {
   const qc = useQueryClient()
   const onError = (e: Error) => toast.error(e.message)
@@ -153,4 +163,10 @@ export function useJobEvents() {
     })
     return () => source.close()
   }, [qc])
+}
+
+/** Style suffix of the current project ("" without a project). */
+export function useProjectStyle(projectId: string | null): string {
+  const { data } = useProjects()
+  return data?.find((p) => p.id === projectId)?.style ?? ""
 }

@@ -7,9 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-onest);
+  --font-sans: var(--font-golos);
   --font-mono: var(--font-jetbrains);
-  --font-heading: var(--font-onest);
+  --font-heading: var(--font-golos);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -38,6 +38,13 @@
   --color-danger: var(--danger);
   --color-electric: var(--electric);
   --color-electric-soft: var(--electric-soft);
+  --color-electric-text: var(--electric-text);
+  --color-warn-soft: var(--warn-soft);
+  --color-dev: var(--dev);
+  --color-sidebar: var(--sidebar);
+  --color-foreground-2: var(--foreground-2);
+  --color-inverse: var(--inverse);
+  --color-inverse-foreground: var(--inverse-foreground);
 
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -65,26 +72,35 @@
 :root {
   color-scheme: dark;
 
-  --background: #09090c;
-  --surface: #111116;
-  --surface-2: #17171d;
-  --elev: #1f1f27;
-  --line: rgb(255 255 255 / 0.06);
-  --line-strong: rgb(255 255 255 / 0.11);
+  /* Motion Pr, dark theme */
+  --background: #0e0f12;
+  --sidebar: #121318;
+  --surface: #16181d;
+  --surface-2: #1a1c22;
+  --elev: #1d2027;
+  --line: #1f222a;
+  --line-strong: #2a2e37;
 
-  --foreground: #f4f4f6;
-  --muted-foreground: #9b9ba7;
-  --faint: #62626d;
+  --foreground: #e8eaee;
+  --foreground-2: #c3c8d0;
+  --muted-foreground: #9aa1ad;
+  --faint: #6e7581;
 
-  --electric: #3d6bff;
-  --electric-soft: color-mix(in oklab, var(--electric) 14%, transparent);
-  --ok: #3ecf8e;
-  --warn: #f0b35a;
-  --danger: #f2555f;
+  --electric: #2563eb;
+  --electric-text: #a9b8f5;
+  --electric-soft: #1f2533;
+  --ok: #4ade80;
+  --warn: #f5c76a;
+  --warn-soft: #3a2e10;
+  --danger: #f87171;
+  --dev: #e0a53a;
+
+  --inverse: #e8eaee;
+  --inverse-foreground: #0e0f12;
 
   --card: var(--surface);
   --card-foreground: var(--foreground);
-  --popover: #15151b;
+  --popover: #16181d;
   --popover-foreground: var(--foreground);
   --primary: var(--electric);
   --primary-foreground: #ffffff;
@@ -98,7 +114,39 @@
   --input: var(--line-strong);
   --ring: var(--electric);
 
-  --radius: 0.75rem;
+  --radius: 0.25rem;
+}
+
+/* Motion Pr, light "Claude" theme */
+:root[data-theme="claude"] {
+  color-scheme: light;
+
+  --background: #faf9f5;
+  --sidebar: #f5f4ed;
+  --surface: #ffffff;
+  --surface-2: #f0eee6;
+  --elev: #e8e6dc;
+  --line: #e8e6dc;
+  --line-strong: #dedcd1;
+
+  --foreground: #141413;
+  --foreground-2: #3d3d3a;
+  --muted-foreground: #5e5d59;
+  --faint: #87867f;
+
+  --electric: #c96442;
+  --electric-text: #a8452a;
+  --electric-soft: #f6e6de;
+  --ok: #2f7d4f;
+  --warn: #8a5a00;
+  --warn-soft: #f5e6c4;
+  --danger: #a8322b;
+  --dev: #d08a1e;
+
+  --inverse: #141413;
+  --inverse-foreground: #faf9f5;
+
+  --popover: #ffffff;
 }
 
 @layer base {
@@ -122,16 +170,11 @@
 }
 
 @layer components {
-  /* Soft blue glow at the top: the backdrop of the main panel. */
   .panel-backdrop {
-    background-image: radial-gradient(60rem 26rem at 50% -8rem, color-mix(in oklab, var(--electric) 16%, transparent), transparent 70%);
   }
 
+  /* Primary action: flat, like the prototype. */
   .glow-electric {
-    box-shadow:
-      0 0 0 1px color-mix(in oklab, var(--electric) 60%, white 10%) inset,
-      0 8px 28px -8px color-mix(in oklab, var(--electric) 75%, transparent),
-      0 2px 6px -2px color-mix(in oklab, var(--electric) 60%, transparent);
   }
 
   .shimmer {

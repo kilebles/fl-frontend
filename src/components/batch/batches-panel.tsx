@@ -189,12 +189,14 @@ export function BatchesPanel({ selected, onSelect }: { selected: string | null; 
               const s = batchState(job)
               const on = job.id === current?.id
               return (
-                <button
+                <div
                   key={job.id}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => onSelect(job.id)}
+                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onSelect(job.id)}
                   className={cn(
-                    "grid w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-4 border-b border-l-2 border-b-line px-4 py-3.5 text-left transition-colors last:border-b-0",
+                    "grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] items-center gap-4 border-b border-l-2 border-b-line px-4 py-3.5 text-left transition-colors last:border-b-0",
                     on ? "border-l-electric bg-surface-2" : "border-l-transparent hover:bg-surface-2/60"
                   )}
                 >
@@ -208,8 +210,9 @@ export function BatchesPanel({ selected, onSelect }: { selected: string | null; 
                       {job.progress.total - job.progress.remaining} / {job.progress.total}
                     </span>
                   </span>
+                  <DownloadZipButton job={job} className="h-8 px-2.5 text-xs" />
                   <span className={cn("rounded-[2px] px-2 py-1 text-xs", s.tone)}>{s.label}</span>
-                </button>
+                </div>
               )
             })}
           </div>

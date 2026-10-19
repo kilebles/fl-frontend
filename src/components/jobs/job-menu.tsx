@@ -15,29 +15,29 @@ export function DownloadZipButton({ job, className }: { job: JobStatus; classNam
   if (videos === 0 && images === 0) return null
 
   const baseClass = cn(
-    "inline-flex h-9 items-center gap-2 rounded-[3px] border border-line-strong bg-surface px-3.5 text-sm font-medium transition-colors hover:border-faint",
+    "inline-flex h-9 items-center gap-2 rounded-[3px] border border-electric/50 bg-electric-soft px-3.5 text-sm font-medium text-electric-text transition-colors hover:border-electric hover:bg-electric/20",
     className
   )
 
   if (videos > 0 && images > 0) {
     return (
       <DropdownMenu>
-        <DropdownMenuTrigger className={baseClass}>
-          <Download className="size-3.5" /> Скачать всё <ChevronDown className="size-3.5 text-muted-foreground" />
+        <DropdownMenuTrigger onClick={(e) => e.stopPropagation()} className={baseClass}>
+          <Download className="size-3.5" /> Скачать всё (.zip) <ChevronDown className="size-3.5 opacity-80" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-56">
+        <DropdownMenuContent align="end" className="min-w-60">
           <DropdownMenuItem onClick={() => (window.location.href = api.zipUrl(job.id, "video"))}>
             <Film /> <span className="flex-1">Скачать видео (.zip)</span>
-            <span className="font-mono text-xs text-muted-foreground">{videos}</span>
+            <span className="font-mono text-xs text-muted-foreground">{videos} шт.</span>
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => (window.location.href = api.zipUrl(job.id, "image"))}>
             <ImageIcon /> <span className="flex-1">Скачать картинки (.zip)</span>
-            <span className="font-mono text-xs text-muted-foreground">{images}</span>
+            <span className="font-mono text-xs text-muted-foreground">{images} шт.</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => (window.location.href = api.zipUrl(job.id, "all"))}>
             <Archive /> <span className="flex-1">Скачать всё вместе (.zip)</span>
-            <span className="font-mono text-xs text-muted-foreground">{videos + images}</span>
+            <span className="font-mono text-xs text-muted-foreground">{videos + images} шт.</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -45,7 +45,7 @@ export function DownloadZipButton({ job, className }: { job: JobStatus; classNam
   }
 
   return (
-    <a href={api.zipUrl(job.id)} className={baseClass}>
+    <a href={api.zipUrl(job.id)} onClick={(e) => e.stopPropagation()} className={baseClass}>
       <Download className="size-3.5" /> Скачать всё (.zip)
     </a>
   )

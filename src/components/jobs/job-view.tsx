@@ -143,27 +143,30 @@ export function JobView({ id }: { id: string }) {
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-semibold tracking-tight">Результаты</h2>
-        <div className="inline-flex rounded-xl border border-line bg-surface p-1">
-          {(
-            [
-              ["all", "Все"],
-              ["done", "Готовые"],
-              ["pending", "В работе"],
-              ["skipped", "Пропущенные"],
-            ] as [Filter, string][]
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setFilter(key)}
-              className={cn("relative h-8 rounded-lg px-3 text-[13px] font-medium transition-colors", filter === key ? "text-foreground" : "text-muted-foreground hover:text-foreground")}
-            >
-              {filter === key && <motion.span layoutId="result-filter" className="absolute inset-0 rounded-lg bg-elev ring-1 ring-line-strong" transition={{ type: "spring", stiffness: 500, damping: 38 }} />}
-              <span className="relative">
-                {label} <span className="font-mono text-xs text-faint">{counts[key]}</span>
-              </span>
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <DownloadZipButton job={job} className="h-10 rounded-xl px-3.5" />
+          <div className="inline-flex rounded-xl border border-line bg-surface p-1">
+            {(
+              [
+                ["all", "Все"],
+                ["done", "Готовые"],
+                ["pending", "В работе"],
+                ["skipped", "Пропущенные"],
+              ] as [Filter, string][]
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setFilter(key)}
+                className={cn("relative h-8 rounded-lg px-3 text-[13px] font-medium transition-colors", filter === key ? "text-foreground" : "text-muted-foreground hover:text-foreground")}
+              >
+                {filter === key && <motion.span layoutId="result-filter" className="absolute inset-0 rounded-lg bg-elev ring-1 ring-line-strong" transition={{ type: "spring", stiffness: 500, damping: 38 }} />}
+                <span className="relative">
+                  {label} <span className="font-mono text-xs text-faint">{counts[key]}</span>
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

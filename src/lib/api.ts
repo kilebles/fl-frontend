@@ -124,6 +124,13 @@ export const api = {
     form.append("mode", mode)
     return request<{ rows: JobRow[] }>("/api/rows/xlsx", { method: "POST", body: form })
   },
+  zipUrl: (id: string, kind?: "video" | "image" | "all") => {
+    const params = new URLSearchParams()
+    if (kind) params.set("kind", kind)
+    if (API_TOKEN) params.set("token", API_TOKEN)
+    const qs = params.toString()
+    return `${API_URL}/api/jobs/${id}/zip${qs ? `?${qs}` : ""}`
+  },
   eventsUrl: () => `${API_URL}/api/events${API_TOKEN ? `?token=${encodeURIComponent(API_TOKEN)}` : ""}`,
 }
 
@@ -280,6 +287,7 @@ export const infographics = {
   },
   retry: (id: string) => request<InfographicRun>(`/api/infographics/runs/${id}/retry`, json("POST")),
   remove: (id: string) => request<void>(`/api/infographics/runs/${id}`, { method: "DELETE" }),
+  zipUrl: (id: string) => `${API_URL}/api/infographics/runs/${id}/zip${API_TOKEN ? `?token=${encodeURIComponent(API_TOKEN)}` : ""}`,
 }
 
 export const infographicActive = (run: Pick<InfographicRun, "state">) => run.state !== "done" && run.state !== "failed"

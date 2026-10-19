@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Check, ChevronDown, Plus } from "lucide-react"
 import { toast } from "sonner"
@@ -18,6 +18,12 @@ export function ProjectPicker({ className }: { className?: string }) {
   const [current, setCurrent] = useCurrentProject()
   const [title, setTitle] = useState("")
   const project = list?.find((p) => p.id === current)
+
+  useEffect(() => {
+    if (list && current && !list.some((p) => p.id === current)) {
+      setCurrent(null)
+    }
+  }, [list, current, setCurrent])
 
   const create = useMutation({
     mutationFn: () => projects.create(title),

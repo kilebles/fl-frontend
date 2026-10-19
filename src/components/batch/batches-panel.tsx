@@ -2,8 +2,9 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { ExternalLink, Pause, Play } from "lucide-react"
+import { AlertTriangle, ExternalLink, Pause, Play } from "lucide-react"
 
+import { DownloadZipButton } from "@/components/jobs/job-menu"
 import { isFinished, isSingle, type JobFile, type JobStatus } from "@/lib/api"
 import { timeAgo } from "@/lib/format"
 import { MODE_BY_ID } from "@/lib/modes"
@@ -93,6 +94,7 @@ function BatchDetail({ job }: { job: JobStatus }) {
             <Play className="size-3.5" /> Продолжить
           </button>
         )}
+        <DownloadZipButton job={job} />
         <Link href={`/jobs/${job.id}`} className="flex h-9 items-center gap-2 rounded-[3px] border border-line-strong px-3.5 text-sm hover:border-faint">
           <ExternalLink className="size-3.5" /> Результаты
         </Link>
@@ -163,9 +165,9 @@ function BatchDetail({ job }: { job: JobStatus }) {
 }
 
 export function BatchesPanel({ selected, onSelect }: { selected: string | null; onSelect: (id: string) => void }) {
-  const { data: jobs, isLoading } = useJobs()
+  const { data: jobs, isLoading, error } = useJobs()
   const [projectId] = useCurrentProject()
-  const batches = (jobs ?? []).filter((j) => !isSingle(j) && (!projectId || j.project_id === projectId))
+  const batches = (jobs ?? []).filter((j) => !isSingle(j) && (!projectId || !j.project_id || j.project_id === projectId))
   const current = batches.find((j) => j.id === selected) ?? batches[0]
 
   return (
@@ -173,6 +175,11 @@ export function BatchesPanel({ selected, onSelect }: { selected: string | null; 
       <h2 className="text-lg font-semibold">Пакеты</h2>
       {isLoading ? (
         <div className="shimmer h-40 rounded-[4px]" />
+      ) : error && !jobs ? (
+        <div className="flex items-center gap-3 rounded-[4px] border border-danger/40 bg-danger/10 p-4 text-sm text-danger">
+          <AlertTriangle className="size-4 shrink-0" />
+          <span>Не удалось загрузить историю пакетов: {error.message}</span>
+        </div>
       ) : batches.length === 0 ? (
         <p className="rounded-[4px] border border-dashed border-line-strong p-10 text-center text-sm text-muted-foreground">Пакетов пока нет</p>
       ) : (

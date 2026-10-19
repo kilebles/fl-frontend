@@ -111,6 +111,14 @@ export function InfographicRunView({ id }: { id: string }) {
             {run.categories.map(label).join(", ")} · {timeAgo(run.created_at)}
           </p>
         </div>
+        {run.cards.length > 0 && (
+          <a
+            href={infographics.zipUrl(run.id)}
+            className="inline-flex h-10 items-center gap-2 rounded-xl border border-line-strong bg-surface px-4 text-sm font-medium transition-colors hover:border-faint"
+          >
+            <Download className="size-4" /> Скачать всё (.zip)
+          </a>
+        )}
         {run.state === "failed" && (
           <button
             type="button"

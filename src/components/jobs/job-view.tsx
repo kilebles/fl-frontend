@@ -5,7 +5,7 @@ import Link from "next/link"
 import { AlertTriangle, ArrowLeft, Ban, Film, Hourglass, Image as ImageIcon, RotateCcw } from "lucide-react"
 import { motion } from "motion/react"
 
-import { JobMenu } from "@/components/jobs/job-menu"
+import { DownloadZipButton, JobMenu } from "@/components/jobs/job-menu"
 import { Lightbox } from "@/components/jobs/lightbox"
 import { ResultCard, type RowResult } from "@/components/jobs/result-card"
 import { StateBadge } from "@/components/jobs/state"
@@ -97,7 +97,8 @@ export function JobView({ id }: { id: string }) {
             {p.pass_num > 1 && ` · проход ${p.pass_num}`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <DownloadZipButton job={job} className="h-10 rounded-xl px-4" />
           {["stopped", "failed", "cancelled"].includes(job.state) && p.remaining > 0 && (
             <button
               type="button"

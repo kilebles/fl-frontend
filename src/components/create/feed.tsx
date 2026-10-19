@@ -129,13 +129,13 @@ function FeedCard({ job }: { job: JobStatus }) {
 
 /** Single generations of the current project, oldest first: the newest lands right above the composer. */
 export function Feed({ search }: { search: string }) {
-  const { data: jobs } = useJobs()
+  const { data: jobs, error } = useJobs()
   const [projectId] = useCurrentProject()
   const [tab, setTab] = useState<Tab>("all")
   const end = useRef<HTMLDivElement>(null)
 
   const singles = useMemo(
-    () => (jobs ?? []).filter((j) => isSingle(j) && (!projectId || j.project_id === projectId)).reverse(),
+    () => (jobs ?? []).filter((j) => isSingle(j) && (!projectId || !j.project_id || j.project_id === projectId)).reverse(),
     [jobs, projectId]
   )
   const q = search.trim().toLowerCase()
@@ -177,7 +177,12 @@ export function Feed({ search }: { search: string }) {
           </button>
         ))}
       </div>
-      {shown.length ? (
+      {error && !jobs ? (
+        <div className="flex items-center gap-3 rounded-[4px] border border-danger/40 bg-danger/10 p-4 text-sm text-danger">
+          <AlertTriangle className="size-4 shrink-0" />
+          <span>Не удалось загрузить историю генераций: {error.message}</span>
+        </div>
+      ) : shown.length ? (
         <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2 xl:grid-cols-3">
           {shown.map((job) => (
             <FeedCard key={job.id} job={job} />

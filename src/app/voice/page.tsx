@@ -1,5 +1,5 @@
-import { DevStub } from "@/components/shell/page-header"
+import { VoiceView } from "@/components/voice/voice-view"
 
 export default function Page() {
-  return <DevStub title="Озвучка" subtitle="Голос под сценарий, сразу на нескольких языках" />
+  return <VoiceView />
 }

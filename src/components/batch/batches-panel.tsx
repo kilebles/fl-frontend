@@ -1,11 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { AlertTriangle, ExternalLink, Pause, Play } from "lucide-react"
 
 import { DownloadZipButton } from "@/components/jobs/job-menu"
-import { isFinished, isSingle, type JobFile, type JobStatus } from "@/lib/api"
+import { Lightbox } from "@/components/jobs/lightbox"
+import type { RowResult } from "@/components/jobs/result-card"
+import { isFinished, isSingle, type JobFile, type JobRow, type JobStatus } from "@/lib/api"
 import { timeAgo } from "@/lib/format"
 import { MODE_BY_ID } from "@/lib/modes"
 import { useCurrentProject } from "@/lib/project"
@@ -13,6 +15,96 @@ import { useJob, useJobActions, useJobFiles, useJobs } from "@/lib/queries"
 import { cn } from "@/lib/utils"
 
 type RowState = "done" | "running" | "queued" | "error"
+
+function BatchTile({
+  row,
+  state,
+  image,
+  video,
+  skip,
+  onOpen,
+}: {
+  row: JobRow
+  state: RowState
+  image?: JobFile
+  video?: JobFile
+  skip?: JobFile
+  onOpen: () => void
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const [hovered, setHovered] = useState(false)
+  const clickable = !!(video || image || skip)
+  const showVideoTag = !!video?.url && (!image?.url || hovered)
+
+  return (
+    <button
+      type="button"
+      disabled={!clickable}
+      onClick={onOpen}
+      onMouseEnter={() => {
+        setHovered(true)
+        videoRef.current?.play().catch(() => {})
+      }}
+      onMouseLeave={() => {
+        setHovered(false)
+        if (videoRef.current) {
+          videoRef.current.pause()
+          videoRef.current.currentTime = 0
+        }
+      }}
+      title={row.prompt ?? row.image_prompt ?? ""}
+      className={cn(
+        "group relative aspect-[16/10] overflow-hidden rounded-[3px] border text-left font-mono text-[11px] transition-colors enabled:cursor-pointer enabled:hover:border-line-strong disabled:cursor-default",
+        state === "done" && "border-line bg-ok/10",
+        state === "running" && "border-electric bg-electric-soft",
+        state === "queued" && "border-line bg-background text-faint",
+        state === "error" && "border-danger/50 bg-danger/10"
+      )}
+    >
+      {video?.url ? (
+        <>
+          {image?.url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={image.url} alt="" loading="lazy" className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+          )}
+          {showVideoTag && (
+            <video
+              ref={videoRef}
+              src={video.url}
+              poster={image?.url ?? undefined}
+              autoPlay={hovered}
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              className={cn("size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]", image?.url && "absolute inset-0")}
+            />
+          )}
+          <span className="absolute right-1.5 bottom-1.5 grid size-5 place-items-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-opacity group-hover:opacity-0">
+            <Play className="size-2.5 fill-current" />
+          </span>
+        </>
+      ) : image?.url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={image.url}
+          alt=""
+          loading="lazy"
+          className={cn("size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]", state !== "done" && "opacity-65")}
+        />
+      ) : null}
+      <span
+        className={cn(
+          "absolute top-1 left-1 rounded-[2px] px-1 py-0.5 leading-none",
+          video?.url || image?.url ? "bg-black/65 text-white backdrop-blur-xs" : ""
+        )}
+      >
+        {row.name}
+      </span>
+      {state === "running" && <span className="bar-running absolute inset-x-0 bottom-0 h-[3px]" />}
+    </button>
+  )
+}
 
 function batchState(job: JobStatus): { label: string; tone: string } {
   const p = job.progress
@@ -59,19 +151,25 @@ function BatchDetail({ job }: { job: JobStatus }) {
   const { data: files } = useJobFiles(job.id, live)
   const actions = useJobActions()
   const [view, setView] = useState<"tiles" | "table">("tiles")
+  const [open, setOpen] = useState<number | null>(null)
   const m = MODE_BY_ID[job.mode]
 
-  const byRow = new Map<string, Set<JobFile["kind"]>>()
-  for (const f of files ?? []) byRow.set(f.row, new Set([...(byRow.get(f.row) ?? []), f.kind]))
-  const settled = (detail?.rows ?? []).map((row) => {
-    const kinds = byRow.get(row.name) ?? new Set()
-    const state: RowState = kinds.has(m.makesVideos ? "video" : "image") ? "done" : kinds.has("skip") ? "error" : "queued"
-    return { row, state }
-  })
-  // the first few unfinished rows of a live batch are the ones in work
-  const inWork = new Set(live ? settled.filter((r) => r.state === "queued").slice(0, 4).map((r) => r.row.name) : [])
-  const rows = settled.map((r) => (inWork.has(r.row.name) ? { ...r, state: "running" as RowState } : r))
-
+  const { rows, lightboxResults } = useMemo(() => {
+    const byRow = new Map<string, Partial<Record<JobFile["kind"], JobFile>>>()
+    for (const f of files ?? []) byRow.set(f.row, { ...byRow.get(f.row), [f.kind]: f })
+    const settled = (detail?.rows ?? []).map((row) => {
+      const f = byRow.get(row.name) ?? {}
+      const final = m.makesVideos ? f.video : f.image
+      const state: RowState = final ? "done" : f.skip ? "error" : "queued"
+      const status: RowResult["status"] = final ? "done" : f.skip ? "skipped" : f.image ? "working" : "pending"
+      return { row, state, image: f.image, video: f.video, skip: f.skip, status }
+    })
+    // the first few unfinished rows of a live batch are the ones in work
+    const inWork = new Set(live ? settled.filter((r) => r.state === "queued").slice(0, 4).map((r) => r.row.name) : [])
+    const mapped = settled.map((r) => (inWork.has(r.row.name) ? { ...r, state: "running" as RowState } : r))
+    const lb: RowResult[] = mapped.map(({ row, image, video, skip, status }) => ({ row, image, video, skip, status }))
+    return { rows: mapped, lightboxResults: lb }
+  }, [detail?.rows, files, live, m.makesVideos])
 
   const counts = { done: 0, running: 0, queued: 0, error: 0 }
   rows.forEach((r) => counts[r.state]++)
@@ -130,36 +228,45 @@ function BatchDetail({ job }: { job: JobStatus }) {
       </div>
       {view === "tiles" ? (
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
-          {rows.map(({ row, state }) => (
-            <div
+          {rows.map(({ row, state, image, video, skip }, idx) => (
+            <BatchTile
               key={row.name}
-              title={row.prompt ?? row.image_prompt ?? ""}
-              className={cn(
-                "relative aspect-[16/10] rounded-[3px] border p-1.5 font-mono text-[11px]",
-                state === "done" && "border-line bg-ok/10",
-                state === "running" && "border-electric bg-electric-soft",
-                state === "queued" && "border-line bg-background text-faint",
-                state === "error" && "border-danger/50 bg-danger/10"
-              )}
-            >
-              {row.name}
-              {state === "running" && <span className="bar-running absolute inset-x-0 bottom-0 h-[3px]" />}
-            </div>
+              row={row}
+              state={state}
+              image={image}
+              video={video}
+              skip={skip}
+              onOpen={() => setOpen(idx)}
+            />
           ))}
         </div>
       ) : (
         <div className="overflow-hidden rounded-[3px] border border-line text-sm">
-          {rows.map(({ row, state }) => (
-            <div key={row.name} className="grid grid-cols-[3.5rem_1fr_7rem] gap-3 border-b border-line px-3 py-2 last:border-b-0">
-              <span className="font-mono text-xs text-faint">{row.name}</span>
-              <span className="truncate">{row.prompt ?? row.image_prompt}</span>
-              <span className={cn("text-right text-xs", state === "done" ? "text-ok" : state === "error" ? "text-danger" : state === "running" ? "text-electric-text" : "text-faint")}>
-                {{ done: "Готово", running: "Генерация", queued: "В очереди", error: "Ошибка" }[state]}
-              </span>
-            </div>
-          ))}
+          {rows.map(({ row, state, image, video, skip }, idx) => {
+            const clickable = !!(video || image || skip)
+            return (
+              <div
+                key={row.name}
+                role={clickable ? "button" : undefined}
+                tabIndex={clickable ? 0 : undefined}
+                onClick={() => clickable && setOpen(idx)}
+                onKeyDown={(e) => clickable && (e.key === "Enter" || e.key === " ") && setOpen(idx)}
+                className={cn(
+                  "grid grid-cols-[3.5rem_1fr_7rem] gap-3 border-b border-line px-3 py-2 last:border-b-0",
+                  clickable && "cursor-pointer hover:bg-surface-2/60"
+                )}
+              >
+                <span className="font-mono text-xs text-faint">{row.name}</span>
+                <span className="truncate">{row.prompt ?? row.image_prompt}</span>
+                <span className={cn("text-right text-xs", state === "done" ? "text-ok" : state === "error" ? "text-danger" : state === "running" ? "text-electric-text" : "text-faint")}>
+                  {{ done: "Готово", running: "Генерация", queued: "В очереди", error: "Ошибка" }[state]}
+                </span>
+              </div>
+            )
+          })}
         </div>
       )}
+      <Lightbox results={lightboxResults} index={open} onIndex={setOpen} />
     </section>
   )
 }

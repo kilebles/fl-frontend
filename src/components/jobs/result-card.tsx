@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef } from "react"
+import { useRef, useState } from "react"
 import { Ban, Clock, Film, Image as ImageIcon, Play } from "lucide-react"
 import { motion } from "motion/react"
 
@@ -17,9 +17,11 @@ export interface RowResult {
 
 export function ResultCard({ result, live, onOpen }: { result: RowResult; live: boolean; onOpen: () => void }) {
   const video = useRef<HTMLVideoElement>(null)
+  const [hovered, setHovered] = useState(false)
   const { row, image, status } = result
   const prompt = row.prompt || row.image_prompt
   const clickable = !!(result.video || image || result.skip)
+  const showVideoTag = !!result.video?.url && (!image?.url || hovered)
 
   return (
     <motion.button
@@ -27,8 +29,12 @@ export function ResultCard({ result, live, onOpen }: { result: RowResult; live: 
       layout
       disabled={!clickable}
       onClick={onOpen}
-      onMouseEnter={() => video.current?.play().catch(() => {})}
+      onMouseEnter={() => {
+        setHovered(true)
+        video.current?.play().catch(() => {})
+      }}
       onMouseLeave={() => {
+        setHovered(false)
         if (video.current) {
           video.current.pause()
           video.current.currentTime = 0
@@ -39,16 +45,23 @@ export function ResultCard({ result, live, onOpen }: { result: RowResult; live: 
       <div className="relative aspect-video overflow-hidden bg-background">
         {result.video?.url ? (
           <>
-            <video
-              ref={video}
-              src={result.video.url}
-              poster={image?.url ?? undefined}
-              muted
-              loop
-              playsInline
-              preload="metadata"
-              className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-            />
+            {image?.url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={image.url} alt="" loading="lazy" className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
+            )}
+            {showVideoTag && (
+              <video
+                ref={video}
+                src={result.video.url}
+                poster={image?.url ?? undefined}
+                autoPlay={hovered}
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                className={cn("size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]", image?.url && "absolute inset-0")}
+              />
+            )}
             <span className="absolute right-2.5 bottom-2.5 grid size-8 place-items-center rounded-full bg-black/50 text-white backdrop-blur-md transition-opacity group-hover:opacity-0">
               <Play className="size-3.5 fill-current" />
             </span>

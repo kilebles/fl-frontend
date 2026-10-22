@@ -323,3 +323,330 @@ export const avatars = {
   update: (id: string, patch: Partial<{ name: string; appearance: string; image_keys: string[] }>) => request<Avatar>(`/api/avatars/${id}`, json("PATCH", patch)),
   remove: (id: string) => request<void>(`/api/avatars/${id}`, { method: "DELETE" }),
 }
+
+// Voice & Translation API (fl-voice_translator + Fish S2.1 / Drama 3)
+
+export type VoiceJobMode = "all" | "translate" | "voice" | "mix"
+export type VoiceModelId = "s2.1" | "drama-3"
+export type VoiceJobStatus = "queued" | "running" | "paused_rate_limit" | "stopped" | "done" | "failed"
+export type ParagraphFilter = "all" | "off_norm" | "sped_up" | "edited" | "tags"
+
+export interface VoiceEntry {
+  id: string
+  name: string
+  fish_id: string
+  langs: string[]
+  status: "ok" | "missing" | "unverified"
+  checked_at: string | null
+  sample_url: string
+  used_in: string[]
+}
+
+export interface VoiceProfile {
+  id: string
+  name: string
+  channels: string[]
+  voices: Record<string, string[]>
+  default: Record<string, string>
+  norms: Record<string, [number, number]>
+}
+
+export interface TranslateStageStatus {
+  state: "waiting" | "running" | "done" | "failed" | "skipped" | "voice_missing"
+  parts_done: number
+  parts_total: number
+  length_pct: number | null
+  in_norm: number | null
+  total: number | null
+  tags_issues: number
+}
+
+export interface VoiceStageStatus {
+  state: "waiting" | "running" | "done" | "failed" | "skipped" | "voice_missing"
+  done: number
+  total: number
+  new: number
+  reused: number
+  fish_model: "free" | "paid" | "mixed" | "drama"
+  voice_id: string | null
+  voice_name: string | null
+}
+
+export interface MixStageStatus {
+  state: "waiting" | "running" | "done" | "failed" | "skipped" | "voice_missing"
+  done: number
+  total: number
+  duration_sec: number | null
+  sped_up: number | null
+  max_speedup: number | null
+}
+
+export interface VoiceJobLanguage {
+  lang: string
+  stage: "translate" | "voice" | "mix" | "done"
+  translate: TranslateStageStatus | null
+  voice: VoiceStageStatus
+  mix: MixStageStatus | null
+}
+
+export interface VoiceJobFile {
+  id: string
+  kind: "docx" | "raw_zip" | "mixed_zip" | "joined_mp3"
+  lang: string
+  name: string
+  size: number
+  url: string
+}
+
+export interface VoiceJobSummaryLang {
+  length_pct: number | null
+  in_norm: number
+  total: number
+  sped_up: number
+  max_speedup: number
+  fish_model: string
+  voice_model: VoiceModelId
+  voice_new: number
+  voice_reused: number
+  carried: number
+}
+
+export interface VoiceJobSummary {
+  duration_sec: number | null
+  languages: Record<string, VoiceJobSummaryLang>
+  norm_suggestions: Record<string, [number, number]>
+  skipped: Record<string, { code: string; voice_id: string }>
+}
+
+export interface VoiceJob {
+  id: number
+  title: string
+  script: string
+  project_id: string | null
+  mode: VoiceJobMode
+  source_lang: string
+  targets: string[]
+  profile_id: string
+  profile_name: string
+  voices: Record<string, string>
+  model: string
+  voice_model: VoiceModelId
+  carry_mood: boolean
+  status: VoiceJobStatus
+  paragraphs_total: number
+  emotion_tags_count: number
+  source_duration_sec: number | null
+  created_at: string
+  started_at: string | null
+  finished_at: string | null
+  pause_until: string | null
+  pause_reason: string | null
+  error_code: string | null
+  error_message: string | null
+  waiting_for_job_id: number | null
+  languages: VoiceJobLanguage[]
+  summary: VoiceJobSummary | null
+  files: VoiceJobFile[]
+}
+
+export interface VoiceParagraph {
+  n: number
+  timecode: string
+  source: string
+  text: string
+  length_pct: number
+  norm: [number, number]
+  in_norm: boolean
+  edited: boolean
+  tags_ok: boolean
+  tags_problem: "missing" | "translated" | "broken_xml" | null
+  carried_mood: string | null
+  chars_delta: number
+  audio: {
+    source_sec: number
+    slot_sec: number
+    track_sec: number
+    speedup: number
+  } | null
+  audio_url: string | null
+  source_audio_url: string | null
+  version: number
+}
+
+export interface ParagraphLengthResponse {
+  length_pct: number
+  norm: [number, number]
+  in_norm: boolean
+  tags_ok: boolean
+  tags_problem: "missing" | "translated" | "broken_xml" | null
+  chars_delta: number
+}
+
+export interface CompareVoiceVariant {
+  label: string
+  model: string
+  audio_url: string | null
+  sec: number | null
+  error: string | null
+}
+
+export interface VoiceScriptInfo {
+  script_id: string
+  name: string
+  title: string
+  source_lang: string
+  paragraphs_total: number
+  words_total: number
+  emotion_tags_count: number
+  bytes_total: number
+  errors: string[]
+}
+
+export interface TranslationModelInfo {
+  id: string
+  label: string
+  engine: "agy" | "claude"
+  badge: string | null
+  description: string
+  est_minutes_per_lang: number
+}
+
+export interface VoiceModelInfo {
+  id: VoiceModelId
+  label: string
+  description: string
+  supports_emotion_tags: boolean
+  has_free_tier: boolean
+  price_usd_per_million_bytes: number
+  regular_price_usd: number | null
+  promo_until: string | null
+}
+
+export interface VoiceLanguageInfo {
+  code: string
+  name: string
+  native_name: string
+  norm: [number, number]
+}
+
+export interface VoiceEstimateResponse {
+  duration_sec: number
+  targets_count: number
+  max_fish_cost_usd: number
+  voice_model: VoiceModelId
+  price_usd_per_million_bytes: number
+}
+
+export interface VoiceQueueStatus {
+  running: number
+  queued: number
+  slots: {
+    gemini: { used: number; total: number }
+    claude: { used: number; total: number }
+    voice: { used: number; total: number }
+    mix: { used: number; total: number }
+  }
+}
+
+export function voiceMediaUrl(path: string | null | undefined): string {
+  if (!path) return ""
+  if (path.startsWith("http://") || path.startsWith("https://")) return path
+  const sep = path.includes("?") ? "&" : "?"
+  return `${API_URL}${path}${API_TOKEN ? `${sep}token=${encodeURIComponent(API_TOKEN)}` : ""}`
+}
+
+export const voice = {
+  models: () => request<{ translation_models: TranslationModelInfo[]; voice_models: VoiceModelInfo[] }>("/api/voice/models"),
+  languages: (profileId?: string) =>
+    request<VoiceLanguageInfo[]>(`/api/voice/languages${profileId ? `?profile_id=${encodeURIComponent(profileId)}` : ""}`),
+  scripts: () => request<VoiceScriptInfo[]>("/api/voice/scripts"),
+  uploadScript: (file: File, title?: string) => {
+    const form = new FormData()
+    form.append("file", file)
+    if (title) form.append("title", title)
+    return request<VoiceScriptInfo>("/api/voice/scripts", { method: "POST", body: form })
+  },
+  estimate: (body: {
+    script_id: string
+    mode: VoiceJobMode
+    source_lang: string
+    targets: string[]
+    model: string
+    voice_model: VoiceModelId
+    split_by_language?: boolean
+  }) => request<VoiceEstimateResponse>("/api/voice/estimate", json("POST", body)),
+  queue: () => request<VoiceQueueStatus>("/api/voice/queue"),
+  jobs: (status?: string, projectId?: string | null) => {
+    const q = new URLSearchParams()
+    if (status) q.set("status", status)
+    if (projectId) q.set("project_id", projectId)
+    const qs = q.toString()
+    return request<VoiceJob[]>(`/api/voice/jobs${qs ? `?${qs}` : ""}`)
+  },
+  job: (id: number) => request<VoiceJob>(`/api/voice/jobs/${id}`),
+  createJobs: async (body: {
+    script_id: string
+    title?: string
+    project_id?: string | null
+    mode: VoiceJobMode
+    source_lang: string
+    targets: string[]
+    profile_id: string
+    voices?: Record<string, string>
+    model: string
+    voice_model: VoiceModelId
+    carry_mood: boolean
+    split_by_language?: boolean
+  }): Promise<VoiceJob[]> => {
+    const res = await request<{ jobs: VoiceJob[] } | VoiceJob>("/api/voice/jobs", json("POST", body))
+    return "jobs" in res ? res.jobs : [res]
+  },
+  stopJob: (id: number) => request<VoiceJob>(`/api/voice/jobs/${id}/stop`, json("POST")),
+  resumeJob: (id: number) => request<VoiceJob>(`/api/voice/jobs/${id}/resume`, json("POST")),
+  deleteJob: (id: number) => request<void>(`/api/voice/jobs/${id}`, { method: "DELETE" }),
+  revoiceSkipped: (id: number, voices: Record<string, string>) =>
+    request<VoiceJob>(`/api/voice/jobs/${id}/revoice-skipped`, json("POST", { voices })),
+  paragraphs: (jobId: number, lang: string, filter: ParagraphFilter = "all") =>
+    request<VoiceParagraph[]>(`/api/voice/jobs/${jobId}/languages/${lang}/paragraphs?filter=${filter}`),
+  peaks: (jobId: number, lang: string) =>
+    request<Record<string, number[]>>(`/api/voice/jobs/${jobId}/languages/${lang}/peaks`),
+  measureLength: (jobId: number, lang: string, n: number, text: string) =>
+    request<ParagraphLengthResponse>(`/api/voice/jobs/${jobId}/languages/${lang}/paragraphs/${n}/length`, json("POST", { text })),
+  patchParagraph: (jobId: number, lang: string, n: number, text: string, version: number) =>
+    request<VoiceParagraph>(`/api/voice/jobs/${jobId}/languages/${lang}/paragraphs/${n}`, json("PATCH", { text, version })),
+  revertParagraph: (jobId: number, lang: string, n: number) =>
+    request<VoiceParagraph>(`/api/voice/jobs/${jobId}/languages/${lang}/paragraphs/${n}/revert`, json("POST")),
+  retranslateParagraph: (jobId: number, lang: string, n: number) =>
+    request<VoiceParagraph>(`/api/voice/jobs/${jobId}/languages/${lang}/paragraphs/${n}/retranslate`, json("POST")),
+  revoiceParagraph: (jobId: number, lang: string, n: number) =>
+    request<VoiceParagraph>(`/api/voice/jobs/${jobId}/languages/${lang}/paragraphs/${n}/revoice`, json("POST")),
+  compareParagraphVoices: (jobId: number, lang: string, n: number) =>
+    request<CompareVoiceVariant[]>(`/api/voice/jobs/${jobId}/languages/${lang}/paragraphs/${n}/compare-voices`, json("POST")),
+  profiles: () => request<VoiceProfile[]>("/api/voice/profiles"),
+  createProfile: (body: { name: string; channels?: string[]; copy_from?: string | null }) =>
+    request<VoiceProfile>("/api/voice/profiles", json("POST", body)),
+  updateProfile: (
+    id: string,
+    patch: {
+      name?: string
+      channels?: string[]
+      voices?: Record<string, string[]>
+      default?: Record<string, string>
+      norms?: Record<string, [number, number]>
+    }
+  ) => request<VoiceProfile>(`/api/voice/profiles/${id}`, json("PATCH", patch)),
+  deleteProfile: (id: string) => request<void>(`/api/voice/profiles/${id}`, { method: "DELETE" }),
+  voices: () => request<VoiceEntry[]>("/api/voice/voices"),
+  addVoice: (body: { fish_url: string; name: string; langs?: string[] }) =>
+    request<VoiceEntry>("/api/voice/voices", json("POST", body)),
+  checkVoices: (body?: { profile_id?: string; voice_ids?: string[] }) =>
+    request<VoiceEntry[]>("/api/voice/voices/check", json("POST", body ?? {})),
+  eventsUrl: (jobId?: number) => {
+    const q = new URLSearchParams()
+    if (jobId !== undefined) q.set("job_id", String(jobId))
+    if (API_TOKEN) q.set("token", API_TOKEN)
+    const qs = q.toString()
+    return `${API_URL}/api/voice/events${qs ? `?${qs}` : ""}`
+  },
+  zipAllUrl: (jobId: number) => voiceMediaUrl(`/api/voice/jobs/${jobId}/zip`),
+}

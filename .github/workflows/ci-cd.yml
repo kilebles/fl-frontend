@@ -1,0 +1,56 @@
+name: CI / CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-check:
+    name: Typecheck & Next.js Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Production build check
+        run: npm run build
+
+  deploy-linux:
+    name: Deploy to Linux (89.127.192.164)
+    needs: build-and-check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.DEPLOY_SSH_KEY != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy /opt/fl-frontend via SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_HOST: ${{ secrets.DEPLOY_HOST || '89.127.192.164' }}
+          SSH_USER: ${{ secrets.DEPLOY_USER || 'root' }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          ssh "$SSH_USER@$SSH_HOST" '
+            set -e
+            cd /opt/fl-frontend
+            git fetch origin main
+            git reset --hard origin/main
+            npm ci
+            npm run build
+            systemctl restart fl-frontend.service
+          '

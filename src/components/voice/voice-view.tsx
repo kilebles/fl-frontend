@@ -192,7 +192,7 @@ export function VoiceView() {
   const [launchTargets, setLaunchTargets] = useState<string[]>(["RU", "ES", "PT", "DE", "IT", "PL", "FR"])
   const [launchVoices, setLaunchVoices] = useState<Record<string, string>>({})
   const [launchModel, setLaunchModel] = useState<string>("gemini-4-argon-medium")
-  const [launchVoiceModel, setLaunchVoiceModel] = useState<VoiceModelId>("drama-3")
+  const [launchVoiceModel, setLaunchVoiceModel] = useState<VoiceModelId>("s2.1")
   const [launchCarryMood, setLaunchCarryMood] = useState<boolean>(true)
   const [launchSplitByLang, setLaunchSplitByLang] = useState<boolean>(false)
   const [estimate, setEstimate] = useState<VoiceEstimateResponse | null>(null)
@@ -255,7 +255,6 @@ export function VoiceView() {
         const first = scriptsRes[0]
         setLaunchScriptId(first.script_id)
         setLaunchSourceLang(first.source_lang)
-        setLaunchVoiceModel(first.emotion_tags_count > 0 ? "drama-3" : "s2.1")
       }
       if (profsRes.length > 0) {
         const defProf = profsRes.find((p) => p.id === "p2") ?? profsRes[0]
@@ -569,10 +568,6 @@ export function VoiceView() {
       setScripts((prev) => [info, ...prev.filter((s) => s.script_id !== info.script_id)])
       setLaunchScriptId(info.script_id)
       setLaunchSourceLang(info.source_lang)
-      if (info.emotion_tags_count > 0) {
-        setLaunchVoiceModel("drama-3")
-        setLaunchCarryMood(true)
-      }
       toast.success(`Сценарий «${info.title}» загружен (${info.paragraphs_total} абзацев)`)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Ошибка чтения .docx")
@@ -1706,10 +1701,6 @@ export function VoiceView() {
                       onClick={() => {
                         setLaunchScriptId(s.script_id)
                         setLaunchSourceLang(s.source_lang)
-                        if (s.emotion_tags_count > 0) {
-                          setLaunchVoiceModel("drama-3")
-                          setLaunchCarryMood(true)
-                        }
                       }}
                       className={cn(
                         "flex flex-col items-start rounded-[4px] border p-3 text-left transition-colors",

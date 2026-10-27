@@ -686,8 +686,9 @@ export function VoiceView() {
         title: launchTitle.trim() || undefined,
       })
       setLaunchTitle("")
-      const jobsRes = await voice.jobs()
+      const [jobsRes, scriptsRes] = await Promise.all([voice.jobs(), voice.scripts()])
       setJobs(jobsRes)
+      setScripts(scriptsRes) // the original's language may have been changed by this launch
       if (createdJobs.length > 0) {
         setSelectedJobId(null)
         setScreen("workspace")
@@ -964,7 +965,31 @@ export function VoiceView() {
                   ) : null
                 }
               >
-                Языки · с {launchSourceLang}
+                <span className="flex items-center gap-1.5">
+                  Языки · с
+                  <span className="relative inline-flex items-center">
+                    <select
+                      value={launchSourceLang}
+                      title="Язык оригинала — определяется по тексту; поменяйте, если определился неверно"
+                      onChange={(e) => {
+                        const lang = e.target.value
+                        setLaunchSourceLang(lang)
+                        setLaunchTargets((prev) => prev.filter((x) => x !== lang))
+                      }}
+                      className="h-6 cursor-pointer appearance-none rounded-[3px] border border-line-strong bg-background py-0 pr-5 pl-1.5 font-mono text-xs text-foreground outline-none hover:border-electric/50 focus:border-electric/60"
+                    >
+                      {ALL_LANGS.map((l) => (
+                        <option key={l} value={l}>
+                          {l}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-1 size-3 text-muted-foreground" />
+                  </span>
+                  {selectedScriptObj && launchSourceLang !== selectedScriptObj.source_lang && (
+                    <span className="text-[11px] text-warn">вместо {selectedScriptObj.source_lang}</span>
+                  )}
+                </span>
               </Label>
               <div className={cn("flex rounded-[3px] bg-surface-2 p-[3px]", (launchMode === "voice" || launchMode === "mix") && "opacity-50")}>
                 {ALL_LANGS.filter((l) => l !== launchSourceLang).map((lang) => {

@@ -603,7 +603,9 @@ export const voice = {
   },
   stopJob: (id: number) => request<VoiceJob>(`/api/voice/jobs/${id}/stop`, json("POST")),
   resumeJob: (id: number) => request<VoiceJob>(`/api/voice/jobs/${id}/resume`, json("POST")),
-  deleteJob: (id: number) => request<void>(`/api/voice/jobs/${id}`, { method: "DELETE" }),
+  /** withFiles: also delete the script with its translations and tracks on the server. */
+  deleteJob: (id: number, withFiles = false) =>
+    request<void>(`/api/voice/jobs/${id}${withFiles ? "?with_files=true" : ""}`, { method: "DELETE" }),
   revoiceSkipped: (id: number, voices: Record<string, string>) =>
     request<VoiceJob>(`/api/voice/jobs/${id}/revoice-skipped`, json("POST", { voices })),
   paragraphs: (jobId: number, lang: string, filter: ParagraphFilter = "all") =>

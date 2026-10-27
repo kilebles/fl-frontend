@@ -3,10 +3,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   AlertTriangle,
+  ArrowLeft,
   AudioLines,
   Check,
   CheckCircle2,
-  ChevronRight,
   Clock,
   Download,
   Edit3,
@@ -35,6 +35,7 @@ import {
 import { toast } from "sonner"
 
 import { PageHeader } from "@/components/shell/page-header"
+import { DeleteProjectDialog, ProjectList } from "@/components/voice/project-list"
 import {
   type CompareVoiceVariant,
   type ParagraphFilter,
@@ -138,7 +139,7 @@ export function VoiceView() {
   const [translationModels, setTranslationModels] = useState<TranslationModelInfo[]>([])
   const [voiceModels, setVoiceModels] = useState<VoiceModelInfo[]>([])
   const [languagesInfo, setLanguagesInfo] = useState<VoiceLanguageInfo[]>([])
-  const [queueStatus, setQueueStatus] = useState<VoiceQueueStatus | null>(null)
+  const [, setQueueStatus] = useState<VoiceQueueStatus | null>(null)
 
   // Active workspace state
   const [selectedJobId, setSelectedJobId] = useState<number | null>(null)
@@ -216,8 +217,10 @@ export function VoiceView() {
   const [addingVoice, setAddingVoice] = useState(false)
   const [checkingVoices, setCheckingVoices] = useState(false)
 
+  const [deleteTarget, setDeleteTarget] = useState<VoiceJob | null>(null)
+
   const selectedJob = useMemo(
-    () => jobs.find((j) => j.id === selectedJobId) ?? jobs[0] ?? null,
+    () => (selectedJobId === null ? null : jobs.find((j) => j.id === selectedJobId) ?? null),
     [jobs, selectedJobId]
   )
 
@@ -248,9 +251,6 @@ export function VoiceView() {
       setLanguagesInfo(langsRes)
       setQueueStatus(queueRes)
 
-      if (jobsRes.length > 0 && selectedJobId === null) {
-        setSelectedJobId(jobsRes[0].id)
-      }
       if (scriptsRes.length > 0 && !launchScriptId) {
         const first = scriptsRes[0]
         setLaunchScriptId(first.script_id)
@@ -267,7 +267,7 @@ export function VoiceView() {
     } finally {
       setLoading(false)
     }
-  }, [selectedJobId, launchScriptId])
+  }, [launchScriptId])
 
   useEffect(() => {
     void loadInitialData()
@@ -603,7 +603,7 @@ export function VoiceView() {
       const jobsRes = await voice.jobs()
       setJobs(jobsRes)
       if (createdJobs.length > 0) {
-        setSelectedJobId(createdJobs[0].id)
+        setSelectedJobId(null)
         setScreen("workspace")
       }
       toast.success(
@@ -749,49 +749,30 @@ export function VoiceView() {
 
   return (
     <div className="px-4 pt-6 pb-24 sm:px-7">
-      {/* Top breadcrumb + Screen Switcher */}
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-        <div className="flex items-center gap-1.5">
-          <span>Озвучка и перевод</span>
-          {selectedJob && (
-            <>
-              <ChevronRight className="size-3.5 text-faint" />
-              <span className="font-medium text-foreground-2">
-                #{selectedJob.id} · {selectedJob.title}
-              </span>
-              <span className="rounded-[2px] border border-line-strong bg-surface-2 px-1.5 py-0.5 font-mono text-[11px]">
-                {selectedJob.voice_model === "drama-3" ? "Fish Drama 3" : "Fish S2.1"}
-              </span>
-            </>
-          )}
-        </div>
-        {queueStatus && (
-          <div className="flex flex-wrap items-center gap-3 font-mono text-[11px]">
-            <span>
-              Очередь: <strong className="text-foreground">{queueStatus.running}</strong> в работе ·{" "}
-              <strong className="text-foreground">{queueStatus.queued}</strong> ждёт
-            </span>
-            <span className="text-faint">|</span>
-            <span>Gemini {queueStatus.slots.gemini.used}/{queueStatus.slots.gemini.total}</span>
-            <span>Claude {queueStatus.slots.claude.used}/{queueStatus.slots.claude.total}</span>
-            <span>Fish {queueStatus.slots.voice.used}/{queueStatus.slots.voice.total}</span>
-          </div>
-        )}
-      </div>
+      {screen === "workspace" && selectedJob && (
+        <button
+          type="button"
+          onClick={() => setSelectedJobId(null)}
+          className="mb-2 flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="size-3.5" />
+          Все проекты
+        </button>
+      )}
 
       <PageHeader
-        title="Озвучка и перевод"
+        title={screen === "workspace" && selectedJob ? selectedJob.title : "Озвучка и перевод"}
         subtitle={
-          selectedJob
-            ? `${selectedJob.targets.length} целевых языков · ${selectedJob.paragraphs_total} абзацев · основа ${selectedJob.source_lang} · ~${formatDuration(selectedJob.source_duration_sec)} · профиль «${selectedJob.profile_name}»`
-            : "Перевод сценария, синтез речи в Fish Audio (S2.1 и Drama 3) и автоматическое сведение по таймингу"
+          screen === "workspace" && selectedJob
+            ? `${selectedJob.targets.length} яз. · ${selectedJob.paragraphs_total} абз. · основа ${selectedJob.source_lang} · ${formatDuration(selectedJob.source_duration_sec)} · профиль «${selectedJob.profile_name}» · ${selectedJob.voice_model === "drama-3" ? "Fish Drama 3" : "Fish S2.1"}`
+            : undefined
         }
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex rounded-[4px] border border-line bg-surface p-0.5 text-[13px]">
               {(
                 [
-                  ["workspace", "Рабочий экран", AudioLines],
+                  ["workspace", "Проекты", AudioLines],
                   ["launch", "Запуск и очередь", Sparkles],
                   ["profiles", "Профили и голоса", Settings2],
                 ] as const
@@ -799,7 +780,10 @@ export function VoiceView() {
                 <button
                   key={id}
                   type="button"
-                  onClick={() => setScreen(id)}
+                  onClick={() => {
+                    setScreen(id)
+                    if (id === "workspace") setSelectedJobId(null)
+                  }}
                   className={cn(
                     "flex items-center gap-1.5 rounded-[3px] px-3 py-1.5 font-medium transition-colors",
                     screen === id
@@ -830,52 +814,19 @@ export function VoiceView() {
       {/* =================================================================== */}
       {/* SCREEN 1: РАБОЧИЙ ЭКРАН (WORKSPACE)                                 */}
       {/* =================================================================== */}
+      {screen === "workspace" && !selectedJob && (
+        <ProjectList
+          jobs={jobs}
+          onOpen={(id) => setSelectedJobId(id)}
+          onDelete={(j) => setDeleteTarget(j)}
+          onCreate={() => setScreen("launch")}
+        />
+      )}
+
       {screen === "workspace" && selectedJob && (
         <div className="space-y-5">
-          {/* Job Selector Strip + Global Actions */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[4px] border border-line bg-surface p-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-medium text-muted-foreground">Задача:</span>
-              <div className="flex flex-wrap gap-1.5">
-                {jobs.slice(0, 7).map((j) => {
-                  const active = j.id === selectedJob.id
-                  return (
-                    <button
-                      key={j.id}
-                      type="button"
-                      onClick={() => setSelectedJobId(j.id)}
-                      className={cn(
-                        "flex items-center gap-1.5 rounded-[3px] border px-2.5 py-1 text-xs transition-colors",
-                        active
-                          ? "border-electric bg-electric-soft font-medium text-foreground"
-                          : "border-line bg-surface-2 text-muted-foreground hover:border-line-strong hover:text-foreground"
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "size-1.5 rounded-full",
-                          j.status === "done"
-                            ? "bg-ok"
-                            : j.status === "running"
-                              ? "animate-pulse bg-electric"
-                              : j.status === "failed"
-                                ? "bg-danger"
-                                : "bg-warn"
-                        )}
-                      />
-                      <span className="font-mono text-[11px] opacity-75">#{j.id}</span>
-                      <span className="max-w-[160px] truncate">{j.title}</span>
-                      {j.voice_model === "drama-3" && (
-                        <span className="rounded-[2px] bg-electric/20 px-1 py-0.2 font-mono text-[10px] text-electric-text">
-                          Drama 3
-                        </span>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
+          {/* Job actions */}
+          <div className="flex flex-wrap items-center justify-end gap-3">
             <div className="flex flex-wrap items-center gap-2">
               {selectedJob.emotion_tags_count > 0 && (
                 <span className="flex items-center gap-1 rounded-[3px] border border-electric/30 bg-electric-soft px-2 py-1 text-xs text-electric-text">
@@ -931,6 +882,15 @@ export function VoiceView() {
                 <Download className="size-3.5" />
                 Скачать всё (.zip)
               </a>
+              <button
+                type="button"
+                title="Удалить проект"
+                onClick={() => setDeleteTarget(selectedJob)}
+                className="flex h-8 items-center gap-1.5 rounded-[3px] border border-line-strong bg-surface-2 px-2.5 text-xs font-medium text-muted-foreground hover:border-danger/40 hover:bg-danger/10 hover:text-danger"
+              >
+                <Trash2 className="size-3.5" />
+                Удалить
+              </button>
             </div>
           </div>
 
@@ -2064,99 +2024,23 @@ export function VoiceView() {
                 Запустить в очередь
               </button>
             </div>
-
-            {/* Active Queue & History */}
-            <div className="rounded-[4px] border border-line bg-surface p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-semibold">Очередь и история задач ({jobs.length})</h3>
-                {queueStatus && (
-                  <span className="font-mono text-[11px] text-muted-foreground">
-                    {queueStatus.running} в работе
-                  </span>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                {jobs.map((j) => (
-                  <div
-                    key={j.id}
-                    className="flex items-center justify-between gap-2 rounded-[3px] border border-line bg-surface-2/60 p-2.5 text-xs"
-                  >
-                    <div
-                      onClick={() => {
-                        setSelectedJobId(j.id)
-                        setScreen("workspace")
-                      }}
-                      className="min-w-0 flex-1 cursor-pointer"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-[11px] text-muted-foreground">#{j.id}</span>
-                        <span className="truncate font-medium text-foreground hover:underline">
-                          {j.title}
-                        </span>
-                      </div>
-                      <div className="mt-0.5 flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
-                        <span>{j.targets.length} яз.</span>
-                        <span>·</span>
-                        <span>{j.voice_model}</span>
-                        <span>·</span>
-                        <span
-                          className={cn(
-                            j.status === "done"
-                              ? "text-ok"
-                              : j.status === "running"
-                                ? "text-electric-text"
-                                : j.status === "failed"
-                                  ? "text-danger"
-                                  : "text-warn"
-                          )}
-                        >
-                          {j.status === "done"
-                            ? "Готово"
-                            : j.status === "running"
-                              ? "В работе"
-                              : j.status === "queued"
-                                ? "В очереди"
-                                : j.status}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedJobId(j.id)
-                          setScreen("workspace")
-                        }}
-                        className="rounded-[2px] border border-line-strong bg-surface px-2 py-1 text-[11px] hover:bg-elev"
-                      >
-                        Открыть
-                      </button>
-                      <button
-                        type="button"
-                        title="Удалить из очереди"
-                        onClick={async () => {
-                          try {
-                            await voice.deleteJob(j.id)
-                            setJobs((prev) => prev.filter((x) => x.id !== j.id))
-                            toast.success(`Задача #${j.id} удалена`)
-                          } catch (e) {
-                            toast.error(e instanceof Error ? e.message : "Ошибка удаления")
-                          }
-                        }}
-                        className="flex size-6 items-center justify-center rounded-[2px] text-muted-foreground hover:bg-danger/15 hover:text-danger"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
       )}
+
+      <DeleteProjectDialog
+        job={deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onDeleted={(job) => {
+          setDeleteTarget(null)
+          setJobs((prev) => prev.filter((j) => j.script !== job.script))
+          setScripts((prev) => prev.filter((sc) => sc.script_id !== job.script))
+          if (launchScriptId === job.script) setLaunchScriptId("")
+          if (selectedJobId !== null && jobs.find((j) => j.id === selectedJobId)?.script === job.script) setSelectedJobId(null)
+          toast.success(`«${job.title}» удалён`)
+          void voice.jobs().then(setJobs).catch(() => {})
+        }}
+      />
 
       {/* =================================================================== */}
       {/* SCREEN 3: ПРОФИЛИ ОЗВУЧКИ И БИБЛИОТЕКА ГОЛОСОВ                       */}

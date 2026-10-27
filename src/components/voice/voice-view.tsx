@@ -159,7 +159,9 @@ function Tabs({
           onClick={() => onChange(id)}
           className={cn(
             "flex-1 truncate rounded-[2px] px-2.5 py-2 text-sm whitespace-nowrap transition-colors",
-            value === id ? "bg-elev font-medium text-foreground" : "text-foreground-2 hover:text-foreground"
+            value === id
+              ? "bg-electric/25 font-medium text-foreground ring-1 ring-electric ring-inset"
+              : "text-foreground-2 hover:bg-elev/60 hover:text-foreground"
           )}
         >
           {label}
@@ -276,6 +278,7 @@ export function VoiceView() {
   const [launchVoiceModel, setLaunchVoiceModel] = useState<VoiceModelId>("s2.1")
   const [launchCarryMood, setLaunchCarryMood] = useState<boolean>(true)
   const [launchTurbo, setLaunchTurbo] = useState<boolean>(false)
+  const [launchTitle, setLaunchTitle] = useState<string>("")
   const [estimate, setEstimate] = useState<VoiceEstimateResponse | null>(null)
   const [submittingJob, setSubmittingJob] = useState(false)
 
@@ -680,7 +683,9 @@ export function VoiceView() {
         voice_model: launchVoiceModel,
         carry_mood: launchVoiceModel === "drama-3" ? launchCarryMood : false,
         turbo: launchTurbo && launchTargets.length > 1,
+        title: launchTitle.trim() || undefined,
       })
+      setLaunchTitle("")
       const jobsRes = await voice.jobs()
       setJobs(jobsRes)
       if (createdJobs.length > 0) {
@@ -854,7 +859,7 @@ export function VoiceView() {
               {(
                 [
                   ["workspace", "Проекты", AudioLines],
-                  ["profiles", "Профили и голоса", Settings2],
+                  ["profiles", "Профили голоса", Settings2],
                 ] as const
               ).map(([id, label, Icon]) => (
                 <button
@@ -887,7 +892,17 @@ export function VoiceView() {
       {screen === "workspace" && !selectedJob && (
         <section className="mb-6 rounded-[4px] border border-line bg-surface">
           <div className="grid grid-cols-1 gap-x-5 gap-y-5 p-5 md:grid-cols-2 xl:grid-cols-12">
-            <div className="xl:col-span-4">
+            <div className="xl:col-span-3">
+              <Label>Название</Label>
+              <input
+                value={launchTitle}
+                onChange={(e) => setLaunchTitle(e.target.value)}
+                placeholder={selectedScriptObj?.title ?? "Название проекта"}
+                className="h-10 w-full rounded-[3px] border border-line-strong bg-background px-3 text-sm outline-none placeholder:text-faint focus:border-electric/60"
+              />
+            </div>
+
+            <div className="xl:col-span-3">
               <Label>Сценарий</Label>
               <div className="flex gap-2">
                 <div className="min-w-0 flex-1">
@@ -931,21 +946,7 @@ export function VoiceView() {
               </div>
             </div>
 
-            <div className="xl:col-span-4">
-              <Label>Режим</Label>
-              <Tabs
-                value={launchMode}
-                onChange={(v) => setLaunchMode(v as VoiceJobMode)}
-                options={[
-                  ["all", "Всё", "Перевод, озвучка и сведение под длину оригинала"],
-                  ["translate", "Перевод", "Только перевод по нормам длины"],
-                  ["voice", "Озвучка", "Только озвучка готового текста"],
-                  ["mix", "Сведение", "Только сведение готовых дорожек"],
-                ]}
-              />
-            </div>
-
-            <div className="md:col-span-2 xl:col-span-4">
+            <div className="xl:col-span-3">
               <Label
                 aside={
                   launchMode !== "voice" && launchMode !== "mix" ? (
@@ -979,8 +980,10 @@ export function VoiceView() {
                       onClick={() => setLaunchTargets((prev) => (on ? prev.filter((x) => x !== lang) : [...prev, lang]))}
                       className={cn(
                         "flex-1 rounded-[2px] py-2 font-mono text-[13px] transition-colors",
-                        on ? "bg-elev font-medium text-foreground" : "text-faint hover:text-foreground-2",
-                        on && missing && "text-danger"
+                        on
+                          ? "bg-ok/20 font-medium text-ok ring-1 ring-ok/70 ring-inset"
+                          : "text-foreground-2 hover:bg-elev/60 hover:text-foreground",
+                        on && missing && "bg-danger/10 text-danger ring-danger/50"
                       )}
                     >
                       {lang}
@@ -990,7 +993,7 @@ export function VoiceView() {
               </div>
             </div>
 
-            <div className="xl:col-span-4">
+            <div className="xl:col-span-3">
               <Label
                 aside={
                   <button
@@ -1003,7 +1006,7 @@ export function VoiceView() {
                   </button>
                 }
               >
-                Голоса
+                Профиль голоса
               </Label>
               <Pick
                 value={launchProfileId}
@@ -1013,6 +1016,20 @@ export function VoiceView() {
                   if (prof) setLaunchVoices({ ...prof.default })
                 }}
                 options={profiles.map((p) => ({ value: p.id, label: p.name, hint: p.channels.join(", ") || undefined }))}
+              />
+            </div>
+
+            <div className="xl:col-span-4">
+              <Label>Режим</Label>
+              <Tabs
+                value={launchMode}
+                onChange={(v) => setLaunchMode(v as VoiceJobMode)}
+                options={[
+                  ["all", "Все", "Перевод, озвучка и сведение под длину оригинала"],
+                  ["translate", "Перевод", "Только перевод по нормам длины"],
+                  ["voice", "Озвучка", "Только озвучка готового текста"],
+                  ["mix", "Сведение", "Только сведение готовых дорожек"],
+                ]}
               />
             </div>
 
@@ -1101,10 +1118,9 @@ export function VoiceView() {
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
               {selectedScriptObj && (
                 <span className="font-mono text-[11px]">
-                  {selectedScriptObj.paragraphs_total} абз. · ~{Math.max(1, Math.round((estimate?.duration_sec ?? 900) / 60))} мин
-                  {launchMode !== "translate" && launchMode !== "mix" && estimate
-                    ? ` · Fish до $${estimate.max_fish_cost_usd.toFixed(2)}`
-                    : ""}
+                  {selectedScriptObj.paragraphs_total} абз.
+                  {selectedScriptObj.chars_total ? ` · ${selectedScriptObj.chars_total.toLocaleString("ru")} симв.` : ""}
+                  {` · ~${Math.max(1, Math.round((estimate?.duration_sec ?? 900) / 60))} мин`}
                 </span>
               )}
             </div>
@@ -1118,8 +1134,8 @@ export function VoiceView() {
                   className={cn(
                     "flex h-10 items-center gap-1.5 rounded-[3px] border px-3.5 text-sm font-medium transition-colors",
                     launchTurbo
-                      ? "border-electric bg-electric-soft text-electric-text"
-                      : "border-line-strong text-muted-foreground hover:text-foreground"
+                      ? "border-electric bg-electric/25 text-foreground"
+                      : "border-line-strong text-foreground-2 hover:bg-elev/60 hover:text-foreground"
                   )}
                 >
                   <Zap className={cn("size-3.5", launchTurbo && "fill-current")} />
@@ -1143,6 +1159,9 @@ export function VoiceView() {
       {screen === "workspace" && !selectedJob && (
         <ProjectList
           jobs={jobs}
+          modelLabel={(id) =>
+            (translationModels.find((tm) => tm.id === id)?.label ?? id).replace(/^Gemini [\d.]+ /, "")
+          }
           onOpen={(id) => setSelectedJobId(id)}
           onDelete={(j) => setDeleteTarget(j)}
         />

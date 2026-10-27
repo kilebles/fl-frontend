@@ -9,9 +9,61 @@ import { timeAgo } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
 const MODE_LABEL: Record<string, string> = {
+  all: "все этапы",
   translate: "только перевод",
   voice: "только озвучка",
   mix: "только сведение",
+}
+
+/** Colour of each stage on the progress line (and its caption). */
+const STAGES = [
+  { key: "translate", label: "перевод", bar: "bg-electric", text: "text-electric-text" },
+  { key: "voice", label: "озвучка", bar: "bg-violet-400", text: "text-violet-300" },
+  { key: "mix", label: "сведение", bar: "bg-warn", text: "text-warn" },
+] as const
+type StageKey = (typeof STAGES)[number]["key"]
+
+function avg(xs: (number | null)[]): number | null {
+  const v = xs.filter((x): x is number => x !== null)
+  return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null
+}
+
+/** Done share of each stage of the job (null — the stage is not part of this mode). */
+function stageProgress(job: VoiceJob): Record<StageKey, number | null> {
+  const ls = job.languages
+  return {
+    translate:
+      job.mode === "all" || job.mode === "translate"
+        ? avg(ls.map((l) => (l.translate ? stageFraction({ state: l.translate.state, done: l.translate.parts_done, total: l.translate.parts_total }) : null)))
+        : null,
+    voice: job.mode === "all" || job.mode === "voice" ? avg(ls.map((l) => stageFraction(l.voice))) : null,
+    mix: job.mode === "all" || job.mode === "mix" ? avg(ls.map((l) => stageFraction(l.mix))) : null,
+  }
+}
+
+function StageLine({ job }: { job: VoiceJob }) {
+  const prog = stageProgress(job)
+  const shown = STAGES.filter((st) => prog[st.key] !== null)
+  const current = shown.find((st) => (prog[st.key] ?? 1) < 1)
+  return (
+    <div className="flex gap-1">
+      {shown.map((st) => {
+        const f = prog[st.key] ?? 0
+        const on = current?.key === st.key && job.status === "running"
+        return (
+          <div key={st.key} className="min-w-0 flex-1">
+            <div className="h-1.5 overflow-hidden rounded-full bg-elev">
+              <div
+                className={cn("h-full rounded-full transition-[width] duration-700", st.bar, !on && f < 1 && "opacity-60")}
+                style={{ width: `${Math.max(f * 100, on ? 4 : 0)}%` }}
+              />
+            </div>
+            <div className={cn("mt-1 truncate text-[10px]", on || f >= 1 ? st.text : "text-faint")}>{st.label}</div>
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 function formatDuration(sec: number | null | undefined): string {
@@ -98,14 +150,23 @@ function useNow(everyMs = 30_000): number | null {
 function ProjectRow({
   job,
   now,
+  modelLabel,
   onOpen,
   onDelete,
 }: {
   job: VoiceJob
   now: number | null
+  modelLabel: (id: string) => string
   onOpen: () => void
   onDelete: () => void
 }) {
+  const meta = [
+    `${job.source_lang} → ${job.targets.join(" ") || "—"}`,
+    MODE_LABEL[job.mode] ?? job.mode,
+    job.mode === "all" || job.mode === "translate" ? modelLabel(job.model) : "",
+    job.mode === "all" || job.mode === "voice" ? (job.voice_model === "drama-3" ? "Drama 3" : "S2.1") : "",
+    job.profile_name,
+  ].filter(Boolean)
   const active = job.status === "running" || job.status === "queued" || job.status === "paused_rate_limit"
   const pct = Math.round(jobProgress(job) * 100)
   const { facts, warning } = job.status === "done" ? doneFacts(job) : { facts: [], warning: null }
@@ -118,31 +179,27 @@ function ProjectRow({
       onKeyDown={(e) => {
         if (e.key === "Enter") onOpen()
       }}
-      className="group grid cursor-pointer grid-cols-[minmax(0,1fr)_64px] items-center gap-x-6 gap-y-2 border-b border-line px-4 py-3.5 transition-colors last:border-b-0 hover:bg-surface-2/60 sm:grid-cols-[minmax(0,1fr)_minmax(0,340px)_64px]"
+      className="group grid cursor-pointer grid-cols-[minmax(0,1fr)_64px] items-center gap-x-8 gap-y-3 border-b border-line px-4 py-3.5 transition-colors last:border-b-0 hover:bg-surface-2/60 md:grid-cols-[minmax(0,1fr)_minmax(0,400px)_64px]"
     >
       <div className="min-w-0">
-        <div className="truncate text-sm font-medium text-foreground">{job.title}</div>
-        <div className="mt-0.5 truncate font-mono text-[11px] text-faint">
-          {job.source_lang} → {job.targets.join(" ") || "—"}
-          {job.turbo ? " · turbo" : ""}
-          {MODE_LABEL[job.mode] ? ` · ${MODE_LABEL[job.mode]}` : ""}
-          {now !== null ? ` · ${timeAgo(job.created_at, now)}` : ""}
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="truncate text-sm font-medium text-foreground">{job.title}</span>
+          {job.turbo && (
+            <span className="shrink-0 rounded-[2px] bg-electric/15 px-1.5 py-px font-mono text-[10px] text-electric-text">turbo</span>
+          )}
+          {now !== null && <span className="shrink-0 text-[11px] text-faint">{timeAgo(job.created_at, now)}</span>}
         </div>
+        <div className="mt-1 text-xs text-muted-foreground md:truncate">{meta.join(" · ")}</div>
       </div>
 
-      <div className="order-last col-span-2 min-w-0 sm:order-none sm:col-span-1">
+      <div className="order-last col-span-2 min-w-0 md:order-none md:col-span-1 md:border-l md:border-line md:pl-8">
         {active ? (
           <div>
-            <div className="mb-1.5 flex items-baseline justify-between gap-3 text-xs">
-              <span className="truncate text-muted-foreground">{currentStep(job)}</span>
-              <span className="font-mono text-[11px] text-foreground-2">{pct}%</span>
+            <div className="mb-2 flex items-baseline justify-between gap-3 text-xs">
+              <span className="truncate text-foreground-2">{currentStep(job)}</span>
+              <span className="font-mono text-[11px] text-muted-foreground">{pct}%</span>
             </div>
-            <div className="h-1 overflow-hidden rounded-full bg-elev">
-              <div
-                className={cn("h-full rounded-full transition-[width] duration-700", job.status === "running" ? "bar-running" : "bg-faint")}
-                style={{ width: `${Math.max(pct, job.status === "running" ? 3 : 0)}%` }}
-              />
-            </div>
+            <StageLine job={job} />
           </div>
         ) : job.status === "done" ? (
           <div className="flex min-w-0 items-baseline gap-2 text-xs">
@@ -186,10 +243,12 @@ function ProjectRow({
 
 export function ProjectList({
   jobs,
+  modelLabel = (id) => id,
   onOpen,
   onDelete,
 }: {
   jobs: VoiceJob[]
+  modelLabel?: (id: string) => string
   onOpen: (id: number) => void
   onDelete: (job: VoiceJob) => void
 }) {
@@ -200,7 +259,14 @@ export function ProjectList({
   return (
     <div className="overflow-hidden rounded-[4px] border border-line bg-surface">
       {jobs.map((j) => (
-        <ProjectRow key={j.id} job={j} now={now} onOpen={() => onOpen(j.id)} onDelete={() => onDelete(j)} />
+        <ProjectRow
+          key={j.id}
+          job={j}
+          now={now}
+          modelLabel={modelLabel}
+          onOpen={() => onOpen(j.id)}
+          onDelete={() => onDelete(j)}
+        />
       ))}
     </div>
   )

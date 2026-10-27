@@ -498,6 +498,7 @@ export interface VoiceScriptInfo {
   source_lang: string
   paragraphs_total: number
   words_total: number
+  chars_total?: number
   emotion_tags_count: number
   bytes_total: number
   errors: string[]

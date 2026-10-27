@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   AudioLines,
+  ChevronDown,
   Check,
   CheckCircle2,
   Clock,
@@ -35,6 +36,7 @@ import {
 import { toast } from "sonner"
 
 import { PageHeader } from "@/components/shell/page-header"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { DeleteProjectDialog, ProjectList } from "@/components/voice/project-list"
 import {
   type CompareVoiceVariant,
@@ -57,7 +59,7 @@ import {
 } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
-type ScreenTab = "workspace" | "launch" | "profiles"
+type ScreenTab = "workspace" | "profiles"
 
 const LANG_NAMES: Record<string, string> = {
   EN: "Английский",
@@ -124,6 +126,83 @@ function RichTaggedText({ text }: { text: string }) {
         return <React.Fragment key={idx}>{part}</React.Fragment>
       })}
     </>
+  )
+}
+
+function Label({ children, aside }: { children: React.ReactNode; aside?: React.ReactNode }) {
+  return (
+    <div className="mb-2 flex min-h-5 items-center justify-between gap-2 text-[13px] text-muted-foreground">
+      <span>{children}</span>
+      {aside}
+    </div>
+  )
+}
+
+/** One-of choice in the style of the batch form; an option is [value, label, tooltip?]. */
+function Tabs({
+  value,
+  onChange,
+  options,
+}: {
+  value: string
+  onChange: (value: string) => void
+  options: (readonly [string, string] | readonly [string, string, string])[]
+}) {
+  return (
+    <div className="flex rounded-[3px] bg-surface-2 p-[3px]">
+      {options.map(([id, label, hint]) => (
+        <button
+          key={id}
+          type="button"
+          title={hint}
+          onClick={() => onChange(id)}
+          className={cn(
+            "flex-1 truncate rounded-[2px] px-2.5 py-2 text-sm whitespace-nowrap transition-colors",
+            value === id ? "bg-elev font-medium text-foreground" : "text-foreground-2 hover:text-foreground"
+          )}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/** Dropdown with a hint line per option. */
+function Pick({
+  value,
+  options,
+  onChange,
+  placeholder = "Выбрать",
+}: {
+  value: string
+  options: { value: string; label: string; hint?: string }[]
+  onChange: (value: string) => void
+  placeholder?: string
+}) {
+  const current = options.find((o) => o.value === value)
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        disabled={!options.length}
+        className="flex h-10 w-full min-w-0 items-center gap-2 rounded-[3px] border border-line-strong bg-background px-3 text-left text-sm transition-colors hover:border-electric/40 disabled:opacity-50 aria-expanded:border-electric/60"
+      >
+        <span className={cn("min-w-0 flex-1 truncate", !current && "text-faint")}>{current?.label ?? placeholder}</span>
+        {current?.hint && <span className="hidden shrink-0 font-mono text-[11px] text-faint sm:inline">{current.hint}</span>}
+        <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" sideOffset={4} className="max-h-80 w-(--anchor-width) min-w-56 overflow-y-auto rounded-[4px] p-1">
+        {options.map((o) => (
+          <DropdownMenuItem key={o.value} onClick={() => onChange(o.value)} className="gap-2 rounded-[3px] px-2.5 py-2">
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm">{o.label}</span>
+              {o.hint && <span className="block truncate font-mono text-[11px] text-muted-foreground">{o.hint}</span>}
+            </span>
+            {o.value === value && <Check className="size-4 shrink-0 text-electric" />}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
@@ -218,6 +297,7 @@ export function VoiceView() {
   const [checkingVoices, setCheckingVoices] = useState(false)
 
   const [deleteTarget, setDeleteTarget] = useState<VoiceJob | null>(null)
+  const [showLaunchVoices, setShowLaunchVoices] = useState(false)
 
   const selectedJob = useMemo(
     () => (selectedJobId === null ? null : jobs.find((j) => j.id === selectedJobId) ?? null),
@@ -773,7 +853,6 @@ export function VoiceView() {
               {(
                 [
                   ["workspace", "Проекты", AudioLines],
-                  ["launch", "Запуск и очередь", Sparkles],
                   ["profiles", "Профили и голоса", Settings2],
                 ] as const
               ).map(([id, label, Icon]) => (
@@ -797,16 +876,6 @@ export function VoiceView() {
               ))}
             </div>
 
-            {screen !== "launch" && (
-              <button
-                type="button"
-                onClick={() => setScreen("launch")}
-                className="flex h-8 items-center gap-1.5 rounded-[4px] bg-electric px-3 text-[13px] font-medium text-white transition-opacity hover:opacity-90"
-              >
-                <Plus className="size-3.5" />
-                Новая задача
-              </button>
-            )}
           </div>
         }
       />
@@ -815,11 +884,258 @@ export function VoiceView() {
       {/* SCREEN 1: РАБОЧИЙ ЭКРАН (WORKSPACE)                                 */}
       {/* =================================================================== */}
       {screen === "workspace" && !selectedJob && (
+        <section className="mb-6 rounded-[4px] border border-line bg-surface">
+          <div className="grid grid-cols-1 gap-x-5 gap-y-5 p-5 md:grid-cols-2 xl:grid-cols-12">
+            <div className="xl:col-span-4">
+              <Label>Сценарий</Label>
+              <div className="flex gap-2">
+                <div className="min-w-0 flex-1">
+                  <Pick
+                    value={launchScriptId}
+                    placeholder="Загрузите .docx"
+                    onChange={(id) => {
+                      const sc = scripts.find((x) => x.script_id === id)
+                      setLaunchScriptId(id)
+                      if (sc) setLaunchSourceLang(sc.source_lang)
+                    }}
+                    options={scripts.map((sc) => ({
+                      value: sc.script_id,
+                      label: sc.title,
+                      hint: `${sc.source_lang} · ${sc.paragraphs_total} абз.`,
+                    }))}
+                  />
+                </div>
+                <label
+                  title="Загрузить .docx"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    const f = e.dataTransfer.files?.[0]
+                    if (f) void handleScriptUpload(f)
+                  }}
+                  className="grid size-10 shrink-0 cursor-pointer place-items-center rounded-[3px] border border-dashed border-line-strong text-muted-foreground transition-colors hover:border-electric/50 hover:text-foreground"
+                >
+                  {uploadingScript ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+                  <input
+                    type="file"
+                    accept=".docx"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0]
+                      if (f) void handleScriptUpload(f)
+                      e.target.value = ""
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="xl:col-span-4">
+              <Label>Режим</Label>
+              <Tabs
+                value={launchMode}
+                onChange={(v) => setLaunchMode(v as VoiceJobMode)}
+                options={[
+                  ["all", "Всё", "Перевод, озвучка и сведение под длину оригинала"],
+                  ["translate", "Перевод", "Только перевод по нормам длины"],
+                  ["voice", "Озвучка", "Только озвучка готового текста"],
+                  ["mix", "Сведение", "Только сведение готовых дорожек"],
+                ]}
+              />
+            </div>
+
+            <div className="md:col-span-2 xl:col-span-4">
+              <Label
+                aside={
+                  launchMode !== "voice" && launchMode !== "mix" ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setLaunchTargets(
+                          launchTargets.length === ALL_LANGS.length - 1 ? [] : ALL_LANGS.filter((l) => l !== launchSourceLang)
+                        )
+                      }
+                      className="text-xs text-faint hover:text-foreground"
+                    >
+                      {launchTargets.length === ALL_LANGS.length - 1 ? "снять все" : "все"}
+                    </button>
+                  ) : null
+                }
+              >
+                Языки · с {launchSourceLang}
+              </Label>
+              <div className={cn("flex rounded-[3px] bg-surface-2 p-[3px]", (launchMode === "voice" || launchMode === "mix") && "opacity-50")}>
+                {ALL_LANGS.filter((l) => l !== launchSourceLang).map((lang) => {
+                  const on = launchTargets.includes(lang)
+                  const vid = launchVoices[lang] ?? profiles.find((p) => p.id === launchProfileId)?.default[lang]
+                  const missing = vid ? voicesById[vid]?.status === "missing" : false
+                  return (
+                    <button
+                      key={lang}
+                      type="button"
+                      disabled={launchMode === "voice" || launchMode === "mix"}
+                      title={`${LANG_NAMES[lang]}${missing ? " — голос недоступен в Fish" : ""}`}
+                      onClick={() => setLaunchTargets((prev) => (on ? prev.filter((x) => x !== lang) : [...prev, lang]))}
+                      className={cn(
+                        "flex-1 rounded-[2px] py-2 font-mono text-[13px] transition-colors",
+                        on ? "bg-elev font-medium text-foreground" : "text-faint hover:text-foreground-2",
+                        on && missing && "text-danger"
+                      )}
+                    >
+                      {lang}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="xl:col-span-4">
+              <Label
+                aside={
+                  <button
+                    type="button"
+                    onClick={() => setShowLaunchVoices((v) => !v)}
+                    className="flex items-center gap-1 text-xs text-faint hover:text-foreground"
+                  >
+                    по языкам
+                    <ChevronDown className={cn("size-3 transition-transform", showLaunchVoices && "rotate-180")} />
+                  </button>
+                }
+              >
+                Голоса
+              </Label>
+              <Pick
+                value={launchProfileId}
+                onChange={(pid) => {
+                  setLaunchProfileId(pid)
+                  const prof = profiles.find((p) => p.id === pid)
+                  if (prof) setLaunchVoices({ ...prof.default })
+                }}
+                options={profiles.map((p) => ({ value: p.id, label: p.name, hint: p.channels.join(", ") || undefined }))}
+              />
+            </div>
+
+            <div className="xl:col-span-4">
+              <Label>Перевод</Label>
+              <div className={cn((launchMode === "voice" || launchMode === "mix") && "pointer-events-none opacity-50")}>
+                <Tabs
+                  value={launchModel}
+                  onChange={setLaunchModel}
+                  options={translationModels.map((tm) => [
+                    tm.id,
+                    tm.label.replace(/^Gemini [\d.]+ /, ""),
+                    `${tm.label}: ${tm.description} · ~${tm.est_minutes_per_lang} мин / язык`,
+                  ])}
+                />
+              </div>
+            </div>
+
+            <div className="xl:col-span-4">
+              <Label
+                aside={
+                  launchVoiceModel === "drama-3" ? (
+                    <label className="flex cursor-pointer items-center gap-1.5 text-xs text-faint">
+                      <input
+                        type="checkbox"
+                        checked={launchCarryMood}
+                        onChange={(e) => setLaunchCarryMood(e.target.checked)}
+                        className="size-3 accent-electric"
+                      />
+                      переносить настроение
+                    </label>
+                  ) : null
+                }
+              >
+                Озвучка
+              </Label>
+              <div className={cn((launchMode === "translate" || launchMode === "mix") && "pointer-events-none opacity-50")}>
+                <Tabs
+                  value={launchVoiceModel}
+                  onChange={(v) => setLaunchVoiceModel(v as VoiceModelId)}
+                  options={voiceModels.map((vm) => [vm.id, vm.label.replace(/^Fish /, ""), vm.description])}
+                />
+              </div>
+            </div>
+
+            {showLaunchVoices && (
+              <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 md:col-span-2 xl:col-span-12 xl:grid-cols-4">
+                {[launchSourceLang, ...launchTargets].map((lang) => {
+                  const prof = profiles.find((p) => p.id === launchProfileId)
+                  const vid = launchVoices[lang] ?? prof?.default[lang] ?? ""
+                  const entry = voicesById[vid]
+                  return (
+                    <div key={lang} className="flex items-center gap-2 rounded-[3px] bg-surface-2 py-1 pr-1 pl-2.5">
+                      <span className="w-6 font-mono text-[11px] text-muted-foreground">{lang}</span>
+                      <select
+                        value={vid}
+                        onChange={(e) => setLaunchVoices((prev) => ({ ...prev, [lang]: e.target.value }))}
+                        className={cn(
+                          "h-7 min-w-0 flex-1 rounded-[2px] bg-transparent text-xs text-foreground outline-none",
+                          entry?.status === "missing" && "text-danger"
+                        )}
+                      >
+                        {voices.map((v) => (
+                          <option key={v.id} value={v.id}>
+                            {v.name}
+                            {v.status === "missing" ? " (пропал)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        title="Образец голоса"
+                        onClick={() => playAudioUrl(entry?.sample_url ?? `/api/voice/voices/${vid}/sample`, `Образец ${entry?.name ?? vid}`)}
+                        className="grid size-7 shrink-0 place-items-center rounded-[2px] text-muted-foreground hover:bg-elev hover:text-foreground"
+                      >
+                        <Play className="size-3" />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              {selectedScriptObj && (
+                <span className="font-mono text-[11px]">
+                  {selectedScriptObj.paragraphs_total} абз. · ~{Math.max(1, Math.round((estimate?.duration_sec ?? 900) / 60))} мин
+                  {launchMode !== "translate" && launchMode !== "mix" && estimate
+                    ? ` · Fish до $${estimate.max_fish_cost_usd.toFixed(2)}`
+                    : ""}
+                </span>
+              )}
+              {launchMode !== "voice" && launchMode !== "mix" && launchTargets.length > 1 && (
+                <label className="flex cursor-pointer items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    checked={launchSplitByLang}
+                    onChange={(e) => setLaunchSplitByLang(e.target.checked)}
+                    className="size-3.5 accent-electric"
+                  />
+                  отдельный проект на каждый язык
+                </label>
+              )}
+            </div>
+            <button
+              type="button"
+              disabled={submittingJob || !launchScriptId}
+              onClick={handleCreateJob}
+              className="flex h-10 items-center gap-2 rounded-[3px] bg-electric px-5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              {submittingJob ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-3.5" />}
+              Запустить
+            </button>
+          </div>
+        </section>
+      )}
+
+      {screen === "workspace" && !selectedJob && (
         <ProjectList
           jobs={jobs}
           onOpen={(id) => setSelectedJobId(id)}
           onDelete={(j) => setDeleteTarget(j)}
-          onCreate={() => setScreen("launch")}
         />
       )}
 
@@ -976,174 +1292,88 @@ export function VoiceView() {
               </div>
             )}
 
-          {/* 8 Language Matrix Cards */}
-          <div>
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
-                Языки задачи ({selectedJob.languages.length}) · нажмите на карточку для работы со сценами
-              </span>
-              <span className="font-mono text-[11px] text-muted-foreground">
-                Перевод: {selectedJob.model} · Озвучка:{" "}
-                {selectedJob.voice_model === "drama-3" ? "Fish Drama 3" : "Fish S2.1"}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-              {selectedJob.languages.map((l) => {
-                const isSource = l.lang === selectedJob.source_lang
-                const isSelected = l.lang === selectedLang
-                const isMissing = l.voice.state === "voice_missing"
-                const docxFile = selectedJob.files.find((f) => f.lang === l.lang && f.kind === "docx")
-                const mp3File = selectedJob.files.find((f) => f.lang === l.lang && f.kind === "joined_mp3")
-                const zipFile = selectedJob.files.find((f) => f.lang === l.lang && f.kind === "mixed_zip")
-                const sumLang = selectedJob.summary?.languages[l.lang]
-
-                return (
-                  <div
-                    key={l.lang}
-                    onClick={() => {
-                      if (!isSource) setSelectedLang(l.lang)
-                    }}
-                    className={cn(
-                      "group relative flex flex-col justify-between rounded-[4px] border p-3 transition-all",
-                      isSource
-                        ? "border-line bg-surface/80"
-                        : "cursor-pointer hover:border-line-strong",
-                      isSelected && !isSource
-                        ? "border-electric bg-electric-soft/35 ring-1 ring-electric/30"
-                        : "border-line bg-surface",
-                      isMissing && "border-danger/50 bg-danger/5"
-                    )}
-                  >
-                    <div>
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="rounded-[2px] border border-line-strong bg-surface-2 px-1.5 py-0.5 font-mono text-xs font-semibold">
-                            {l.lang}
-                          </span>
-                          <span className="text-sm font-medium">{LANG_NAMES[l.lang] ?? l.lang}</span>
-                        </div>
-                        {isSource ? (
-                          <span className="rounded-[2px] border border-line-strong bg-elev px-1.5 py-0.5 text-[11px] text-muted-foreground">
-                            Оригинал · основа
-                          </span>
-                        ) : isMissing ? (
-                          <span className="flex items-center gap-1 rounded-[2px] bg-danger/20 px-1.5 py-0.5 text-[11px] font-medium text-danger">
-                            <XCircle className="size-3" />
-                            Голос пропал
-                          </span>
-                        ) : l.stage === "done" ? (
-                          <span className="flex items-center gap-1 rounded-[2px] bg-ok/15 px-1.5 py-0.5 text-[11px] font-medium text-ok">
-                            <CheckCircle2 className="size-3" />
-                            Готово
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 rounded-[2px] bg-electric/20 px-1.5 py-0.5 text-[11px] font-medium text-electric-text">
-                            <Loader2 className="size-3 animate-spin" />
-                            {l.stage === "translate"
-                              ? `Перевод ${l.translate?.parts_done ?? 0}/${l.translate?.parts_total ?? 8}`
-                              : l.stage === "voice"
-                                ? `Озвучка ${l.voice.done}/${l.voice.total}`
-                                : `Сведение ${l.mix?.done ?? 0}/${l.mix?.total ?? 0}`}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Voice & Model info */}
-                      <div className="mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                        <span className="truncate">
-                          Голос: <strong className="font-normal text-foreground-2">{l.voice.voice_name}</strong>
-                        </span>
-                        <span className="shrink-0 font-mono text-[11px] whitespace-nowrap">
-                          {l.voice.fish_model === "drama" ? "drama-3" : "s2.1"}
-                        </span>
-                      </div>
-
-                      {/* Metrics for target languages */}
-                      {!isSource && l.translate && (
-                        <div className="mt-2.5 grid grid-cols-3 gap-1.5 rounded-[3px] border border-line bg-surface-2/70 p-2 font-mono text-[11px]">
-                          <div>
-                            <div className="text-[10px] text-faint">Длина</div>
-                            <div className="font-semibold text-foreground">
-                              {l.translate.length_pct ? `${l.translate.length_pct}%` : "—"}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-[10px] text-faint">В норме</div>
-                            <div className="font-semibold text-ok">
-                              {l.translate.in_norm ?? 0}/{l.translate.total ?? selectedJob.paragraphs_total}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-[10px] text-faint">Ускор.</div>
-                            <div
-                              className={cn(
-                                "font-semibold",
-                                (l.mix?.max_speedup ?? 1) > 1.08 ? "text-warn" : "text-foreground-2"
-                              )}
-                            >
-                              {l.mix?.sped_up ?? 0} · ×{(l.mix?.max_speedup ?? 1).toFixed(2)}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {isSource && (
-                        <div className="mt-2.5 rounded-[3px] border border-line bg-surface-2/70 p-2 font-mono text-[11px] text-muted-foreground">
-                          Дорожек: <strong className="text-foreground">{l.voice.done}/{l.voice.total}</strong> ·
-                          Длительность: <strong className="text-foreground">{formatDuration(selectedJob.source_duration_sec)}</strong>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Footer: reused tracks + download links */}
-                    <div className="mt-2.5 flex items-center justify-between border-t border-line pt-2 text-[11px]">
-                      <span className="font-mono text-faint">
-                        {sumLang && sumLang.carried > 0
-                          ? `перенос: ${sumLang.carried} абз.`
-                          : l.voice.reused > 0
-                            ? `${l.voice.new} нов. · ${l.voice.reused} гот.`
-                            : `${l.voice.done} дор.`}
-                      </span>
-                      {!isSource && (
-                        <div
-                          className="flex items-center gap-1"
-                          onClick={(e) => e.stopPropagation()}
+          {/* Languages */}
+          <div className="overflow-hidden rounded-[4px] border border-line bg-surface">
+            {selectedJob.languages.map((l) => {
+              const isSource = l.lang === selectedJob.source_lang
+              const isSelected = l.lang === selectedLang && !isSource
+              const isMissing = l.voice.state === "voice_missing"
+              const docxFile = selectedJob.files.find((f) => f.lang === l.lang && f.kind === "docx")
+              const mp3File = selectedJob.files.find((f) => f.lang === l.lang && f.kind === "joined_mp3")
+              const zipFile = selectedJob.files.find(
+                (f) => f.lang === l.lang && f.kind === (isSource ? "raw_zip" : "mixed_zip")
+              )
+              const t = l.translate
+              const speed = l.mix?.max_speedup ?? 1
+              const status = isMissing
+                ? { text: "голос пропал", tone: "text-danger" }
+                : l.stage === "done"
+                  ? { text: "готово", tone: "text-ok" }
+                  : l.stage === "translate"
+                    ? {
+                        text: t?.state === "running" ? `перевод ${t.parts_done}/${t.parts_total}` : "ждёт перевода",
+                        tone: t?.state === "running" ? "text-electric-text" : "text-faint",
+                      }
+                    : l.stage === "voice"
+                      ? {
+                          text: `озвучка ${l.voice.done}/${l.voice.total}`,
+                          tone: l.voice.state === "running" ? "text-electric-text" : "text-faint",
+                        }
+                      : { text: "сведение", tone: l.mix?.state === "running" ? "text-electric-text" : "text-faint" }
+              return (
+                <div
+                  key={l.lang}
+                  onClick={() => {
+                    if (!isSource) setSelectedLang(l.lang)
+                  }}
+                  className={cn(
+                    "grid grid-cols-[52px_minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 border-b border-line px-4 py-2.5 text-xs last:border-b-0 sm:grid-cols-[52px_120px_minmax(0,1fr)_minmax(0,260px)_auto]",
+                    !isSource && "cursor-pointer hover:bg-surface-2/60",
+                    isSelected && "bg-electric-soft/40 shadow-[inset_2px_0_0_var(--electric)]"
+                  )}
+                >
+                  <span className="font-mono text-[13px] font-semibold text-foreground">{l.lang}</span>
+                  <span className={cn("sm:order-none", status.tone)}>
+                    {status.tone === "text-electric-text" && <Loader2 className="mr-1 inline size-3 animate-spin" />}
+                    {isSource ? "оригинал" : status.text}
+                  </span>
+                  <span className="col-span-2 truncate text-muted-foreground sm:col-span-1">
+                    {l.voice.voice_name ?? "—"}
+                  </span>
+                  <span className="col-span-2 truncate font-mono text-[11px] text-muted-foreground sm:col-span-1">
+                    {isSource
+                      ? `${l.voice.done}/${l.voice.total} дор. · ${formatDuration(selectedJob.source_duration_sec)}`
+                      : t?.length_pct
+                        ? [
+                            `${t.length_pct}%`,
+                            `в норме ${t.in_norm ?? 0}/${t.total ?? selectedJob.paragraphs_total}`,
+                            l.mix?.sped_up ? `ускор. ${l.mix.sped_up} · ×${speed.toFixed(2)}` : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")
+                        : ""}
+                  </span>
+                  <span className="col-start-3 row-start-1 flex items-center justify-end gap-1 sm:col-start-auto sm:row-start-auto" onClick={(e) => e.stopPropagation()}>
+                    {[
+                      ["docx", docxFile],
+                      ["mp3", mp3File],
+                      ["zip", zipFile],
+                    ].map(([label, f]) =>
+                      f && typeof f !== "string" ? (
+                        <a
+                          key={label as string}
+                          href={voiceMediaUrl(f.url)}
+                          download
+                          className="rounded-[2px] px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground hover:bg-elev hover:text-foreground"
                         >
-                          {docxFile && (
-                            <a
-                              href={voiceMediaUrl(docxFile.url)}
-                              download
-                              className="rounded-[2px] border border-line-strong bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-foreground-2 hover:bg-elev hover:text-foreground"
-                            >
-                              .docx
-                            </a>
-                          )}
-                          {mp3File && (
-                            <a
-                              href={voiceMediaUrl(mp3File.url)}
-                              download
-                              className="rounded-[2px] border border-line-strong bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-foreground-2 hover:bg-elev hover:text-foreground"
-                            >
-                              .mp3
-                            </a>
-                          )}
-                          {zipFile && (
-                            <a
-                              href={voiceMediaUrl(zipFile.url)}
-                              download
-                              className="rounded-[2px] border border-line-strong bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-foreground-2 hover:bg-elev hover:text-foreground"
-                            >
-                              .zip
-                            </a>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+                          .{label as string}
+                        </a>
+                      ) : null
+                    )}
+                  </span>
+                </div>
+              )
+            })}
           </div>
 
           {/* Synchronized Audio Player + Waveform Scrubber */}
@@ -1623,411 +1853,6 @@ export function VoiceView() {
       {/* =================================================================== */}
       {/* SCREEN 2: ЗАПУСК ПЕРЕВОДА И ОЗВУЧКИ (LAUNCH & QUEUE)                */}
       {/* =================================================================== */}
-      {screen === "launch" && (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          {/* Left Column: Launch Configuration (8 cols) */}
-          <div className="space-y-5 lg:col-span-8">
-            {/* Step 1: Script (.docx) */}
-            <section className="rounded-[4px] border border-line bg-surface p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <div>
-                  <h2 className="text-base font-semibold">1. Сценарий (.docx)</h2>
-                  <p className="text-xs text-muted-foreground">
-                    Загрузите новый документ Word с нумерованными абзацами или выберите сценарий из рабочей папки
-                  </p>
-                </div>
-                <label className="flex h-8 cursor-pointer items-center gap-1.5 rounded-[3px] border border-line-strong bg-surface-2 px-3 text-xs font-medium text-foreground hover:bg-elev">
-                  {uploadingScript ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
-                  <span>Загрузить .docx</span>
-                  <input
-                    type="file"
-                    accept=".docx"
-                    className="hidden"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0]
-                      if (f) void handleScriptUpload(f)
-                    }}
-                  />
-                </label>
-              </div>
-
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {scripts.map((s) => {
-                  const active = s.script_id === launchScriptId
-                  return (
-                    <button
-                      key={s.script_id}
-                      type="button"
-                      onClick={() => {
-                        setLaunchScriptId(s.script_id)
-                        setLaunchSourceLang(s.source_lang)
-                      }}
-                      className={cn(
-                        "flex flex-col items-start rounded-[4px] border p-3 text-left transition-colors",
-                        active
-                          ? "border-electric bg-electric-soft/40"
-                          : "border-line bg-surface-2/60 hover:border-line-strong"
-                      )}
-                    >
-                      <div className="flex w-full items-center justify-between gap-2">
-                        <span className="font-medium text-foreground">{s.title}</span>
-                        <span className="rounded-[2px] border border-line-strong bg-surface px-1.5 py-0.5 font-mono text-[11px]">
-                          {s.source_lang}
-                        </span>
-                      </div>
-                      <div className="mt-1.5 flex flex-wrap items-center gap-2 font-mono text-[11px] text-muted-foreground">
-                        <span>{s.paragraphs_total} абзацев</span>
-                        <span>·</span>
-                        <span>{s.words_total} слов</span>
-                        <span>·</span>
-                        <span>{formatBytes(s.bytes_total)}</span>
-                      </div>
-                      {s.emotion_tags_count > 0 && (
-                        <div className="mt-2 flex items-center gap-1 rounded-[2px] bg-electric/15 px-1.5 py-0.5 text-[11px] text-electric-text">
-                          <Sparkles className="size-3" />
-                          Размечено тегами эмоций: {s.emotion_tags_count} из {s.paragraphs_total} абз.
-                        </div>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-            </section>
-
-            {/* Step 2: Mode */}
-            <section className="rounded-[4px] border border-line bg-surface p-4">
-              <h2 className="mb-1 text-base font-semibold">2. Режим работы</h2>
-              <p className="mb-3 text-xs text-muted-foreground">
-                По умолчанию выполняется весь цикл: перевод → озвучка оригинала и переводов → сведение по таймингу
-              </p>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
-                {(
-                  [
-                    ["all", "Всё целиком", "Перевод, озвучка и сведение под длину оригинала"],
-                    ["translate", "Только перевод", "Генерация .md и .docx по нормам длины"],
-                    ["voice", "Только озвучка", "Синтез дорожек в Fish Audio по готовому тексту"],
-                    ["mix", "Только сведение", "Выравнивание пауз и темпа готовых дорожек"],
-                  ] as const
-                ).map(([mId, title, desc]) => (
-                  <button
-                    key={mId}
-                    type="button"
-                    onClick={() => setLaunchMode(mId)}
-                    className={cn(
-                      "flex flex-col items-start rounded-[4px] border p-3 text-left transition-colors",
-                      launchMode === mId
-                        ? "border-electric bg-electric-soft/40"
-                        : "border-line bg-surface-2/60 hover:border-line-strong"
-                    )}
-                  >
-                    <span className="text-sm font-medium">{title}</span>
-                    <span className="mt-1 text-xs text-muted-foreground">{desc}</span>
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            {/* Step 3: Profile, Source Language & Target Languages */}
-            <section className="rounded-[4px] border border-line bg-surface p-4">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h2 className="text-base font-semibold">3. Профиль озвучки и языки</h2>
-                  <p className="text-xs text-muted-foreground">
-                    Голоса фиксируются в задаче при запуске — последующая правка профиля не ломает идущие задачи
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <select
-                    value={launchProfileId}
-                    onChange={(e) => {
-                      const pid = e.target.value
-                      setLaunchProfileId(pid)
-                      const prof = profiles.find((p) => p.id === pid)
-                      if (prof) setLaunchVoices({ ...prof.default })
-                    }}
-                    className="h-8 rounded-[3px] border border-line-strong bg-surface-2 px-2.5 text-xs font-medium text-foreground"
-                  >
-                    {profiles.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => setScreen("profiles")}
-                    className="text-xs text-electric-text hover:underline"
-                  >
-                    Настроить →
-                  </button>
-                </div>
-              </div>
-
-              <div className="mb-3 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">Язык оригинала (основа тайминга):</span>
-                  <span className="rounded-[2px] border border-line-strong bg-elev px-2 py-0.5 font-mono font-semibold">
-                    {launchSourceLang} ({LANG_NAMES[launchSourceLang]})
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setLaunchTargets(ALL_LANGS.filter((l) => l !== launchSourceLang))
-                    }
-                    className="text-xs text-electric-text hover:underline"
-                  >
-                    Выбрать все 7
-                  </button>
-                  <span className="text-faint">·</span>
-                  <button
-                    type="button"
-                    onClick={() => setLaunchTargets([])}
-                    className="text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    Сбросить
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {ALL_LANGS.filter((l) => l !== launchSourceLang).map((lang) => {
-                  const checked = launchTargets.includes(lang)
-                  const activeProf = profiles.find((p) => p.id === launchProfileId)
-                  const norm = activeProf?.norms[lang] ?? [75, 80]
-                  const selectedVid = launchVoices[lang] ?? activeProf?.default[lang] ?? "v1"
-                  const vEntry = voicesById[selectedVid]
-                  const isMissing = vEntry?.status === "missing"
-
-                  return (
-                    <div
-                      key={lang}
-                      className={cn(
-                        "flex items-center justify-between gap-2 rounded-[4px] border p-2.5 transition-colors",
-                        checked
-                          ? "border-line-strong bg-surface-2"
-                          : "border-line bg-surface opacity-60",
-                        isMissing && checked && "border-danger/50 bg-danger/5"
-                      )}
-                    >
-                      <label className="flex cursor-pointer items-center gap-2.5">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setLaunchTargets((prev) => [...prev, lang])
-                            } else {
-                              setLaunchTargets((prev) => prev.filter((x) => x !== lang))
-                            }
-                          }}
-                          className="size-4 accent-electric"
-                        />
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-mono text-xs font-semibold">{lang}</span>
-                            <span className="text-xs font-medium">{LANG_NAMES[lang]}</span>
-                            <span className="font-mono text-[10px] text-muted-foreground">
-                              {norm[0]}–{norm[1]}%
-                            </span>
-                          </div>
-                          {isMissing && (
-                            <div className="text-[10px] font-medium text-danger">
-                              Голос недоступен в Fish — будет пропущен
-                            </div>
-                          )}
-                        </div>
-                      </label>
-
-                      <div className="flex items-center gap-1">
-                        <select
-                          value={selectedVid}
-                          onChange={(e) =>
-                            setLaunchVoices((prev) => ({ ...prev, [lang]: e.target.value }))
-                          }
-                          className="h-7 max-w-[140px] rounded-[3px] border border-line-strong bg-surface px-1.5 text-xs text-foreground"
-                        >
-                          {voices.map((v) => (
-                            <option key={v.id} value={v.id}>
-                              {v.name} {v.status === "missing" ? "(пропал)" : ""}
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          type="button"
-                          title="Прослушать образец голоса"
-                          onClick={() =>
-                            playAudioUrl(
-                              vEntry?.sample_url ?? `/api/voice/voices/${selectedVid}/sample`,
-                              `Образец ${vEntry?.name ?? selectedVid}`
-                            )
-                          }
-                          className="flex size-7 items-center justify-center rounded-[3px] border border-line-strong bg-surface text-muted-foreground hover:text-foreground"
-                        >
-                          <Play className="size-3" />
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </section>
-
-            {/* Step 4: Models (Translation + 22.10 Fish S2.1 / Drama 3) */}
-            <section className="rounded-[4px] border border-line bg-surface p-4">
-              <h2 className="mb-3 text-base font-semibold">4. Модели перевода и озвучки</h2>
-
-              <div className="mb-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-xs font-medium text-muted-foreground">Модель перевода</span>
-                  <label className="flex cursor-pointer items-center gap-1.5 text-xs text-foreground-2">
-                    <input
-                      type="checkbox"
-                      checked={launchSplitByLang}
-                      onChange={(e) => setLaunchSplitByLang(e.target.checked)}
-                      className="size-3.5 accent-electric"
-                    />
-                    Отдельная задача на каждый язык (до 3 параллельно)
-                  </label>
-                </div>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  {translationModels.map((tm) => (
-                    <button
-                      key={tm.id}
-                      type="button"
-                      onClick={() => setLaunchModel(tm.id)}
-                      className={cn(
-                        "flex flex-col items-start rounded-[4px] border p-3 text-left transition-colors",
-                        launchModel === tm.id
-                          ? "border-electric bg-electric-soft/40"
-                          : "border-line bg-surface-2/60 hover:border-line-strong"
-                      )}
-                    >
-                      <div className="flex w-full items-center justify-between gap-1">
-                        <span className="text-sm font-medium">{tm.label}</span>
-                        {tm.badge && (
-                          <span className="rounded-[2px] bg-electric/20 px-1.5 py-0.5 text-[10px] font-medium text-electric-text">
-                            {tm.badge}
-                          </span>
-                        )}
-                      </div>
-                      <span className="mt-1 text-xs text-muted-foreground">{tm.description}</span>
-                      <span className="mt-2 font-mono text-[11px] text-faint">
-                        ~{tm.est_minutes_per_lang} мин / язык
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 22.10 Fish Voice Model Selector (S2.1 vs Drama 3) */}
-              <div>
-                <div className="mb-2 text-xs font-medium text-muted-foreground">
-                  Модель озвучки Fish Audio (обновление 22.10)
-                </div>
-                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                  {voiceModels.map((vm) => (
-                    <button
-                      key={vm.id}
-                      type="button"
-                      onClick={() => setLaunchVoiceModel(vm.id)}
-                      className={cn(
-                        "flex flex-col items-start rounded-[4px] border p-3.5 text-left transition-colors",
-                        launchVoiceModel === vm.id
-                          ? "border-electric bg-electric-soft/40"
-                          : "border-line bg-surface-2/60 hover:border-line-strong"
-                      )}
-                    >
-                      <div className="flex w-full items-center justify-between">
-                        <span className="text-sm font-semibold">{vm.label}</span>
-                        <span className="rounded-[2px] border border-line-strong bg-surface px-1.5 py-0.5 font-mono text-[11px]">
-                          {vm.has_free_tier
-                            ? "Free + $15 / 1M байт"
-                            : `$${vm.price_usd_per_million_bytes} / 1M байт (акция до 12.11)`}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-xs text-muted-foreground">{vm.description}</p>
-                    </button>
-                  ))}
-                </div>
-
-                {launchVoiceModel === "drama-3" && (
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-[3px] border border-electric/30 bg-electric-soft/30 px-3 py-2.5 text-xs">
-                    <label className="flex cursor-pointer items-center gap-2 font-medium text-foreground">
-                      <input
-                        type="checkbox"
-                        checked={launchCarryMood}
-                        onChange={(e) => setLaunchCarryMood(e.target.checked)}
-                        className="size-4 accent-electric"
-                      />
-                      <span>
-                        Переносить настроение на соседние абзацы (<code className="font-mono">carry_mood</code>)
-                      </span>
-                    </label>
-                    <span className="text-muted-foreground">
-                      Абзацу без своего тега в начале подставится настроение предыдущего
-                    </span>
-                  </div>
-                )}
-              </div>
-            </section>
-          </div>
-
-          {/* Right Column: Launch Summary & Server Queue (4 cols) */}
-          <div className="space-y-5 lg:col-span-4">
-            {/* Estimate & Submit Card */}
-            <div className="rounded-[4px] border border-line bg-surface p-4">
-              <h3 className="text-base font-semibold">Сводка запуска</h3>
-              <div className="mt-3 space-y-2 border-y border-line py-3 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Сценарий:</span>
-                  <span className="font-medium">{selectedScriptObj?.title ?? "—"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Объём:</span>
-                  <span className="font-mono">
-                    {selectedScriptObj?.paragraphs_total ?? 0} абз. · {selectedScriptObj?.words_total ?? 0} сл.
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Целевых языков:</span>
-                  <span className="font-mono">{launchTargets.length} ({launchTargets.join(", ")})</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Модель озвучки:</span>
-                  <span className="font-mono font-medium text-electric-text">
-                    {launchVoiceModel === "drama-3" ? "Fish Drama 3" : "Fish S2.1"}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Расчётное время:</span>
-                  <span className="font-mono font-medium">
-                    ~{Math.max(1, Math.round((estimate?.duration_sec ?? 900) / 60))} мин
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Расход Fish Audio:</span>
-                  <span className="font-mono font-semibold text-ok">
-                    до ${estimate?.max_fish_cost_usd.toFixed(2) ?? "1.20"}
-                  </span>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                disabled={submittingJob}
-                onClick={handleCreateJob}
-                className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-[4px] bg-electric text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-              >
-                {submittingJob ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
-                Запустить в очередь
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <DeleteProjectDialog
         job={deleteTarget}
         onClose={() => setDeleteTarget(null)}

@@ -180,27 +180,14 @@ export function ProjectList({
   jobs,
   onOpen,
   onDelete,
-  onCreate,
 }: {
   jobs: VoiceJob[]
   onOpen: (id: number) => void
   onDelete: (job: VoiceJob) => void
-  onCreate: () => void
 }) {
   const now = useNow()
   if (!jobs.length) {
-    return (
-      <div className="flex flex-col items-center gap-3 rounded-[4px] border border-dashed border-line-strong px-6 py-16 text-sm text-muted-foreground">
-        Проектов пока нет
-        <button
-          type="button"
-          onClick={onCreate}
-          className="h-8 rounded-[4px] bg-electric px-3 text-[13px] font-medium text-white transition-opacity hover:opacity-90"
-        >
-          Новая задача
-        </button>
-      </div>
-    )
+    return <div className="py-10 text-center text-sm text-faint">Проектов пока нет</div>
   }
   return (
     <div className="overflow-hidden rounded-[4px] border border-line bg-surface">

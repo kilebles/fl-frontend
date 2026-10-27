@@ -32,6 +32,7 @@ import {
   Volume2,
   Wand2,
   XCircle,
+  Zap,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -274,7 +275,7 @@ export function VoiceView() {
   const [launchModel, setLaunchModel] = useState<string>("gemini-4-argon-medium")
   const [launchVoiceModel, setLaunchVoiceModel] = useState<VoiceModelId>("s2.1")
   const [launchCarryMood, setLaunchCarryMood] = useState<boolean>(true)
-  const [launchSplitByLang, setLaunchSplitByLang] = useState<boolean>(false)
+  const [launchTurbo, setLaunchTurbo] = useState<boolean>(false)
   const [estimate, setEstimate] = useState<VoiceEstimateResponse | null>(null)
   const [submittingJob, setSubmittingJob] = useState(false)
 
@@ -456,7 +457,7 @@ export function VoiceView() {
         targets: launchTargets,
         model: launchModel,
         voice_model: launchVoiceModel,
-        split_by_language: launchSplitByLang,
+        turbo: launchTurbo && launchTargets.length > 1,
       })
       .then((res) => {
         if (!cancelled) setEstimate(res)
@@ -465,7 +466,7 @@ export function VoiceView() {
     return () => {
       cancelled = true
     }
-  }, [launchScriptId, launchMode, launchSourceLang, launchTargets, launchModel, launchVoiceModel, launchSplitByLang])
+  }, [launchScriptId, launchMode, launchSourceLang, launchTargets, launchModel, launchVoiceModel, launchTurbo])
 
   // Audio playback helper
   const playAudioUrl = useCallback(
@@ -678,7 +679,7 @@ export function VoiceView() {
         model: launchModel,
         voice_model: launchVoiceModel,
         carry_mood: launchVoiceModel === "drama-3" ? launchCarryMood : false,
-        split_by_language: launchSplitByLang,
+        turbo: launchTurbo && launchTargets.length > 1,
       })
       const jobsRes = await voice.jobs()
       setJobs(jobsRes)
@@ -1106,27 +1107,35 @@ export function VoiceView() {
                     : ""}
                 </span>
               )}
-              {launchMode !== "voice" && launchMode !== "mix" && launchTargets.length > 1 && (
-                <label className="flex cursor-pointer items-center gap-1.5">
-                  <input
-                    type="checkbox"
-                    checked={launchSplitByLang}
-                    onChange={(e) => setLaunchSplitByLang(e.target.checked)}
-                    className="size-3.5 accent-electric"
-                  />
-                  отдельный проект на каждый язык
-                </label>
-              )}
             </div>
-            <button
-              type="button"
-              disabled={submittingJob || !launchScriptId}
-              onClick={handleCreateJob}
-              className="flex h-10 items-center gap-2 rounded-[3px] bg-electric px-5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-            >
-              {submittingJob ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-3.5" />}
-              Запустить
-            </button>
+            <div className="flex items-center gap-2">
+              {launchMode !== "mix" && launchTargets.length > 1 && (
+                <button
+                  type="button"
+                  aria-pressed={launchTurbo}
+                  title="Языки переводятся и озвучиваются одновременно — быстрее. Проект остаётся один."
+                  onClick={() => setLaunchTurbo((v) => !v)}
+                  className={cn(
+                    "flex h-10 items-center gap-1.5 rounded-[3px] border px-3.5 text-sm font-medium transition-colors",
+                    launchTurbo
+                      ? "border-electric bg-electric-soft text-electric-text"
+                      : "border-line-strong text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Zap className={cn("size-3.5", launchTurbo && "fill-current")} />
+                  Turbo
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={submittingJob || !launchScriptId}
+                onClick={handleCreateJob}
+                className="flex h-10 items-center gap-2 rounded-[3px] bg-electric px-5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                {submittingJob ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-3.5" />}
+                Запустить
+              </button>
+            </div>
           </div>
         </section>
       )}

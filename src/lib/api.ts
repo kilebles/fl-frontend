@@ -432,6 +432,7 @@ export interface VoiceJob {
   model: string
   voice_model: VoiceModelId
   carry_mood: boolean
+  turbo?: boolean
   status: VoiceJobStatus
   paragraphs_total: number
   emotion_tags_count: number
@@ -574,6 +575,7 @@ export const voice = {
     model: string
     voice_model: VoiceModelId
     split_by_language?: boolean
+    turbo?: boolean
   }) => request<VoiceEstimateResponse>("/api/voice/estimate", json("POST", body)),
   queue: () => request<VoiceQueueStatus>("/api/voice/queue"),
   jobs: (status?: string, projectId?: string | null) => {
@@ -597,6 +599,7 @@ export const voice = {
     voice_model: VoiceModelId
     carry_mood: boolean
     split_by_language?: boolean
+    turbo?: boolean
   }): Promise<VoiceJob[]> => {
     const res = await request<{ jobs: VoiceJob[] } | VoiceJob>("/api/voice/jobs", json("POST", body))
     return "jobs" in res ? res.jobs : [res]

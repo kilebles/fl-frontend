@@ -124,6 +124,7 @@ function ProjectRow({
         <div className="truncate text-sm font-medium text-foreground">{job.title}</div>
         <div className="mt-0.5 truncate font-mono text-[11px] text-faint">
           {job.source_lang} → {job.targets.join(" ") || "—"}
+          {job.turbo ? " · turbo" : ""}
           {MODE_LABEL[job.mode] ? ` · ${MODE_LABEL[job.mode]}` : ""}
           {now !== null ? ` · ${timeAgo(job.created_at, now)}` : ""}
         </div>

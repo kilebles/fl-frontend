@@ -58,6 +58,7 @@ import {
   voice,
   voiceMediaUrl,
 } from "@/lib/api"
+import { clearHandoff, peekHandoff } from "@/lib/handoff"
 import { cn } from "@/lib/utils"
 
 type ScreenTab = "workspace" | "profiles"
@@ -336,7 +337,9 @@ export function VoiceView() {
       setQueueStatus(queueRes)
 
       if (scriptsRes.length > 0 && !launchScriptId) {
-        const first = scriptsRes[0]
+        // a script handed over from «Сценарий» goes first
+        const handed = peekHandoff("voice")
+        const first = scriptsRes.find((s) => s.script_id === handed?.scriptId) ?? scriptsRes[0]
         setLaunchScriptId(first.script_id)
         setLaunchSourceLang(first.source_lang)
       }
@@ -662,6 +665,7 @@ export function VoiceView() {
 
   // Create new job
   const handleCreateJob = async () => {
+    clearHandoff()
     if (!launchScriptId) {
       toast.error("Выберите или загрузите сценарий (.docx)")
       return

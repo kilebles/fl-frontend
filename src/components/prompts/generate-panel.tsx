@@ -13,6 +13,7 @@ import { prompts, runActive, type PromptRun } from "@/lib/api"
 import { plural, timeAgo } from "@/lib/format"
 import { useCurrentProject } from "@/lib/project"
 import { keys, usePromptModels, useRuns, useTemplates } from "@/lib/queries"
+import { clearHandoff, peekHandoff } from "@/lib/handoff"
 import { cn } from "@/lib/utils"
 
 const PAIR_COUNTS = [2, 4, 6, 8, 12]
@@ -81,7 +82,8 @@ export function GeneratePanel() {
   const [templateId, setTemplateId] = useState<string | null>(null)
   const [model, setModel] = useState("gemini-2.5-flash")
   const [pairCount, setPairCount] = useState<number | null>(null)
-  const [file, setFile] = useState<File | null>(null)
+  // a script handed over from «Сценарий» is pre-filled
+  const [file, setFile] = useState<File | null>(() => peekHandoff("prompts")?.file ?? null)
 
   const template = templates?.find((t) => t.id === templateId)
   const counts = pairOptions(template?.pairs ?? 0)
@@ -90,6 +92,7 @@ export function GeneratePanel() {
   const submit = useMutation({
     mutationFn: () => prompts.createRun(file!, templateId!, model, pairs!, projectId),
     onSuccess: () => {
+      clearHandoff()
       setFile(null)
       qc.invalidateQueries({ queryKey: keys.runs })
     },

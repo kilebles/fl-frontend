@@ -15,15 +15,16 @@ import {
   MessageSquareText,
   Mic,
   Music,
-  Play,
   Scissors,
   ScanSearch,
   SquarePlay,
+  TrendingUp,
   UserRound,
   X,
 } from "lucide-react"
 import { toast } from "sonner"
 
+import { Logo } from "@/components/shell/logo"
 import { setTheme, useTheme } from "@/components/shell/theme"
 import { cn } from "@/lib/utils"
 
@@ -39,7 +40,8 @@ interface NavItem {
 
 const TOP: NavItem[] = [{ href: "/videos", label: "Ролики", icon: LayoutGrid, dev: true }]
 const TOOLS: NavItem[] = [
-  { href: "/script", label: "Сценарий", icon: FileText, dev: true },
+  { href: "/analytics", label: "Аналитика", icon: TrendingUp },
+  { href: "/script", label: "Сценарий", icon: FileText },
   { href: "/prompts", label: "Промпты", icon: MessageSquareText },
   { href: "/voice", label: "Озвучка", icon: Mic },
   { href: "/", label: "Генерации", icon: SquarePlay, also: ["/batch", "/jobs"] },
@@ -112,9 +114,7 @@ function SidebarBody({ collapsed, onCollapse, onNavigate }: { collapsed: boolean
   return (
     <div className="flex h-full flex-col gap-1 px-3 py-4">
       <div className={cn("mb-4 flex items-center gap-2.5 px-1", collapsed && "flex-col")}>
-        <span className="grid size-[30px] shrink-0 place-items-center rounded-[3px] bg-electric text-white">
-          <Play className="size-3.5" strokeWidth={2.5} />
-        </span>
+        <Logo className="size-[30px] shrink-0" />
         {!collapsed && <span className="flex-1 text-[15px] font-semibold">Motion Pr</span>}
         {onCollapse && (
           <button

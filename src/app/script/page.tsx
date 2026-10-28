@@ -1,5 +1,5 @@
-import { DevStub } from "@/components/shell/page-header"
+import { ScriptView } from "@/components/script/script-view"
 
 export default function Page() {
-  return <DevStub title="Сценарий" subtitle="Тема на входе, готовый сценарий с разбивкой на сцены на выходе" />
+  return <ScriptView />
 }

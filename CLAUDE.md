@@ -17,13 +17,19 @@ Tokens in `globals.css` (`--electric` is the accent of either theme, `--dev` the
 ```
 src/app/            / (Генерации: вручную — feed + composer), batch/ (Генерации: пакетом — form + batches),
                     jobs/[id]/ (batch results), avatars/, prompts/ (+ runs/[id]), graphics/ (+ runs/[id], motion-aign cards),
-                    videos, script, voice, footage, music, edit, library, history — DevStub pages
-src/components/     shell/ (nav sidebar, theme, project-picker, page-header + DevStub), create/ (composer, feed,
+                    script/ (Сценарий: projects ?p=, niches ?tab=niches), analytics/ (topic picks ?a=), voice/,
+                    videos, footage, music, edit, library, history — DevStub pages
+src/components/     shell/ (nav sidebar, logo, theme, project-picker, page-header + DevStub), create/ (composer, feed,
                     generations-bar, form-parts, dropzone), batch/ (batch-form, batches-panel), avatars/, prompts/,
-                    infographics/, jobs/ (job page, result card, lightbox, state, menu)
+                    infographics/, jobs/ (job page, result card, lightbox, state, menu),
+                    script/ (fl-scenario: launch panel, project list/view, niches, analytics, queries + SSE, send)
 src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), project.ts (current project, withStyle),
-                    draft.ts (composer text shared with the feed), modes.ts, format.ts
+                    draft.ts (composer text shared with the feed), modes.ts, format.ts,
+                    handoff.ts (finished script → «Промпты» / «Озвучка»)
 ```
+
+- «Сценарий» и «Аналитика» talk to fl-scenario at `/api/scenario/*` (Caddy → Windows :8020); its SSE `/api/scenario/events`
+  invalidates the `["scenario", …]` queries. Selection is the logo blue in both themes (`--pick*` tokens), languages green.
 
 - Projects (ролики): the current project lives in localStorage; screens filter by it and new jobs/runs carry `project_id`.
   The project's style line is appended to every prompt (composer, batch, «В производство», avatar scene).

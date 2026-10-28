@@ -41,6 +41,9 @@
   --color-electric-text: var(--electric-text);
   --color-warn-soft: var(--warn-soft);
   --color-dev: var(--dev);
+  --color-pick: var(--pick);
+  --color-pick-soft: var(--pick-soft);
+  --color-pick-text: var(--pick-text);
   --color-sidebar: var(--sidebar);
   --color-foreground-2: var(--foreground-2);
   --color-inverse: var(--inverse);
@@ -95,6 +98,11 @@
   --danger: #f87171;
   --dev: #e0a53a;
 
+  /* Selection and running step: the logo's blue in both themes */
+  --pick: #2563eb;
+  --pick-soft: #1b2440;
+  --pick-text: #a9bcf7;
+
   --inverse: #e8eaee;
   --inverse-foreground: #0e0f12;
 
@@ -143,6 +151,10 @@
   --danger: #a8322b;
   --dev: #d08a1e;
 
+  --pick: #2563eb;
+  --pick-soft: #e4ebfd;
+  --pick-text: #1d4ed8;
+
   --inverse: #141413;
   --inverse-foreground: #faf9f5;
 
@@ -184,6 +196,12 @@
       color-mix(in oklab, var(--electric) 10%, var(--elev)) 50%,
       var(--surface-2) 70%
     );
+    background-size: 200% 100%;
+    animation: var(--animate-shimmer);
+  }
+
+  .bar-pick {
+    background-image: linear-gradient(90deg, var(--pick), color-mix(in oklab, var(--pick) 55%, #8fb0ff), var(--pick));
     background-size: 200% 100%;
     animation: var(--animate-shimmer);
   }

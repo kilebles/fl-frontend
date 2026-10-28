@@ -652,3 +652,283 @@ export const voice = {
   },
   zipAllUrl: (jobId: number) => voiceMediaUrl(`/api/voice/jobs/${jobId}/zip`),
 }
+
+/* ------------------------------------------------------------------ scenario (fl-scenario, /api/scenario/*) */
+
+export interface Sourced<T> {
+  value: T
+  source: string
+  source_label: string
+}
+
+export interface ScenarioOptions {
+  languages: { code: string; name: string }[]
+  models: { value: string; word: string; label: string; backend: string; backend_label: string }[]
+  tones: { value: string; label: string }[]
+  niches: ScenarioNiche[]
+  chars_per_minute: Record<string, number>
+}
+
+export interface NicheDefaults {
+  language?: string
+  model?: string
+  inputs?: { duration_minutes?: number; target_chars?: number; tone?: string; audience?: string; chars_per_minute?: number }
+  [key: string]: unknown
+}
+
+export interface ScenarioNiche {
+  slug: string
+  name: string
+  description: string
+  notes: number
+  videos: number
+  has_profile: boolean
+  profile_updated: string | null
+  defaults: NicheDefaults
+  updated: string | null
+}
+
+export interface ScenarioVideo {
+  id: string
+  url: string
+  title: string
+  channel: string
+  duration_sec: number | null
+  pace: string
+  highlights: string
+  analysis: string
+}
+
+export interface ScenarioTask {
+  id: number
+  task: "brief" | "niche_videos" | "niche_passport" | "analytics"
+  label: string
+  status: string
+  params: Record<string, unknown>
+  error: string | null
+  result: Record<string, unknown> | null
+  created: string
+  step: string
+}
+
+export interface ScenarioNicheDetail extends ScenarioNiche {
+  feedback: string
+  summary: [string, string][]
+  questions: string[]
+  profile: string
+  note_items: { n: number; time: string; kind: string; text: string }[]
+  video_items: ScenarioVideo[]
+  manual_defaults: NicheDefaults
+  tasks: ScenarioTask[]
+  task?: ScenarioTask | null
+}
+
+export type StageKey = "brief" | "plan" | "chapters" | "done"
+export type StageState = "todo" | "active" | "done" | "error" | "skipped"
+export interface ScenarioStage {
+  key: StageKey
+  state: StageState
+  done?: number
+  total?: number
+}
+
+export type ScenarioStatus =
+  | "draft"
+  | "ready"
+  | "brief_queued"
+  | "brief_running"
+  | "brief_error"
+  | "queued"
+  | "running"
+  | "waiting_limit"
+  | "done"
+  | "error"
+  | "stopped"
+  | "paused"
+
+export interface ScenarioMaterial {
+  id: string
+  time: string
+  kind: string
+  name: string
+  text: string
+}
+
+export interface ScenarioProject {
+  id: string
+  title: string
+  niche: string
+  niche_name: string
+  created: string
+  updated: string
+  materials: ScenarioMaterial[]
+  ref_urls: string[]
+  references: ScenarioVideo[]
+  manual: Record<string, unknown>
+  model: string
+  model_label: string
+  params: {
+    topic: string
+    language: Sourced<string | null>
+    language_name: string
+    length: Sourced<{ chars: number; minutes: number }>
+    tone: Sourced<string | null>
+    pace: Sourced<number>
+    missing: string[]
+  }
+  brief: {
+    short: string
+    full: string
+    questions: string[]
+    assumptions: string[]
+    chapters: { title: string; summary: string; chars: number }[]
+    version: number
+    time: string | null
+  } | null
+  answers: Record<string, string>
+  task: { id: number; status: string; error: string | null; step: string } | null
+  job: {
+    id: number
+    status: string
+    error: string | null
+    waiting_until: string | null
+    progress: { current: string; done: number; total: number; status: string }
+    usage: string | null
+    run_sec: number | null
+    model: string
+    files: { name: string; size: number }[]
+  } | null
+  stages: ScenarioStage[]
+  status: ScenarioStatus
+}
+
+export interface ScenarioScript {
+  title: string
+  language: string
+  logline: string
+  chapters: { number: number; title: string; paragraphs: { n: number; text: string }[] }[]
+}
+
+export interface ScenarioLogEvent {
+  ts: string
+  kind: string
+  message: string
+  source: "task" | "job"
+}
+
+export interface AnalyticsTopic {
+  title: string
+  title_translation?: string
+  why?: string
+  angle?: string
+  based_on?: string[]
+  fit?: "high" | "medium" | "low" | string
+}
+
+export interface AnalyticsItem {
+  file: string
+  created: string
+  niche: string
+  insights: string[]
+  topics: AnalyticsTopic[]
+  videos: number
+}
+
+export interface AnalyticsDetail {
+  file: string
+  created: string
+  niche: string
+  urls: string[]
+  notes: string[]
+  insights: string[]
+  topics: AnalyticsTopic[]
+  videos: { id: string; title: string; views?: number; channel?: string }[]
+  channels: unknown[]
+  errors: string[]
+}
+
+export interface ProjectCreate {
+  title?: string
+  niche?: string
+  materials?: string
+  files?: { name: string; text: string }[]
+  model?: string
+  language?: string
+  length?: string
+  tone?: string
+  topic?: string
+  brief?: boolean
+  launch_now?: boolean
+}
+
+export interface ProjectPatch {
+  title?: string
+  niche?: string
+  model?: string
+  manual?: Record<string, string | null>
+  answers?: Record<string, string>
+  material?: string
+  files?: { name: string; text: string }[]
+  remove_material?: string
+  remove_url?: string
+}
+
+const withToken = (path: string) => `${API_URL}${path}${API_TOKEN ? `${path.includes("?") ? "&" : "?"}token=${encodeURIComponent(API_TOKEN)}` : ""}`
+const pid = (id: string) => `/api/scenario/projects/${encodeURIComponent(id)}`
+const nid = (slug: string) => `/api/scenario/niches/${encodeURIComponent(slug)}`
+
+export const scenario = {
+  health: () => request<{ status: string; worker_online: boolean }>("/api/scenario/health"),
+  options: () => request<ScenarioOptions>("/api/scenario/options"),
+  fileText: (file: File) => {
+    const form = new FormData()
+    form.append("file", file)
+    return request<{ name: string; text: string }>("/api/scenario/files/text", { method: "POST", body: form })
+  },
+
+  niches: () => request<ScenarioNiche[]>("/api/scenario/niches"),
+  niche: (slug: string) => request<ScenarioNicheDetail>(nid(slug)),
+  createNiche: (name: string) => request<ScenarioNicheDetail>("/api/scenario/niches", json("POST", { name })),
+  patchNiche: (slug: string, body: { description?: string; defaults?: NicheDefaults; rename?: string }) =>
+    request<ScenarioNicheDetail>(nid(slug), json("PATCH", body)),
+  addNicheNote: (slug: string, body: { text: string; kind?: string; passport?: boolean }) =>
+    request<ScenarioNicheDetail>(`${nid(slug)}/notes`, json("POST", body)),
+  deleteNicheNote: (slug: string, n: number) => request<ScenarioNicheDetail>(`${nid(slug)}/notes/${n}`, { method: "DELETE" }),
+  removeNicheVideo: (slug: string, videoId: string) =>
+    request<ScenarioNicheDetail>(`${nid(slug)}/videos/${encodeURIComponent(videoId)}`, { method: "DELETE" }),
+  buildPassport: (slug: string) => request<ScenarioTask>(`${nid(slug)}/passport`, json("POST")),
+
+  projects: () => request<ScenarioProject[]>("/api/scenario/projects"),
+  project: (id: string) => request<ScenarioProject>(pid(id)),
+  createProject: (body: ProjectCreate) => request<ScenarioProject>("/api/scenario/projects", json("POST", body)),
+  patchProject: (id: string, body: ProjectPatch) => request<ScenarioProject>(pid(id), json("PATCH", body)),
+  deleteProject: (id: string) => request<void>(pid(id), { method: "DELETE" }),
+  brief: (id: string) => request<ScenarioProject>(`${pid(id)}/brief`, json("POST")),
+  launch: (id: string) => request<ScenarioProject>(`${pid(id)}/launch`, json("POST")),
+  stop: (id: string) => request<ScenarioProject>(`${pid(id)}/stop`, json("POST")),
+  resume: (id: string) => request<ScenarioProject>(`${pid(id)}/resume`, json("POST")),
+  script: (id: string) => request<ScenarioScript>(`${pid(id)}/script`),
+  log: (id: string) => request<ScenarioLogEvent[]>(`${pid(id)}/log`),
+  fileUrl: (id: string, name: string) => withToken(`${pid(id)}/files/${encodeURIComponent(name)}`),
+  /** The result file itself (for handing the script to «Промпты» / «Озвучка»). */
+  file: async (id: string, name: string): Promise<File> => {
+    let res: Response
+    try {
+      res = await fetch(`${API_URL}${pid(id)}/files/${encodeURIComponent(name)}`, { headers: headers() })
+    } catch {
+      throw new ApiError(0, "Сервер недоступен")
+    }
+    if (!res.ok) throw new ApiError(res.status, "Файл не найден")
+    return new File([await res.blob()], name, { type: res.headers.get("content-type") ?? "" })
+  },
+
+  analytics: (niche?: string) => request<{ running: ScenarioTask[]; items: AnalyticsItem[] }>(`/api/scenario/analytics${niche ? `?niche=${encodeURIComponent(niche)}` : ""}`),
+  analyticsItem: (file: string) => request<AnalyticsDetail>(`/api/scenario/analytics/${encodeURIComponent(file)}`),
+  startAnalytics: (body: { niche?: string; urls?: string[]; notes?: string; previous?: string }) =>
+    request<ScenarioTask>("/api/scenario/analytics", json("POST", body)),
+  topicToProject: (file: string, index: number) =>
+    request<ScenarioProject>(`/api/scenario/analytics/${encodeURIComponent(file)}/topics/${index}/project`, json("POST", {})),
+  stopTask: (id: number) => request<{ result: string }>(`/api/scenario/tasks/${id}/stop`, json("POST")),
+
+  eventsUrl: () => withToken("/api/scenario/events"),
+}

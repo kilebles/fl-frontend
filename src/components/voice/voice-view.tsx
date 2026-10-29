@@ -72,9 +72,21 @@ const LANG_NAMES: Record<string, string> = {
   IT: "Итальянский",
   PL: "Польский",
   FR: "Французский",
+  JA: "Японский",
+  AR: "Арабский",
+  KO: "Корейский",
+  NL: "Нидерландский",
+  TR: "Турецкий",
+  SV: "Шведский",
+  NO: "Норвежский",
+  DA: "Датский",
+  CS: "Чешский",
 }
 
-const ALL_LANGS = ["EN", "RU", "ES", "PT", "DE", "IT", "PL", "FR"]
+/** Main languages: «все» picks them. The extra ones are translated only when chosen. */
+const MAIN_LANGS = ["EN", "RU", "ES", "PT", "DE", "IT", "PL", "FR"]
+const EXTRA_LANGS = ["JA", "AR", "KO", "NL", "TR", "SV", "NO", "DA", "CS"]
+const ALL_LANGS = [...MAIN_LANGS, ...EXTRA_LANGS]
 
 function formatDuration(sec: number | null | undefined): string {
   if (!sec || sec <= 0) return "—"
@@ -303,6 +315,7 @@ export function VoiceView() {
 
   const [deleteTarget, setDeleteTarget] = useState<VoiceJob | null>(null)
   const [showLaunchVoices, setShowLaunchVoices] = useState(false)
+  const [showExtraLangs, setShowExtraLangs] = useState(false)
 
   const selectedJob = useMemo(
     () => (selectedJobId === null ? null : jobs.find((j) => j.id === selectedJobId) ?? null),
@@ -959,12 +972,12 @@ export function VoiceView() {
                       type="button"
                       onClick={() =>
                         setLaunchTargets(
-                          launchTargets.length === ALL_LANGS.length - 1 ? [] : ALL_LANGS.filter((l) => l !== launchSourceLang)
+                          launchTargets.length ? [] : MAIN_LANGS.filter((l) => l !== launchSourceLang)
                         )
                       }
                       className="text-xs text-faint hover:text-foreground"
                     >
-                      {launchTargets.length === ALL_LANGS.length - 1 ? "снять все" : "все"}
+                      {launchTargets.length ? "снять все" : "все"}
                     </button>
                   ) : null
                 }
@@ -995,8 +1008,9 @@ export function VoiceView() {
                   )}
                 </span>
               </Label>
-              <div className={cn("flex rounded-[3px] bg-surface-2 p-[3px]", (launchMode === "voice" || launchMode === "mix") && "opacity-50")}>
-                {ALL_LANGS.filter((l) => l !== launchSourceLang).map((lang) => {
+              {(() => {
+                const off = launchMode === "voice" || launchMode === "mix"
+                const chip = (lang: string, small = false) => {
                   const on = launchTargets.includes(lang)
                   const vid = launchVoices[lang] ?? profiles.find((p) => p.id === launchProfileId)?.default[lang]
                   const missing = vid ? voicesById[vid]?.status === "missing" : false
@@ -1004,11 +1018,12 @@ export function VoiceView() {
                     <button
                       key={lang}
                       type="button"
-                      disabled={launchMode === "voice" || launchMode === "mix"}
+                      disabled={off}
                       title={`${LANG_NAMES[lang]}${missing ? " — голос недоступен в Fish" : ""}`}
                       onClick={() => setLaunchTargets((prev) => (on ? prev.filter((x) => x !== lang) : [...prev, lang]))}
                       className={cn(
-                        "flex-1 rounded-[2px] py-2 font-mono text-[13px] transition-colors",
+                        "flex-1 rounded-[2px] font-mono transition-colors",
+                        small ? "py-1.5 text-xs" : "py-2 text-[13px]",
                         on
                           ? "bg-ok/20 font-medium text-ok ring-1 ring-ok/70 ring-inset"
                           : "text-foreground-2 hover:bg-elev/60 hover:text-foreground",
@@ -1018,8 +1033,29 @@ export function VoiceView() {
                       {lang}
                     </button>
                   )
-                })}
-              </div>
+                }
+                const extraOn = EXTRA_LANGS.some((l) => launchTargets.includes(l))
+                return (
+                  <div className={cn("space-y-1", off && "opacity-50")}>
+                    <div className="flex rounded-[3px] bg-surface-2 p-[3px]">
+                      {MAIN_LANGS.filter((l) => l !== launchSourceLang).map((l) => chip(l))}
+                    </div>
+                    {showExtraLangs || extraOn || EXTRA_LANGS.includes(launchSourceLang) ? (
+                      <div className="flex rounded-[3px] bg-surface-2 p-[3px]">
+                        {EXTRA_LANGS.filter((l) => l !== launchSourceLang).map((l) => chip(l, true))}
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setShowExtraLangs(true)}
+                        className="text-[11px] text-faint hover:text-foreground"
+                      >
+                        + ещё {EXTRA_LANGS.length}: {EXTRA_LANGS.join(" ")}
+                      </button>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
 
             <div className="xl:col-span-3">

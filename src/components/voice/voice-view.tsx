@@ -87,8 +87,6 @@ const LANG_NAMES: Record<string, string> = {
 const MAIN_LANGS = ["EN", "RU", "ES", "PT", "DE", "IT", "PL", "FR"]
 const EXTRA_LANGS = ["JA", "AR", "KO", "NL", "TR", "SV", "NO", "DA", "CS"]
 const ALL_LANGS = [...MAIN_LANGS, ...EXTRA_LANGS]
-/** Rows of language buttons in the launch panel. */
-const LANG_ROWS = [MAIN_LANGS, EXTRA_LANGS.slice(0, 5), EXTRA_LANGS.slice(5)]
 
 function formatDuration(sec: number | null | undefined): string {
   if (!sec || sec <= 0) return "—"
@@ -1023,7 +1021,7 @@ export function VoiceView() {
                       title={`${LANG_NAMES[lang]}${missing ? " — голос недоступен в Fish" : ""}`}
                       onClick={() => setLaunchTargets((prev) => (on ? prev.filter((x) => x !== lang) : [...prev, lang]))}
                       className={cn(
-                        "rounded-[2px] py-2 font-mono text-[13px] transition-colors",
+                        "rounded-[2px] py-2 font-mono text-xs transition-colors",
                         on
                           ? "bg-ok/20 font-medium text-ok ring-1 ring-ok/70 ring-inset"
                           : "text-foreground-2 hover:bg-elev/60 hover:text-foreground",
@@ -1035,12 +1033,8 @@ export function VoiceView() {
                   )
                 }
                 return (
-                  <div className={cn("space-y-[3px] rounded-[3px] bg-surface-2 p-[3px]", off && "opacity-50")}>
-                    {LANG_ROWS.map((row) => (
-                      <div key={row[0]} className="grid grid-cols-7 gap-[3px]">
-                        {row.filter((l) => l !== launchSourceLang).map((l) => chip(l))}
-                      </div>
-                    ))}
+                  <div className={cn("grid grid-cols-8 gap-[3px] rounded-[3px] bg-surface-2 p-[3px]", off && "opacity-50")}>
+                    {ALL_LANGS.filter((l) => l !== launchSourceLang).map((l) => chip(l))}
                   </div>
                 )
               })()}

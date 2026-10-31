@@ -85,7 +85,12 @@ export interface Upload {
 }
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(
+    public status: number,
+    message: string,
+    public code?: string,
+    public email?: string
+  ) {
     super(message)
   }
 }
@@ -118,14 +123,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   if (!res.ok) {
     let message = res.statusText
+    let errCode: string | undefined
+    let errEmail: string | undefined
     try {
       const body = await res.json()
       message = typeof body.detail === "string" ? body.detail : (body.detail?.[0]?.msg ?? message)
+      if (typeof body.code === "string") errCode = body.code
+      if (typeof body.email === "string") errEmail = body.email
     } catch {}
     if (res.status === 401 && !path.startsWith("/api/auth/")) {
       unauthorizedListeners.forEach((fn) => fn())
     }
-    throw new ApiError(res.status, message)
+    throw new ApiError(res.status, message, errCode, errEmail)
   }
   return res.status === 204 ? (undefined as T) : res.json()
 }
@@ -172,12 +181,12 @@ export const api = {
 export interface AuthProviders {
   email: boolean
   google: boolean
-  email_code?: boolean
   password_reset?: boolean
 }
 
 export interface User {
   id: string
+  username: string
   email: string
   name: string
   avatar_url: string | null
@@ -188,6 +197,12 @@ export interface User {
   has_google: boolean
   created_at: string
   current_session_id?: string | null
+}
+
+export interface RegisterPending {
+  verification_required: true
+  email: string
+  username: string
 }
 
 export interface UserSession {
@@ -203,6 +218,7 @@ export interface UserSession {
 
 export interface AdminUser {
   id: string
+  username: string
   email: string
   name: string
   avatar_url: string | null
@@ -219,18 +235,20 @@ export const auth = {
   providers: () => request<AuthProviders>("/api/auth/providers"),
   session: () => request<{ user: User | null }>("/api/auth/session"),
   me: () => request<User>("/api/auth/me"),
-  register: (body: { email: string; password: string; name?: string }) =>
-    request<User>("/api/auth/register", json("POST", body)),
-  login: (body: { email: string; password: string }) =>
+  register: (body: { username: string; email: string; password: string }) =>
+    request<RegisterPending>("/api/auth/register", json("POST", body)),
+  login: (body: { login: string; password: string }) =>
     request<User>("/api/auth/login", json("POST", body)),
   logout: () => request<void>("/api/auth/logout", { method: "POST" }),
   updateProfile: (body: {
-    name?: string
-    email?: string
-    current_password?: string
+    username?: string
     avatar_key?: string | null
     clear_avatar?: boolean
   }) => request<User>("/api/auth/me", json("PATCH", body)),
+  requestEmailChange: (body: { new_email: string; current_password?: string }) =>
+    request<{ ok: boolean; email: string }>("/api/auth/email/change/request", json("POST", body)),
+  confirmEmailChange: (code: string) =>
+    request<User>("/api/auth/email/change/confirm", json("POST", { code })),
   changePassword: (body: {
     current_password?: string | null
     new_password: string
@@ -244,15 +262,13 @@ export const auth = {
     return `${apiBase()}/api/auth/google/start?${params.toString()}`
   },
   unlinkGoogle: () => request<User>("/api/auth/google", { method: "DELETE" }),
-  sendEmailCode: (email: string) => request<{ ok: boolean }>("/api/auth/email-code/send", json("POST", { email })),
-  verifyEmailCode: (email: string, code: string) =>
-    request<User>("/api/auth/email-code/verify", json("POST", { email, code })),
   forgotPassword: (email: string) => request<{ ok: boolean }>("/api/auth/password/forgot", json("POST", { email })),
   resetPassword: (token: string, new_password: string) =>
     request<User>("/api/auth/password/reset", json("POST", { token, new_password })),
-  sendVerifyEmail: () => request<{ ok: boolean }>("/api/auth/email/verify/send", json("POST")),
-  confirmVerifyEmail: (body: { token?: string; code?: string }) =>
-    request<{ ok: boolean; email: string }>("/api/auth/email/verify/confirm", json("POST", body)),
+  resendVerifyEmail: (email: string) =>
+    request<{ ok: boolean }>("/api/auth/email/verify/resend", json("POST", { email })),
+  confirmVerifyEmail: (body: { token?: string; email?: string; code?: string }) =>
+    request<User>("/api/auth/email/verify/confirm", json("POST", body)),
 }
 
 export const admin = {

@@ -63,15 +63,15 @@ function isMobileDevice(device: string): boolean {
 }
 
 function ProfileTab({ user }: { user: User }) {
-  const { setUser, refresh } = useAuth()
+  const { setUser } = useAuth()
   const qc = useQueryClient()
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const [name, setName] = useState(user.name)
-  const [email, setEmail] = useState(user.email)
+  const [username, setUsername] = useState(user.username)
+  const [newEmail, setNewEmail] = useState(user.email)
   const [currentPassword, setCurrentPassword] = useState("")
-  const [verifyCode, setVerifyCode] = useState("")
-  const [verifyOpen, setVerifyOpen] = useState(false)
+  const [pendingNewEmail, setPendingNewEmail] = useState<string | null>(null)
+  const [emailChangeCode, setEmailChangeCode] = useState("")
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
 
   const { data: providers } = useQuery({
@@ -81,22 +81,43 @@ function ProfileTab({ user }: { user: User }) {
     retry: false,
   })
 
-  const emailChanged = email.trim().toLowerCase() !== user.email.toLowerCase()
-  const hasChanges = name.trim() !== user.name || emailChanged
+  const cleanUsername = username.trim().replace(/^@+/, "").toLowerCase()
+  const usernameChanged = cleanUsername !== user.username.toLowerCase()
+  const emailChanged = newEmail.trim().toLowerCase() !== user.email.toLowerCase()
 
-  const saveProfile = useMutation({
-    mutationFn: () =>
-      auth.updateProfile({
-        name: name.trim(),
-        email: email.trim(),
-        current_password: emailChanged && user.has_password ? currentPassword : undefined,
-      }),
+  const saveUsername = useMutation({
+    mutationFn: () => auth.updateProfile({ username: cleanUsername }),
     onSuccess: (updated) => {
       setUser(updated)
-      setName(updated.name)
-      setEmail(updated.email)
+      setUsername(updated.username)
+      toast.success("Username сохранён")
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
+  const requestEmailChange = useMutation({
+    mutationFn: () =>
+      auth.requestEmailChange({
+        new_email: newEmail.trim(),
+        current_password: user.has_password ? currentPassword : undefined,
+      }),
+    onSuccess: (res) => {
+      setPendingNewEmail(res.email)
+      setEmailChangeCode("")
       setCurrentPassword("")
-      toast.success("Профиль сохранён")
+      toast.success("Код отправлен на новую почту")
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
+  const confirmEmailChange = useMutation({
+    mutationFn: () => auth.confirmEmailChange(emailChangeCode.trim()),
+    onSuccess: (updated) => {
+      setUser(updated)
+      setNewEmail(updated.email)
+      setPendingNewEmail(null)
+      setEmailChangeCode("")
+      toast.success("Почта обновлена и подтверждена")
     },
     onError: (e: Error) => toast.error(e.message),
   })
@@ -116,26 +137,6 @@ function ProfileTab({ user }: { user: User }) {
       setUser(updated)
       qc.invalidateQueries({ queryKey: authKeys.me })
       toast("Аккаунт Google отключён")
-    },
-    onError: (e: Error) => toast.error(e.message),
-  })
-
-  const sendVerify = useMutation({
-    mutationFn: () => auth.sendVerifyEmail(),
-    onSuccess: () => {
-      setVerifyOpen(true)
-      toast.success("Письмо с кодом и ссылкой отправлено")
-    },
-    onError: (e: Error) => toast.error(e.message),
-  })
-
-  const confirmVerify = useMutation({
-    mutationFn: () => auth.confirmVerifyEmail({ code: verifyCode.trim() }),
-    onSuccess: async () => {
-      setVerifyCode("")
-      setVerifyOpen(false)
-      await refresh()
-      toast.success("Почта подтверждена")
     },
     onError: (e: Error) => toast.error(e.message),
   })
@@ -173,7 +174,7 @@ function ProfileTab({ user }: { user: User }) {
         <div className="mt-4 flex flex-wrap items-center gap-4 border-b border-line pb-5">
           <UserAvatar user={user} className="size-14 text-base" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{user.name}</p>
+            <p className="truncate font-mono text-sm font-medium">@{user.username}</p>
             <p className="truncate font-mono text-xs text-muted-foreground">
               На платформе с {formatShortDate(user.created_at)}
             </p>
@@ -209,111 +210,141 @@ function ProfileTab({ user }: { user: User }) {
         </div>
 
         <form
-          className="mt-5 flex flex-col gap-4"
+          className="mt-5 flex flex-col gap-3"
           onSubmit={(e) => {
             e.preventDefault()
-            saveProfile.mutate()
+            saveUsername.mutate()
           }}
         >
           <div>
-            <label htmlFor="profile-name" className="mb-1.5 block text-[13px] font-medium text-foreground-2">
-              Имя
-            </label>
-            <input
-              id="profile-name"
-              type="text"
-              required
-              maxLength={120}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="h-9 w-full rounded-[3px] border border-line-strong bg-background px-3 text-sm outline-none transition-colors focus:border-electric"
-            />
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <label htmlFor="profile-username" className="text-[13px] font-medium text-foreground-2">
+                Username (логин)
+              </label>
+              <span className="font-mono text-[11px] text-faint">3–32 символа (a-z, 0-9, _ . -)</span>
+            </div>
+            <div className="flex gap-2">
+              <input
+                id="profile-username"
+                type="text"
+                required
+                minLength={3}
+                maxLength={32}
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                value={username}
+                onChange={(e) => setUsername(e.target.value.replace(/\s+/g, ""))}
+                className="h-9 flex-1 rounded-[3px] border border-line-strong bg-background px-3 font-mono text-[13px] outline-none transition-colors focus:border-electric"
+              />
+              <button
+                type="submit"
+                disabled={!usernameChanged || cleanUsername.length < 3 || saveUsername.isPending}
+                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-[3px] bg-primary px-3.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-45"
+              >
+                {saveUsername.isPending ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+                Сохранить
+              </button>
+            </div>
           </div>
+        </form>
 
+        <form
+          className="mt-5 flex flex-col gap-3 border-t border-line pt-5"
+          onSubmit={(e) => {
+            e.preventDefault()
+            requestEmailChange.mutate()
+          }}
+        >
           <div>
             <div className="mb-1.5 flex items-center justify-between gap-2">
               <label htmlFor="profile-email" className="text-[13px] font-medium text-foreground-2">
                 Электронная почта
               </label>
-              {user.email_verified ? (
-                <span className="inline-flex items-center gap-1 rounded-[2px] bg-ok/12 px-2 py-0.5 text-[11px] font-medium text-ok">
-                  <Check className="size-3" />
-                  Подтверждена
-                </span>
-              ) : (
-                providers?.email_code && (
-                  <button
-                    type="button"
-                    disabled={sendVerify.isPending}
-                    onClick={() => sendVerify.mutate()}
-                    className="text-xs font-medium text-electric-text hover:underline disabled:opacity-50"
-                  >
-                    {sendVerify.isPending ? "Отправляем…" : "Подтвердить почту"}
-                  </button>
-                )
-              )}
+              <span className="inline-flex items-center gap-1 rounded-[2px] bg-ok/12 px-2 py-0.5 text-[11px] font-medium text-ok">
+                <Check className="size-3" />
+                Подтверждена
+              </span>
             </div>
             <input
               id="profile-email"
               type="email"
               required
               maxLength={320}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
               className="h-9 w-full rounded-[3px] border border-line-strong bg-background px-3 font-mono text-[13px] outline-none transition-colors focus:border-electric"
             />
-            {!user.email_verified && verifyOpen && (
-              <div className="mt-2.5 flex items-center gap-2 rounded-[3px] border border-line bg-background p-2.5">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  value={verifyCode}
-                  onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="6-значный код из письма"
-                  className="h-8 flex-1 rounded-[3px] border border-line-strong bg-surface px-2.5 font-mono text-xs outline-none focus:border-electric"
-                />
+          </div>
+
+          {emailChanged && !pendingNewEmail && (
+            <>
+              {user.has_password && (
+                <div>
+                  <label htmlFor="profile-cur-pw" className="mb-1.5 block text-[13px] font-medium text-foreground-2">
+                    Текущий пароль для подтверждения смены почты
+                  </label>
+                  <input
+                    id="profile-cur-pw"
+                    type="password"
+                    required
+                    autoComplete="current-password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="h-9 w-full rounded-[3px] border border-line-strong bg-background px-3 text-sm outline-none transition-colors focus:border-electric"
+                  />
+                </div>
+              )}
+              <div className="flex justify-end">
                 <button
-                  type="button"
-                  disabled={verifyCode.length < 6 || confirmVerify.isPending}
-                  onClick={() => confirmVerify.mutate()}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-[3px] bg-primary px-3 text-xs font-medium text-primary-foreground disabled:opacity-50"
+                  type="submit"
+                  disabled={requestEmailChange.isPending}
+                  className="inline-flex h-9 items-center gap-2 rounded-[3px] bg-primary px-4 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-45"
                 >
-                  {confirmVerify.isPending && <Loader2 className="size-3.5 animate-spin" />}
-                  Подтвердить
+                  {requestEmailChange.isPending && <Loader2 className="size-4 animate-spin" />}
+                  Отправить код на новую почту
                 </button>
               </div>
-            )}
-          </div>
-
-          {emailChanged && user.has_password && (
-            <div>
-              <label htmlFor="profile-cur-pw" className="mb-1.5 block text-[13px] font-medium text-foreground-2">
-                Текущий пароль для подтверждения смены почты
-              </label>
-              <input
-                id="profile-cur-pw"
-                type="password"
-                required
-                autoComplete="current-password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="••••••••"
-                className="h-9 w-full rounded-[3px] border border-line-strong bg-background px-3 text-sm outline-none transition-colors focus:border-electric"
-              />
-            </div>
+            </>
           )}
 
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={!hasChanges || saveProfile.isPending}
-              className="inline-flex h-9 items-center gap-2 rounded-[3px] bg-primary px-4 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-45"
-            >
-              {saveProfile.isPending ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
-              Сохранить
-            </button>
-          </div>
+          {pendingNewEmail && (
+            <div className="flex flex-wrap items-center gap-2 rounded-[3px] border border-line bg-background p-3">
+              <p className="w-full text-xs text-muted-foreground">
+                Введите 6-значный код, отправленный на <span className="font-mono text-foreground">{pendingNewEmail}</span>:
+              </p>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={emailChangeCode}
+                onChange={(e) => setEmailChangeCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="000000"
+                className="h-8 flex-1 rounded-[3px] border border-line-strong bg-surface px-2.5 font-mono text-xs tracking-widest outline-none focus:border-electric"
+              />
+              <button
+                type="button"
+                disabled={emailChangeCode.length < 6 || confirmEmailChange.isPending}
+                onClick={() => confirmEmailChange.mutate()}
+                className="inline-flex h-8 items-center gap-1.5 rounded-[3px] bg-primary px-3 text-xs font-medium text-primary-foreground disabled:opacity-50"
+              >
+                {confirmEmailChange.isPending && <Loader2 className="size-3.5 animate-spin" />}
+                Подтвердить смену
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPendingNewEmail(null)
+                  setNewEmail(user.email)
+                  setEmailChangeCode("")
+                }}
+                className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+              >
+                Отмена
+              </button>
+            </div>
+          )}
         </form>
       </section>
 
@@ -326,8 +357,10 @@ function ProfileTab({ user }: { user: User }) {
                 <Mail className="size-4 text-muted-foreground" />
               </span>
               <div>
-                <p className="text-sm font-medium">Почта и пароль</p>
-                <p className="font-mono text-xs text-muted-foreground">{user.email}</p>
+                <p className="text-sm font-medium">Логин и пароль</p>
+                <p className="font-mono text-xs text-muted-foreground">
+                  @{user.username} · {user.email}
+                </p>
               </div>
             </div>
             <span
@@ -656,10 +689,15 @@ function AdminTab() {
                   <UserAvatar user={u} className="size-8" />
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="truncate text-sm font-medium">{u.name}</span>
+                      <span className="truncate font-mono text-sm font-medium">@{u.username}</span>
                       {u.role === "admin" && (
                         <span className="rounded-[2px] bg-electric-soft px-1.5 py-0.5 font-mono text-[10px] font-medium text-electric-text uppercase">
                           admin
+                        </span>
+                      )}
+                      {!u.email_verified && (
+                        <span className="rounded-[2px] bg-surface-2 px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                          Почта не подтверждена
                         </span>
                       )}
                       {!u.is_active && (

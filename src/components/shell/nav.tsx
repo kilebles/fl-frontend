@@ -145,14 +145,16 @@ function AccountMenu({ collapsed, pathname, onNavigate }: { collapsed: boolean; 
           active && "bg-elev text-foreground",
           collapsed && "justify-center px-0"
         )}
-        title={collapsed ? (user?.name || user?.email || "Аккаунт") : undefined}
+        title={collapsed ? (user?.username ? `@${user.username}` : user?.email || "Аккаунт") : undefined}
       >
         <UserAvatar user={user} />
         {!collapsed && (
           <>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
-                <span className="truncate text-[13px] font-medium text-foreground">{user?.name || "Аккаунт"}</span>
+                <span className="truncate font-mono text-[13px] font-medium text-foreground">
+                  {user?.username ? `@${user.username}` : "Аккаунт"}
+                </span>
                 {user?.role === "admin" && (
                   <span className="shrink-0 rounded-[2px] bg-electric-soft px-1 py-px font-mono text-[10px] font-medium text-electric-text uppercase">
                     admin
@@ -170,7 +172,7 @@ function AccountMenu({ collapsed, pathname, onNavigate }: { collapsed: boolean; 
           <>
             <DropdownMenuGroup>
               <DropdownMenuLabel className="px-2 py-1.5">
-                <p className="truncate text-[13px] font-medium text-foreground">{user.name}</p>
+                <p className="truncate font-mono text-[13px] font-medium text-foreground">@{user.username}</p>
                 <p className="truncate font-mono text-[11px] font-normal text-muted-foreground">{user.email}</p>
               </DropdownMenuLabel>
             </DropdownMenuGroup>

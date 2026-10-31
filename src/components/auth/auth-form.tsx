@@ -4,14 +4,13 @@ import { useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { AlertCircle, Eye, EyeOff, Loader2, Mail } from "lucide-react"
+import { AlertCircle, ArrowLeft, Eye, EyeOff, Loader2, MailCheck } from "lucide-react"
 import { toast } from "sonner"
 
 import { Logo } from "@/components/shell/logo"
 import { ThemeToggle } from "@/components/shell/nav"
-import { auth } from "@/lib/api"
+import { ApiError, auth } from "@/lib/api"
 import { authKeys, safeNextPath, useAuth } from "@/lib/auth"
-import { cn } from "@/lib/utils"
 
 export function GoogleMark({ className = "size-4" }: { className?: string }) {
   return (
@@ -76,87 +75,205 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     retry: false,
   })
 
-  const [method, setMethod] = useState<"password" | "code">("password")
-  const [name, setName] = useState("")
+  const [username, setUsername] = useState("")
   const [email, setEmail] = useState("")
+  const [loginIdent, setLoginIdent] = useState("")
   const [password, setPassword] = useState("")
-  const [code, setCode] = useState("")
-  const [codeSent, setCodeSent] = useState(false)
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null)
+  const [verifyCode, setVerifyCode] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [resending, setResending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const isRegister = mode === "register"
   const switchHref = `${isRegister ? "/login" : "/register"}${next !== "/" ? `?next=${encodeURIComponent(next)}` : ""}`
-  const forgotHref = `/forgot-password${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ""}`
-  const emailCodeEnabled = Boolean(providers?.email_code)
+  const emailHint = loginIdent.includes("@") ? loginIdent.trim() : ""
+  const forgotHref = `/forgot-password${emailHint ? `?email=${encodeURIComponent(emailHint)}` : ""}`
   const resetEnabled = Boolean(providers?.password_reset)
 
-  async function onSubmitPassword(e: React.FormEvent) {
+  async function onSubmitCredentials(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
-    if (password.length < 8 && isRegister) {
-      setError("Пароль должен содержать минимум 8 символов")
+
+    if (isRegister) {
+      const cleanU = username.trim().replace(/^@+/, "")
+      if (cleanU.length < 3) {
+        setError("Username должен содержать минимум 3 символа")
+        return
+      }
+      if (password.length < 8) {
+        setError("Пароль должен содержать минимум 8 символов")
+        return
+      }
+      setSubmitting(true)
+      try {
+        const pending = await auth.register({
+          username: cleanU,
+          email: email.trim(),
+          password,
+        })
+        setPendingEmail(pending.email)
+        setVerifyCode("")
+        toast.success("Код подтверждения отправлен на почту")
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Ошибка регистрации")
+      } finally {
+        setSubmitting(false)
+      }
       return
     }
+
     setSubmitting(true)
     try {
-      const user = isRegister
-        ? await auth.register({ email: email.trim(), password, name: name.trim() })
-        : await auth.login({ email: email.trim(), password })
+      const user = await auth.login({
+        login: loginIdent.trim(),
+        password,
+      })
       qc.clear()
       setUser(user)
-      if (isRegister && emailCodeEnabled) {
-        toast.success("Аккаунт создан — письмо для подтверждения отправлено на почту")
+      router.replace(next)
+      router.refresh()
+    } catch (err) {
+      if (err instanceof ApiError && err.code === "email_not_verified" && err.email) {
+        setPendingEmail(err.email)
+        setVerifyCode("")
+        toast("Подтвердите почту кодом из письма")
+      } else {
+        setError(err instanceof Error ? err.message : "Ошибка авторизации")
       }
-      router.replace(next)
-      router.refresh()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка авторизации")
     } finally {
       setSubmitting(false)
     }
   }
 
-  async function onSendCode(e: React.FormEvent) {
+  async function onConfirmEmail(e: React.FormEvent) {
     e.preventDefault()
+    if (!pendingEmail) return
     setError(null)
     setSubmitting(true)
     try {
-      await auth.sendEmailCode(email.trim())
-      setCodeSent(true)
-      setCode("")
-      toast.success("Код отправлен на почту")
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Не удалось отправить код")
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  async function onVerifyCode(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
-    setSubmitting(true)
-    try {
-      const user = await auth.verifyEmailCode(email.trim(), code.trim())
+      const user = await auth.confirmVerifyEmail({
+        email: pendingEmail,
+        code: verifyCode.trim(),
+      })
       qc.clear()
       setUser(user)
+      toast.success("Почта подтверждена")
       router.replace(next)
       router.refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Неверный код")
+      setError(err instanceof Error ? err.message : "Неверный код подтверждения")
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  async function onResendVerification() {
+    if (!pendingEmail) return
+    setError(null)
+    setResending(true)
+    try {
+      await auth.resendVerifyEmail(pendingEmail)
+      toast.success("Новый код отправлен на почту")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Не удалось отправить письмо повторно")
+    } finally {
+      setResending(false)
     }
   }
 
   function onGoogleClick() {
     if (providers && !providers.google) {
-      toast.error("Вход через Google не настроен (укажите GOOGLE_CLIENT_ID и GOOGLE_CLIENT_SECRET в fl-api/.env)")
+      toast.error("Вход через Google не настроен на сервере")
       return
     }
     window.location.href = auth.googleStartUrl(next, "login")
+  }
+
+  if (pendingEmail) {
+    return (
+      <AuthShell>
+        <div className="rounded-[4px] border border-line bg-surface p-6">
+          <div className="flex items-center gap-2.5">
+            <span className="grid size-8 place-items-center rounded-[3px] bg-electric-soft text-electric-text">
+              <MailCheck className="size-4" />
+            </span>
+            <h1 className="text-[20px] font-semibold tracking-tight">Подтвердите почту</h1>
+          </div>
+
+          <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
+            Мы отправили 6-значный код подтверждения на{" "}
+            <span className="font-mono text-foreground">{pendingEmail}</span>. Введите код ниже или перейдите по ссылке
+            в письме, чтобы завершить вход.
+          </p>
+
+          {error && (
+            <div
+              role="alert"
+              className="mt-4 flex items-start gap-2 rounded-[3px] border border-danger/30 bg-danger/10 px-3 py-2.5 text-[13px] text-danger"
+            >
+              <AlertCircle className="mt-0.5 size-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <form onSubmit={onConfirmEmail} className="mt-4 flex flex-col gap-3.5">
+            <div>
+              <label htmlFor="verify-email-code" className="mb-1.5 block text-[13px] font-medium text-foreground-2">
+                6-значный код из письма
+              </label>
+              <input
+                id="verify-email-code"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                required
+                maxLength={6}
+                autoFocus
+                value={verifyCode}
+                onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="000000"
+                className="h-10 w-full rounded-[3px] border border-line-strong bg-background px-3 text-center font-mono text-lg tracking-[0.28em] outline-none transition-colors placeholder:tracking-[0.28em] placeholder:text-faint focus:border-electric"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={submitting || verifyCode.length < 6}
+              className="mt-1 flex h-10 w-full items-center justify-center gap-2 rounded-[3px] bg-primary text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              {submitting && <Loader2 className="size-4 animate-spin" />}
+              Подтвердить почту и войти
+            </button>
+
+            <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+              <button
+                type="button"
+                disabled={submitting || resending}
+                onClick={() => {
+                  setPendingEmail(null)
+                  setVerifyCode("")
+                  setError(null)
+                }}
+                className="inline-flex items-center gap-1 hover:text-foreground"
+              >
+                <ArrowLeft className="size-3.5" />
+                Назад
+              </button>
+              <button
+                type="button"
+                disabled={submitting || resending}
+                onClick={onResendVerification}
+                className="font-medium text-electric-text hover:underline disabled:opacity-50"
+              >
+                {resending ? "Отправляем…" : "Отправить код повторно"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </AuthShell>
+    )
   }
 
   return (
@@ -185,50 +302,43 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
 
         <div className="my-4 flex items-center gap-3 text-xs text-faint">
           <span className="h-px flex-1 bg-line-strong" />
-          <span>или по почте</span>
+          <span>или</span>
           <span className="h-px flex-1 bg-line-strong" />
         </div>
 
-        {emailCodeEnabled && (
-          <div className="mb-4 grid grid-cols-2 rounded-[3px] border border-line bg-background p-0.5 text-xs">
-            <button
-              type="button"
-              onClick={() => {
-                setMethod("password")
-                setError(null)
-              }}
-              className={cn(
-                "h-7 rounded-[2px] font-medium transition-colors",
-                method === "password" ? "bg-surface text-foreground shadow-2xs ring-1 ring-line" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              По паролю
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMethod("code")
-                setError(null)
-              }}
-              className={cn(
-                "h-7 rounded-[2px] font-medium transition-colors",
-                method === "code" ? "bg-surface text-foreground shadow-2xs ring-1 ring-line" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              Код на почту
-            </button>
-          </div>
-        )}
-
-        {method === "code" && emailCodeEnabled ? (
-          !codeSent ? (
-            <form onSubmit={onSendCode} className="flex flex-col gap-3.5">
+        <form onSubmit={onSubmitCredentials} className="flex flex-col gap-3.5">
+          {isRegister ? (
+            <>
               <div>
-                <label htmlFor="otp-email" className="mb-1.5 block text-[13px] font-medium text-foreground-2">
+                <div className="mb-1.5 flex items-center justify-between">
+                  <label htmlFor="auth-username" className="text-[13px] font-medium text-foreground-2">
+                    Username (логин)
+                  </label>
+                  <span className="font-mono text-[11px] text-faint">a-z, 0-9, _ . -</span>
+                </div>
+                <input
+                  id="auth-username"
+                  type="text"
+                  required
+                  minLength={3}
+                  maxLength={32}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  autoComplete="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value.replace(/\s+/g, ""))}
+                  placeholder="username"
+                  className="h-9 w-full rounded-[3px] border border-line-strong bg-background px-3 font-mono text-[13px] outline-none transition-colors placeholder:text-faint focus:border-electric"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="auth-email" className="mb-1.5 block text-[13px] font-medium text-foreground-2">
                   Почта
                 </label>
                 <input
-                  id="otp-email"
+                  id="auth-email"
                   type="email"
                   required
                   autoComplete="email"
@@ -239,161 +349,78 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
                   className="h-9 w-full rounded-[3px] border border-line-strong bg-background px-3 font-mono text-[13px] outline-none transition-colors placeholder:text-faint focus:border-electric"
                 />
               </div>
-
-              <button
-                type="submit"
-                disabled={submitting}
-                className="mt-1 flex h-10 w-full items-center justify-center gap-2 rounded-[3px] bg-primary text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-              >
-                {submitting ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}
-                Получить 6-значный код
-              </button>
-            </form>
+            </>
           ) : (
-            <form onSubmit={onVerifyCode} className="flex flex-col gap-3.5">
-              <div className="rounded-[3px] border border-line bg-background px-3 py-2 text-xs text-muted-foreground">
-                Отправили одноразовый код на <span className="font-mono text-foreground">{email.trim()}</span>
-              </div>
-
-              <div>
-                <label htmlFor="otp-code" className="mb-1.5 block text-[13px] font-medium text-foreground-2">
-                  Код из письма
-                </label>
-                <input
-                  id="otp-code"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  required
-                  maxLength={8}
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="000000"
-                  autoFocus
-                  className="h-10 w-full rounded-[3px] border border-line-strong bg-background px-3 text-center font-mono text-lg tracking-[0.28em] outline-none transition-colors placeholder:tracking-[0.28em] placeholder:text-faint focus:border-electric"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={submitting || code.length < 6}
-                className="mt-1 flex h-10 w-full items-center justify-center gap-2 rounded-[3px] bg-primary text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-              >
-                {submitting && <Loader2 className="size-4 animate-spin" />}
-                Подтвердить и войти
-              </button>
-
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <button
-                  type="button"
-                  disabled={submitting}
-                  onClick={() => {
-                    setCodeSent(false)
-                    setCode("")
-                    setError(null)
-                  }}
-                  className="hover:text-foreground"
-                >
-                  Изменить почту
-                </button>
-                <button
-                  type="button"
-                  disabled={submitting}
-                  onClick={(e) => onSendCode(e)}
-                  className="hover:text-foreground"
-                >
-                  Отправить код повторно
-                </button>
-              </div>
-            </form>
-          )
-        ) : (
-          <form onSubmit={onSubmitPassword} className="flex flex-col gap-3.5">
-            {isRegister && (
-              <div>
-                <label htmlFor="auth-name" className="mb-1.5 block text-[13px] font-medium text-foreground-2">
-                  Имя
-                </label>
-                <input
-                  id="auth-name"
-                  type="text"
-                  autoComplete="name"
-                  maxLength={120}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Алексей"
-                  className="h-9 w-full rounded-[3px] border border-line-strong bg-background px-3 text-sm outline-none transition-colors placeholder:text-faint focus:border-electric"
-                />
-              </div>
-            )}
-
             <div>
-              <label htmlFor="auth-email" className="mb-1.5 block text-[13px] font-medium text-foreground-2">
-                Почта
+              <label htmlFor="auth-login" className="mb-1.5 block text-[13px] font-medium text-foreground-2">
+                Username или почта
               </label>
               <input
-                id="auth-email"
-                type="email"
+                id="auth-login"
+                type="text"
                 required
-                autoComplete="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                autoComplete="username"
                 maxLength={320}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                value={loginIdent}
+                onChange={(e) => setLoginIdent(e.target.value)}
+                placeholder="username или you@example.com"
                 className="h-9 w-full rounded-[3px] border border-line-strong bg-background px-3 font-mono text-[13px] outline-none transition-colors placeholder:text-faint focus:border-electric"
               />
             </div>
+          )}
 
-            <div>
-              <div className="mb-1.5 flex items-center justify-between">
-                <label htmlFor="auth-password" className="text-[13px] font-medium text-foreground-2">
-                  Пароль
-                </label>
-                {isRegister ? (
-                  <span className="font-mono text-[11px] text-faint">от 8 символов</span>
-                ) : (
-                  resetEnabled && (
-                    <Link href={forgotHref} className="text-xs text-muted-foreground hover:text-foreground">
-                      Забыли пароль?
-                    </Link>
-                  )
-                )}
-              </div>
-              <div className="relative">
-                <input
-                  id="auth-password"
-                  type={showPassword ? "text" : "password"}
-                  required
-                  minLength={isRegister ? 8 : 1}
-                  maxLength={128}
-                  autoComplete={isRegister ? "new-password" : "current-password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="h-9 w-full rounded-[3px] border border-line-strong bg-background pr-9 pl-3 text-sm outline-none transition-colors placeholder:text-faint focus:border-electric"
-                />
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
-                  className="absolute inset-y-0 right-0 grid w-9 place-items-center text-muted-foreground hover:text-foreground"
-                >
-                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                </button>
-              </div>
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <label htmlFor="auth-password" className="text-[13px] font-medium text-foreground-2">
+                Пароль
+              </label>
+              {isRegister ? (
+                <span className="font-mono text-[11px] text-faint">от 8 символов</span>
+              ) : (
+                resetEnabled && (
+                  <Link href={forgotHref} className="text-xs text-muted-foreground hover:text-foreground">
+                    Забыли пароль?
+                  </Link>
+                )
+              )}
             </div>
+            <div className="relative">
+              <input
+                id="auth-password"
+                type={showPassword ? "text" : "password"}
+                required
+                minLength={isRegister ? 8 : 1}
+                maxLength={128}
+                autoComplete={isRegister ? "new-password" : "current-password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="h-9 w-full rounded-[3px] border border-line-strong bg-background pr-9 pl-3 text-sm outline-none transition-colors placeholder:text-faint focus:border-electric"
+              />
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
+                className="absolute inset-y-0 right-0 grid w-9 place-items-center text-muted-foreground hover:text-foreground"
+              >
+                {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
+          </div>
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="mt-1 flex h-10 w-full items-center justify-center gap-2 rounded-[3px] bg-primary text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-            >
-              {submitting && <Loader2 className="size-4 animate-spin" />}
-              {isRegister ? "Создать аккаунт" : "Войти"}
-            </button>
-          </form>
-        )}
+          <button
+            type="submit"
+            disabled={submitting}
+            className="mt-1 flex h-10 w-full items-center justify-center gap-2 rounded-[3px] bg-primary text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+          >
+            {submitting && <Loader2 className="size-4 animate-spin" />}
+            {isRegister ? "Создать аккаунт" : "Войти"}
+          </button>
+        </form>
       </div>
 
       <p className="mt-4 text-center text-[13px] text-muted-foreground">

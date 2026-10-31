@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react"
 
 import { AuthShell } from "@/components/auth/auth-form"
@@ -11,7 +12,8 @@ import { useAuth } from "@/lib/auth"
 
 function VerifyEmailInner() {
   const searchParams = useSearchParams()
-  const { user, refresh } = useAuth()
+  const qc = useQueryClient()
+  const { setUser } = useAuth()
   const token = searchParams.get("token") ?? ""
   const startedRef = useRef(false)
 
@@ -23,16 +25,17 @@ function VerifyEmailInner() {
     startedRef.current = true
     auth
       .confirmVerifyEmail({ token })
-      .then(async (res) => {
+      .then((verifiedUser) => {
+        qc.clear()
+        setUser(verifiedUser)
         setState("ok")
-        setMessage(res.email)
-        await refresh()
+        setMessage(verifiedUser.email)
       })
       .catch((err: unknown) => {
         setState("error")
         setMessage(err instanceof Error ? err.message : "Не удалось подтвердить почту")
       })
-  }, [token, refresh])
+  }, [token, qc, setUser])
 
   return (
     <AuthShell>
@@ -51,14 +54,14 @@ function VerifyEmailInner() {
             <div className="flex items-start gap-2.5 rounded-[3px] border border-line bg-background p-3.5 text-[13px] text-foreground-2">
               <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
               <div>
-                Почта <span className="font-mono text-foreground">{message}</span> успешно подтверждена.
+                Почта <span className="font-mono text-foreground">{message}</span> успешно подтверждена, вход выполнен.
               </div>
             </div>
             <Link
-              href={user ? "/account" : "/login"}
+              href="/"
               className="flex h-10 w-full items-center justify-center rounded-[3px] bg-primary text-sm font-medium text-primary-foreground hover:opacity-90"
             >
-              {user ? "Перейти в аккаунт" : "Перейти ко входу"}
+              Перейти в сервис
             </Link>
           </div>
         )}
@@ -73,10 +76,10 @@ function VerifyEmailInner() {
               <span>{message}</span>
             </div>
             <Link
-              href={user ? "/account" : "/login"}
+              href="/login"
               className="flex h-10 w-full items-center justify-center rounded-[3px] border border-line-strong bg-background text-sm font-medium hover:border-faint"
             >
-              {user ? "Настройки аккаунта" : "На страницу входа"}
+              На страницу входа
             </Link>
           </div>
         )}

@@ -127,21 +127,17 @@ export function useAuth(): AuthContextValue {
   return ctx
 }
 
-export function userInitials(user: Pick<User, "name" | "email"> | null | undefined): string {
-  const raw = (user?.name || user?.email || "").trim()
+export function userInitials(user: Pick<User, "username" | "name" | "email"> | null | undefined): string {
+  const raw = (user?.username || user?.name || user?.email || "").trim().replace(/^@+/, "")
   if (!raw) return "?"
-  const parts = raw.split(/\s+/).filter(Boolean)
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase()
-  }
-  return raw.slice(0, 1).toUpperCase()
+  return raw.slice(0, 2).toUpperCase()
 }
 
 export function UserAvatar({
   user,
   className,
 }: {
-  user: Pick<User, "name" | "email" | "avatar_url"> | null | undefined
+  user: Pick<User, "username" | "name" | "email" | "avatar_url"> | null | undefined
   className?: string
 }) {
   if (user?.avatar_url) {
@@ -149,7 +145,7 @@ export function UserAvatar({
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={user.avatar_url}
-        alt={user.name || user.email}
+        alt={user.username || user.email}
         referrerPolicy="no-referrer"
         className={cn("size-7 shrink-0 rounded-[3px] object-cover ring-1 ring-line-strong", className)}
       />

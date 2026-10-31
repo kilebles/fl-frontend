@@ -74,12 +74,9 @@ function ResetPasswordInner() {
 
         <form onSubmit={onSubmit} className="mt-4 flex flex-col gap-3.5">
           <div>
-            <div className="mb-1.5 flex items-center justify-between">
-              <label htmlFor="reset-pw" className="text-[13px] font-medium text-foreground-2">
-                Новый пароль
-              </label>
-              <span className="font-mono text-[11px] text-faint">от 8 символов</span>
-            </div>
+            <label htmlFor="reset-pw" className="mb-1.5 block text-[13px] font-medium text-foreground-2">
+              Новый пароль
+            </label>
             <div className="relative">
               <input
                 id="reset-pw"

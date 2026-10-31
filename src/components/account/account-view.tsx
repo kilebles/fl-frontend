@@ -90,7 +90,7 @@ function ProfileTab({ user }: { user: User }) {
     onSuccess: (updated) => {
       setUser(updated)
       setUsername(updated.username)
-      toast.success("Username сохранён")
+      toast.success("Логин сохранён")
     },
     onError: (e: Error) => toast.error(e.message),
   })
@@ -217,12 +217,9 @@ function ProfileTab({ user }: { user: User }) {
           }}
         >
           <div>
-            <div className="mb-1.5 flex items-center justify-between gap-2">
-              <label htmlFor="profile-username" className="text-[13px] font-medium text-foreground-2">
-                Username (логин)
-              </label>
-              <span className="font-mono text-[11px] text-faint">3–32 символа (a-z, 0-9, _ . -)</span>
-            </div>
+            <label htmlFor="profile-username" className="mb-1.5 block text-[13px] font-medium text-foreground-2">
+              Логин
+            </label>
             <div className="flex gap-2">
               <input
                 id="profile-username"
@@ -523,7 +520,7 @@ function SecurityTab() {
                 minLength={8}
                 maxLength={128}
                 autoComplete="new-password"
-                placeholder="Минимум 8 символов"
+                placeholder="••••••••"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 className="h-9 w-full rounded-[3px] border border-line-strong bg-background px-3 text-sm outline-none transition-colors placeholder:text-faint focus:border-electric"

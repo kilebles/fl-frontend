@@ -99,7 +99,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     if (isRegister) {
       const cleanU = username.trim().replace(/^@+/, "")
       if (cleanU.length < 3) {
-        setError("Username должен содержать минимум 3 символа")
+        setError("Логин должен содержать минимум 3 символа")
         return
       }
       if (password.length < 8) {
@@ -310,12 +310,9 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           {isRegister ? (
             <>
               <div>
-                <div className="mb-1.5 flex items-center justify-between">
-                  <label htmlFor="auth-username" className="text-[13px] font-medium text-foreground-2">
-                    Username (логин)
-                  </label>
-                  <span className="font-mono text-[11px] text-faint">a-z, 0-9, _ . -</span>
-                </div>
+                <label htmlFor="auth-username" className="mb-1.5 block text-[13px] font-medium text-foreground-2">
+                  Логин
+                </label>
                 <input
                   id="auth-username"
                   type="text"
@@ -328,7 +325,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
                   autoComplete="username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value.replace(/\s+/g, ""))}
-                  placeholder="username"
+                  placeholder="логин"
                   className="h-9 w-full rounded-[3px] border border-line-strong bg-background px-3 font-mono text-[13px] outline-none transition-colors placeholder:text-faint focus:border-electric"
                 />
               </div>
@@ -353,7 +350,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           ) : (
             <div>
               <label htmlFor="auth-login" className="mb-1.5 block text-[13px] font-medium text-foreground-2">
-                Username или почта
+                Логин или почта
               </label>
               <input
                 id="auth-login"
@@ -366,7 +363,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
                 maxLength={320}
                 value={loginIdent}
                 onChange={(e) => setLoginIdent(e.target.value)}
-                placeholder="username или you@example.com"
+                placeholder="логин или you@example.com"
                 className="h-9 w-full rounded-[3px] border border-line-strong bg-background px-3 font-mono text-[13px] outline-none transition-colors placeholder:text-faint focus:border-electric"
               />
             </div>
@@ -377,14 +374,10 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
               <label htmlFor="auth-password" className="text-[13px] font-medium text-foreground-2">
                 Пароль
               </label>
-              {isRegister ? (
-                <span className="font-mono text-[11px] text-faint">от 8 символов</span>
-              ) : (
-                resetEnabled && (
-                  <Link href={forgotHref} className="text-xs text-muted-foreground hover:text-foreground">
-                    Забыли пароль?
-                  </Link>
-                )
+              {!isRegister && resetEnabled && (
+                <Link href={forgotHref} className="text-xs text-muted-foreground hover:text-foreground">
+                  Забыли пароль?
+                </Link>
               )}
             </div>
             <div className="relative">

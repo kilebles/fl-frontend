@@ -5,11 +5,14 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   ChevronLeft,
+  ChevronsUpDown,
   FileText,
   Folder,
   History,
+  KeyRound,
   Layers,
   LayoutGrid,
+  LogOut,
   type LucideIcon,
   Menu,
   MessageSquareText,
@@ -17,8 +20,10 @@ import {
   Music,
   Scissors,
   ScanSearch,
+  Shield,
   SquarePlay,
   TrendingUp,
+  UserCog,
   UserRound,
   X,
 } from "lucide-react"
@@ -26,6 +31,16 @@ import { toast } from "sonner"
 
 import { Logo } from "@/components/shell/logo"
 import { setTheme, useTheme } from "@/components/shell/theme"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { UserAvatar, useAuth } from "@/lib/auth"
 import { cn } from "@/lib/utils"
 
 interface NavItem {
@@ -83,10 +98,10 @@ function Item({ item, pathname, collapsed, onNavigate }: { item: NavItem; pathna
   )
 }
 
-function ThemeToggle() {
+export function ThemeToggle({ className }: { className?: string }) {
   const theme = useTheme()
   return (
-    <div className="flex gap-0.5 rounded-[4px] border border-line bg-surface p-0.5 text-[13px]">
+    <div className={cn("flex gap-0.5 rounded-[4px] border border-line bg-surface p-0.5 text-[13px]", className)}>
       {(
         [
           ["dark", "Тёмная"],
@@ -106,6 +121,90 @@ function ThemeToggle() {
         </button>
       ))}
     </div>
+  )
+}
+
+function AccountMenu({ collapsed, pathname, onNavigate }: { collapsed: boolean; pathname: string; onNavigate?: () => void }) {
+  const { user, isLoading, logout } = useAuth()
+  const active = pathname.startsWith("/account")
+
+  if (isLoading && !user) {
+    return (
+      <div className={cn("flex h-11 items-center gap-2.5 rounded-[4px] px-1.5", collapsed && "justify-center px-0")}>
+        <div className="size-7 rounded-[3px] shimmer" />
+        {!collapsed && <div className="h-3.5 w-24 rounded-[2px] shimmer" />}
+      </div>
+    )
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className={cn(
+          "flex w-full items-center gap-2.5 rounded-[4px] px-1.5 py-1.5 text-left text-sm transition-colors outline-none hover:bg-elev/70",
+          active && "bg-elev text-foreground",
+          collapsed && "justify-center px-0"
+        )}
+        title={collapsed ? (user?.name || user?.email || "Аккаунт") : undefined}
+      >
+        <UserAvatar user={user} />
+        {!collapsed && (
+          <>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <span className="truncate text-[13px] font-medium text-foreground">{user?.name || "Аккаунт"}</span>
+                {user?.role === "admin" && (
+                  <span className="shrink-0 rounded-[2px] bg-electric-soft px-1 py-px font-mono text-[10px] font-medium text-electric-text uppercase">
+                    admin
+                  </span>
+                )}
+              </div>
+              {user?.email && <p className="truncate font-mono text-[11px] text-muted-foreground">{user.email}</p>}
+            </div>
+            <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
+          </>
+        )}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side={collapsed ? "right" : "top"} align="start" sideOffset={6} className="w-56 rounded-[4px] border border-line-strong bg-popover p-1">
+        {user && (
+          <>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="px-2 py-1.5">
+                <p className="truncate text-[13px] font-medium text-foreground">{user.name}</p>
+                <p className="truncate font-mono text-[11px] font-normal text-muted-foreground">{user.email}</p>
+              </DropdownMenuLabel>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+          </>
+        )}
+        <DropdownMenuItem render={<Link href="/account" onClick={onNavigate} />} className="cursor-pointer rounded-[3px] px-2 py-1.5">
+          <UserCog className="size-4 text-muted-foreground" />
+          Профиль
+        </DropdownMenuItem>
+        <DropdownMenuItem render={<Link href="/account?tab=security" onClick={onNavigate} />} className="cursor-pointer rounded-[3px] px-2 py-1.5">
+          <KeyRound className="size-4 text-muted-foreground" />
+          Пароль и сессии
+        </DropdownMenuItem>
+        {user?.role === "admin" && (
+          <DropdownMenuItem render={<Link href="/account?tab=admin" onClick={onNavigate} />} className="cursor-pointer rounded-[3px] px-2 py-1.5">
+            <Shield className="size-4 text-muted-foreground" />
+            Пользователи
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          variant="destructive"
+          onClick={() => {
+            onNavigate?.()
+            void logout()
+          }}
+          className="cursor-pointer rounded-[3px] px-2 py-1.5"
+        >
+          <LogOut className="size-4" />
+          Выйти
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
@@ -140,7 +239,7 @@ function SidebarBody({ collapsed, onCollapse, onNavigate }: { collapsed: boolean
         <Item key={item.href} item={item} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
       ))}
 
-      {!collapsed && (
+      {!collapsed ? (
         <>
           <p className="mt-3 flex items-center gap-2 px-2.5 text-xs text-muted-foreground">
             <span className="size-1.5 rounded-[1px] bg-dev" /> в разработке
@@ -159,12 +258,13 @@ function SidebarBody({ collapsed, onCollapse, onNavigate }: { collapsed: boolean
               </button>
             </div>
             <ThemeToggle />
-            <div className="flex items-center gap-2.5 px-1 text-sm text-foreground-2">
-              <span className="grid size-7 place-items-center rounded-[3px] bg-elev text-xs font-semibold">Д</span>
-              Аккаунт
-            </div>
+            <AccountMenu collapsed={false} pathname={pathname} onNavigate={onNavigate} />
           </div>
         </>
+      ) : (
+        <div className="mt-auto pt-4">
+          <AccountMenu collapsed pathname={pathname} onNavigate={onNavigate} />
+        </div>
       )}
     </div>
   )

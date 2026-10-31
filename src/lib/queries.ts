@@ -135,11 +135,12 @@ export function useJobActions() {
  * Subscribes to the API's server-sent events and merges every job update into the
  * query cache, so lists, the top bar and the job page update live.
  */
-export function useJobEvents() {
+export function useJobEvents(enabled = true) {
   const qc = useQueryClient()
 
   useEffect(() => {
-    const source = new EventSource(api.eventsUrl())
+    if (!enabled) return
+    const source = new EventSource(api.eventsUrl(), { withCredentials: true })
     source.addEventListener("job", (event) => {
       const status: JobStatus = JSON.parse((event as MessageEvent).data)
       qc.setQueryData<JobStatus[]>(keys.jobs, (jobs) => {
@@ -162,7 +163,7 @@ export function useJobEvents() {
       }
     })
     return () => source.close()
-  }, [qc])
+  }, [qc, enabled])
 }
 
 /** Style suffix of the current project ("" without a project). */

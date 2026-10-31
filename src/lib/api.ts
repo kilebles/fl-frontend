@@ -1,5 +1,20 @@
-export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "")
+const RAW_API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "")
 const API_TOKEN = process.env.NEXT_PUBLIC_API_TOKEN ?? ""
+
+/** Align localhost <-> 127.0.0.1 in the browser so HttpOnly SameSite=Lax cookies work on either loopback host. */
+export function apiBase(): string {
+  if (!RAW_API_URL || typeof window === "undefined") return RAW_API_URL
+  const browserHost = window.location.hostname
+  if (browserHost === "localhost" && RAW_API_URL.includes("://127.0.0.1")) {
+    return RAW_API_URL.replace("://127.0.0.1", "://localhost")
+  }
+  if (browserHost === "127.0.0.1" && RAW_API_URL.includes("://localhost")) {
+    return RAW_API_URL.replace("://localhost", "://127.0.0.1")
+  }
+  return RAW_API_URL
+}
+
+export const API_URL = RAW_API_URL
 
 export type Mode = "t2v" | "flash_t2v" | "img" | "i2v" | "flash_i2v" | "i2i2v" | "f2v"
 export type Strategy = "parallel" | "sequential"
@@ -75,14 +90,29 @@ export class ApiError extends Error {
   }
 }
 
+const unauthorizedListeners = new Set<() => void>()
+
+export function onUnauthorized(listener: () => void): () => void {
+  unauthorizedListeners.add(listener)
+  return () => unauthorizedListeners.delete(listener)
+}
+
 function headers(extra?: HeadersInit): HeadersInit {
-  return { ...(API_TOKEN ? { Authorization: `Bearer ${API_TOKEN}` } : {}), ...extra }
+  return {
+    "X-Requested-With": "fl-web",
+    ...(API_TOKEN ? { Authorization: `Bearer ${API_TOKEN}` } : {}),
+    ...extra,
+  }
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response
   try {
-    res = await fetch(`${API_URL}${path}`, { ...init, headers: headers(init?.headers) })
+    res = await fetch(`${apiBase()}${path}`, {
+      ...init,
+      credentials: "include",
+      headers: headers(init?.headers),
+    })
   } catch {
     throw new ApiError(0, "Сервер недоступен — запущен ли scripts/serve.py?")
   }
@@ -92,6 +122,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       const body = await res.json()
       message = typeof body.detail === "string" ? body.detail : (body.detail?.[0]?.msg ?? message)
     } catch {}
+    if (res.status === 401 && !path.startsWith("/api/auth/")) {
+      unauthorizedListeners.forEach((fn) => fn())
+    }
     throw new ApiError(res.status, message)
   }
   return res.status === 204 ? (undefined as T) : res.json()
@@ -129,9 +162,103 @@ export const api = {
     if (kind) params.set("kind", kind)
     if (API_TOKEN) params.set("token", API_TOKEN)
     const qs = params.toString()
-    return `${API_URL}/api/jobs/${id}/zip${qs ? `?${qs}` : ""}`
+    return `${apiBase()}/api/jobs/${id}/zip${qs ? `?${qs}` : ""}`
   },
-  eventsUrl: () => `${API_URL}/api/events${API_TOKEN ? `?token=${encodeURIComponent(API_TOKEN)}` : ""}`,
+  eventsUrl: () => `${apiBase()}/api/events${API_TOKEN ? `?token=${encodeURIComponent(API_TOKEN)}` : ""}`,
+}
+
+// Auth & Account
+
+export interface AuthProviders {
+  email: boolean
+  google: boolean
+  email_code?: boolean
+  password_reset?: boolean
+}
+
+export interface User {
+  id: string
+  email: string
+  name: string
+  avatar_url: string | null
+  avatar_key?: string | null
+  role: "user" | "admin"
+  email_verified?: boolean
+  has_password: boolean
+  has_google: boolean
+  created_at: string
+  current_session_id?: string | null
+}
+
+export interface UserSession {
+  id: string
+  device: string
+  ip_address: string | null
+  user_agent: string | null
+  created_at: string
+  last_seen_at: string
+  expires_at: string
+  is_current: boolean
+}
+
+export interface AdminUser {
+  id: string
+  email: string
+  name: string
+  avatar_url: string | null
+  role: "user" | "admin"
+  is_active: boolean
+  email_verified?: boolean
+  has_password: boolean
+  has_google: boolean
+  active_sessions: number
+  created_at: string
+}
+
+export const auth = {
+  providers: () => request<AuthProviders>("/api/auth/providers"),
+  session: () => request<{ user: User | null }>("/api/auth/session"),
+  me: () => request<User>("/api/auth/me"),
+  register: (body: { email: string; password: string; name?: string }) =>
+    request<User>("/api/auth/register", json("POST", body)),
+  login: (body: { email: string; password: string }) =>
+    request<User>("/api/auth/login", json("POST", body)),
+  logout: () => request<void>("/api/auth/logout", { method: "POST" }),
+  updateProfile: (body: {
+    name?: string
+    email?: string
+    current_password?: string
+    avatar_key?: string | null
+    clear_avatar?: boolean
+  }) => request<User>("/api/auth/me", json("PATCH", body)),
+  changePassword: (body: {
+    current_password?: string | null
+    new_password: string
+    revoke_other_sessions?: boolean
+  }) => request<{ ok: boolean; revoked_sessions: number }>("/api/auth/password", json("POST", body)),
+  sessions: () => request<UserSession[]>("/api/auth/sessions"),
+  revokeSession: (id: string) => request<void>(`/api/auth/sessions/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  revokeOtherSessions: () => request<{ revoked: number }>("/api/auth/sessions/revoke-others", json("POST")),
+  googleStartUrl: (next = "/", intent: "login" | "link" = "login") => {
+    const params = new URLSearchParams({ next, intent })
+    return `${apiBase()}/api/auth/google/start?${params.toString()}`
+  },
+  unlinkGoogle: () => request<User>("/api/auth/google", { method: "DELETE" }),
+  sendEmailCode: (email: string) => request<{ ok: boolean }>("/api/auth/email-code/send", json("POST", { email })),
+  verifyEmailCode: (email: string, code: string) =>
+    request<User>("/api/auth/email-code/verify", json("POST", { email, code })),
+  forgotPassword: (email: string) => request<{ ok: boolean }>("/api/auth/password/forgot", json("POST", { email })),
+  resetPassword: (token: string, new_password: string) =>
+    request<User>("/api/auth/password/reset", json("POST", { token, new_password })),
+  sendVerifyEmail: () => request<{ ok: boolean }>("/api/auth/email/verify/send", json("POST")),
+  confirmVerifyEmail: (body: { token?: string; code?: string }) =>
+    request<{ ok: boolean; email: string }>("/api/auth/email/verify/confirm", json("POST", body)),
+}
+
+export const admin = {
+  users: () => request<AdminUser[]>("/api/admin/users"),
+  updateUser: (id: string, body: { role?: "user" | "admin"; is_active?: boolean }) =>
+    request<AdminUser>(`/api/admin/users/${encodeURIComponent(id)}`, json("PATCH", body)),
 }
 
 export const FINISHED: JobState[] = ["done", "stopped", "failed", "cancelled"]
@@ -172,6 +299,7 @@ export interface PromptTemplate {
   pairs: number
   image_target: string
   video_target: string
+  is_system?: boolean
   created_at: string
 }
 
@@ -233,7 +361,7 @@ export const prompts = {
     return request<PromptRun>("/api/prompts/runs", { method: "POST", body: form })
   },
   removeRun: (id: string) => request<void>(`/api/prompts/runs/${id}`, { method: "DELETE" }),
-  xlsxUrl: (id: string) => `${API_URL}/api/prompts/runs/${id}/xlsx${API_TOKEN ? `?token=${encodeURIComponent(API_TOKEN)}` : ""}`,
+  xlsxUrl: (id: string) => `${apiBase()}/api/prompts/runs/${id}/xlsx${API_TOKEN ? `?token=${encodeURIComponent(API_TOKEN)}` : ""}`,
 }
 
 export const runActive = (run: Pick<PromptRun, "state">) => run.state === "queued" || run.state === "running"
@@ -287,7 +415,7 @@ export const infographics = {
   },
   retry: (id: string) => request<InfographicRun>(`/api/infographics/runs/${id}/retry`, json("POST")),
   remove: (id: string) => request<void>(`/api/infographics/runs/${id}`, { method: "DELETE" }),
-  zipUrl: (id: string) => `${API_URL}/api/infographics/runs/${id}/zip${API_TOKEN ? `?token=${encodeURIComponent(API_TOKEN)}` : ""}`,
+  zipUrl: (id: string) => `${apiBase()}/api/infographics/runs/${id}/zip${API_TOKEN ? `?token=${encodeURIComponent(API_TOKEN)}` : ""}`,
 }
 
 export const infographicActive = (run: Pick<InfographicRun, "state">) => run.state !== "done" && run.state !== "failed"
@@ -554,7 +682,7 @@ export function voiceMediaUrl(path: string | null | undefined): string {
   if (!path) return ""
   if (path.startsWith("http://") || path.startsWith("https://")) return path
   const sep = path.includes("?") ? "&" : "?"
-  return `${API_URL}${path}${API_TOKEN ? `${sep}token=${encodeURIComponent(API_TOKEN)}` : ""}`
+  return `${apiBase()}${path}${API_TOKEN ? `${sep}token=${encodeURIComponent(API_TOKEN)}` : ""}`
 }
 
 export const voice = {
@@ -652,7 +780,7 @@ export const voice = {
     if (jobId !== undefined) q.set("job_id", String(jobId))
     if (API_TOKEN) q.set("token", API_TOKEN)
     const qs = q.toString()
-    return `${API_URL}/api/voice/events${qs ? `?${qs}` : ""}`
+    return `${apiBase()}/api/voice/events${qs ? `?${qs}` : ""}`
   },
   zipAllUrl: (jobId: number) => voiceMediaUrl(`/api/voice/jobs/${jobId}/zip`),
 }
@@ -877,7 +1005,7 @@ export interface ProjectPatch {
   remove_url?: string
 }
 
-const withToken = (path: string) => `${API_URL}${path}${API_TOKEN ? `${path.includes("?") ? "&" : "?"}token=${encodeURIComponent(API_TOKEN)}` : ""}`
+const withToken = (path: string) => `${apiBase()}${path}${API_TOKEN ? `${path.includes("?") ? "&" : "?"}token=${encodeURIComponent(API_TOKEN)}` : ""}`
 const pid = (id: string) => `/api/scenario/projects/${encodeURIComponent(id)}`
 const nid = (slug: string) => `/api/scenario/niches/${encodeURIComponent(slug)}`
 
@@ -918,7 +1046,10 @@ export const scenario = {
   file: async (id: string, name: string): Promise<File> => {
     let res: Response
     try {
-      res = await fetch(`${API_URL}${pid(id)}/files/${encodeURIComponent(name)}`, { headers: headers() })
+      res = await fetch(`${apiBase()}${pid(id)}/files/${encodeURIComponent(name)}`, {
+        credentials: "include",
+        headers: headers(),
+      })
     } catch {
       throw new ApiError(0, "Сервер недоступен")
     }

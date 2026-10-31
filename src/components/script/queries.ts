@@ -76,7 +76,7 @@ export function useAnalyticsItem(file: string | null) {
 export function useScenarioEvents() {
   const qc = useQueryClient()
   useEffect(() => {
-    const es = new EventSource(scenario.eventsUrl())
+    const es = new EventSource(scenario.eventsUrl(), { withCredentials: true })
     const on = (event: string, fn: (data: Record<string, unknown>) => void) =>
       es.addEventListener(event, (ev) => {
         try {

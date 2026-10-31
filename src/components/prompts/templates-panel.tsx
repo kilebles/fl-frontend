@@ -9,6 +9,7 @@ import { toast } from "sonner"
 import { Dropzone } from "@/components/create/dropzone"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { prompts, type PromptTemplate } from "@/lib/api"
+import { useAuth } from "@/lib/auth"
 import { plural } from "@/lib/format"
 import { keys, useTemplate, useTemplates } from "@/lib/queries"
 
@@ -24,8 +25,10 @@ function Field({ label, value }: { label: string; value: string }) {
 
 function TemplateDialog({ id, onClose }: { id: string | null; onClose: () => void }) {
   const qc = useQueryClient()
+  const { user } = useAuth()
   const { data } = useTemplate(id)
   const [editing, setEditing] = useState<string | null>(null)
+  const canEdit = !data?.is_system || user?.role === "admin"
 
   const rename = useMutation({
     mutationFn: (title: string) => prompts.renameTemplate(id!, title),
@@ -66,9 +69,11 @@ function TemplateDialog({ id, onClose }: { id: string | null; onClose: () => voi
           ) : (
             <>
               <DialogTitle className="truncate text-lg font-semibold">{data?.title ?? "…"}</DialogTitle>
-              <button type="button" onClick={() => setEditing(data?.title ?? "")} className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-elev hover:text-foreground">
-                <Pencil className="size-3.5" />
-              </button>
+              {canEdit && (
+                <button type="button" onClick={() => setEditing(data?.title ?? "")} className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-elev hover:text-foreground">
+                  <Pencil className="size-3.5" />
+                </button>
+              )}
             </>
           )}
         </div>
@@ -106,15 +111,17 @@ function TemplateDialog({ id, onClose }: { id: string | null; onClose: () => voi
             </>
           )}
         </div>
-        <div className="flex justify-end border-t border-line p-3">
-          <button
-            type="button"
-            onClick={() => confirm("Удалить шаблон?") && remove.mutate()}
-            className="inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm text-danger hover:bg-danger/10"
-          >
-            <Trash2 className="size-4" /> Удалить
-          </button>
-        </div>
+        {canEdit && (
+          <div className="flex justify-end border-t border-line p-3">
+            <button
+              type="button"
+              onClick={() => confirm("Удалить шаблон?") && remove.mutate()}
+              className="inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm text-danger hover:bg-danger/10"
+            >
+              <Trash2 className="size-4" /> Удалить
+            </button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   )

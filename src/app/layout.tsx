@@ -4,7 +4,8 @@ import { Golos_Text, JetBrains_Mono } from "next/font/google"
 import Script from "next/script"
 
 import { Providers } from "@/components/providers"
-import { MobileNav, Sidebar, SidebarFallback } from "@/components/shell/nav"
+import { AppShell } from "@/components/shell/app-shell"
+import { SidebarFallback } from "@/components/shell/nav"
 import { themeScript } from "@/lib/theme-script"
 import "./globals.css"
 
@@ -24,13 +25,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           {themeScript}
         </Script>
         <Providers>
-          <div className="flex min-h-dvh flex-col md:flex-row">
-            <Suspense fallback={<SidebarFallback />}>
-              <Sidebar />
-              <MobileNav />
-            </Suspense>
-            <main className="relative min-w-0 flex-1">{children}</main>
-          </div>
+          <Suspense
+            fallback={
+              <div className="flex min-h-dvh flex-col md:flex-row">
+                <SidebarFallback />
+                <div className="min-w-0 flex-1" />
+              </div>
+            }
+          >
+            <AppShell>{children}</AppShell>
+          </Suspense>
         </Providers>
       </body>
     </html>

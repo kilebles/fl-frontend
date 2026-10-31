@@ -2,7 +2,7 @@
 
 # fl-frontend
 
-Russian-language web UI over the fl-api web API (`../fl-api`, FastAPI on :8000). No auth/users yet.
+Russian-language web UI over the fl-api web API (`../fl-api`, FastAPI on :8000). Cookie-based user auth (`/login`, `/register`, `/account`, `src/proxy.ts`).
 
 ## Stack
 

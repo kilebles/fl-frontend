@@ -424,7 +424,7 @@ export function VoiceView() {
 
   // Subscribe to SSE events for live progress
   useEffect(() => {
-    const es = new EventSource(voice.eventsUrl())
+    const es = new EventSource(voice.eventsUrl(), { withCredentials: true })
     const refreshJobs = async () => {
       try {
         const [jobsRes, queueRes] = await Promise.all([voice.jobs(), voice.queue()])

@@ -31,10 +31,10 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
 ```
 
 - «Сценарий» и «Аналитика» talk to fl-scenario at `/api/scenario/*` (Caddy → Windows :8020); its SSE `/api/scenario/events`
-  invalidates the `["scenario", …]` queries.
+  invalidates the `["scenario", …]` queries. Selection is the logo blue in both themes (`--pick*` tokens), languages green.
 - «Поиск видео» talks to fl-footage at `/api/footage/*` (Caddy → Windows :8030); SSE `/api/footage/events` invalidates
   `["footage", …]`. The script comes from a «Озвучка» project (fl-footage reads it from the voice API) or a file;
-  results are downloaded as zips — shots are not previewed on the page. Selection is the logo blue in both themes (`--pick*` tokens), languages green.
+  results are downloaded as zips — shots are not previewed on the page.
 
 - Projects (ролики): the current project lives in localStorage; screens filter by it and new jobs/runs carry `project_id`.
   The project's style line is appended to every prompt (composer, batch, «В производство», avatar scene).

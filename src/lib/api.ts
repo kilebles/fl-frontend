@@ -1086,3 +1086,126 @@ export const scenario = {
 
   eventsUrl: () => withToken("/api/scenario/events"),
 }
+
+/* ------------------------------------------------------------------ footage (fl-footage, /api/footage/*) */
+
+export type FootageGroup = "archive" | "youtube" | "films" | "stock"
+export type FootageStageKey = "plan" | "search" | "extra" | "cut" | "done"
+export type FootageStatus = "queued" | "running" | "done" | "error" | "stopped"
+
+export interface FootageStage {
+  key: FootageStageKey
+  state: "todo" | "active" | "done" | "error" | "skipped"
+  done?: number
+  total?: number
+}
+
+export interface FootageOptionsSet {
+  engine: string
+  groups: FootageGroup[]
+  yt_first: boolean
+  yt_trusted: boolean
+  yt_any: boolean
+  film_risky: boolean
+  min_score: number | null
+  format: "16:9" | "9:16"
+  plan_only: boolean
+}
+
+export interface FootageStats {
+  total: number
+  ok?: number
+  video?: number
+  image?: number
+  not_found?: number
+  handoff?: number
+  error?: number
+  risky?: number
+  by_group?: Partial<Record<FootageGroup, number>>
+  ai_usage?: Record<string, { calls?: number; seconds?: number }> | null
+  elapsed_sec?: number | null
+  plan_only?: boolean
+}
+
+export interface FootageProject {
+  id: string
+  title: string
+  project: string
+  status: FootageStatus
+  created: string
+  started?: string | null
+  finished?: string | null
+  source: { kind: "voice" | "file"; name: string; voice_job?: number; language: string; paragraphs: number; tracks: number }
+  options: FootageOptionsSet
+  step: string | null
+  progress: { paragraphs?: number; with_audio?: number; shots?: number; searchable?: number; done?: number; total?: number; counts?: Record<string, number>; plan_failed?: number[] }
+  stages: FootageStage[]
+  stats: FootageStats | null
+  error: string | null
+  has_result: boolean
+  out: string | null
+}
+
+export interface FootageOptions {
+  engines: { value: string; label: string; hint: string }[]
+  groups: { value: FootageGroup; enabled: boolean }[]
+  defaults: { engine: string; min_score: number | null; accept_score: number | null; format: "16:9" | "9:16"; batch: number | null }
+  routing: Record<string, FootageGroup[]>
+  voice_api: boolean
+}
+
+export interface FootageSources {
+  engines: Record<string, string>
+  groups: { group: FootageGroup; enabled: boolean; providers: string[]; skipped: Record<string, string> }[]
+  routing: Record<string, FootageGroup[]>
+  checked: string
+}
+
+export interface VoiceSource {
+  id: number
+  title: string
+  language: string
+  paragraphs: number
+  duration_sec: number | null
+  status: string
+  created: string
+  mode: string
+}
+
+export interface FootageLogEvent {
+  ts: string
+  event: string
+  text?: string
+  [k: string]: unknown
+}
+
+export interface FootageCreate {
+  title: string
+  source: "voice" | "file"
+  voice_job?: number
+  options: Partial<FootageOptionsSet>
+}
+
+const fid = (id: string) => `/api/footage/projects/${encodeURIComponent(id)}`
+
+export const footage = {
+  health: () => request<{ status: string; worker_online: boolean }>("/api/footage/health"),
+  options: () => request<FootageOptions>("/api/footage/options"),
+  sources: (fresh = false) => request<FootageSources>(`/api/footage/sources${fresh ? "?fresh=true" : ""}`),
+  voiceSources: () => request<VoiceSource[]>("/api/footage/voice-sources"),
+  projects: () => request<FootageProject[]>("/api/footage/projects"),
+  project: (id: string) => request<FootageProject>(fid(id)),
+  create: (body: FootageCreate, script?: File | null, audio?: File | null) => {
+    const form = new FormData()
+    form.append("data", JSON.stringify(body))
+    if (script) form.append("script", script)
+    if (audio) form.append("audio", audio)
+    return request<FootageProject>("/api/footage/projects", { method: "POST", body: form })
+  },
+  stop: (id: string) => request<FootageProject>(`${fid(id)}/stop`, json("POST")),
+  resume: (id: string) => request<FootageProject>(`${fid(id)}/resume`, json("POST")),
+  remove: (id: string) => request<void>(fid(id), { method: "DELETE" }),
+  log: (id: string) => request<FootageLogEvent[]>(`${fid(id)}/log`),
+  zipUrl: (id: string, kind: "clips" | "files") => withToken(`${fid(id)}/zip/${kind}`),
+  eventsUrl: () => withToken("/api/footage/events"),
+}

@@ -18,18 +18,23 @@ Tokens in `globals.css` (`--electric` is the accent of either theme, `--dev` the
 src/app/            / (Генерации: вручную — feed + composer), batch/ (Генерации: пакетом — form + batches),
                     jobs/[id]/ (batch results), avatars/, prompts/ (+ runs/[id]), graphics/ (+ runs/[id], motion-aign cards),
                     script/ (Сценарий: projects ?p=, niches ?tab=niches), analytics/ (topic picks ?a=), voice/,
-                    videos, footage, music, edit, library, history — DevStub pages
+                    footage/ (Поиск видео: projects ?p=, sources ?tab=sources),
+                    videos, music, edit, library, history — DevStub pages
 src/components/     shell/ (nav sidebar, logo, theme, project-picker, page-header + DevStub), create/ (composer, feed,
                     generations-bar, form-parts, dropzone), batch/ (batch-form, batches-panel), avatars/, prompts/,
                     infographics/, jobs/ (job page, result card, lightbox, state, menu),
                     script/ (fl-scenario: launch panel, project list/view, niches, analytics, queries + SSE, send)
+                    footage/ (fl-footage: launch panel, project list/view, sources, queries + SSE)
 src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), project.ts (current project, withStyle),
                     draft.ts (composer text shared with the feed), modes.ts, format.ts,
                     handoff.ts (finished script → «Промпты» / «Озвучка»)
 ```
 
 - «Сценарий» и «Аналитика» talk to fl-scenario at `/api/scenario/*` (Caddy → Windows :8020); its SSE `/api/scenario/events`
-  invalidates the `["scenario", …]` queries. Selection is the logo blue in both themes (`--pick*` tokens), languages green.
+  invalidates the `["scenario", …]` queries.
+- «Поиск видео» talks to fl-footage at `/api/footage/*` (Caddy → Windows :8030); SSE `/api/footage/events` invalidates
+  `["footage", …]`. The script comes from a «Озвучка» project (fl-footage reads it from the voice API) or a file;
+  results are downloaded as zips — shots are not previewed on the page. Selection is the logo blue in both themes (`--pick*` tokens), languages green.
 
 - Projects (ролики): the current project lives in localStorage; screens filter by it and new jobs/runs carry `project_id`.
   The project's style line is appended to every prompt (composer, batch, «В производство», avatar scene).

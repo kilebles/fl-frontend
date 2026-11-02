@@ -119,10 +119,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       headers: headers(init?.headers),
     })
   } catch {
-    throw new ApiError(0, "Сервер недоступен — запущен ли scripts/serve.py?")
+    throw new ApiError(0, "Сервер временно недоступен — пробуем переподключиться")
   }
   if (!res.ok) {
-    let message = res.statusText
+    let message =
+      res.status === 502 || res.status === 503 || res.status === 504
+        ? "Сервер генерации временно не отвечает — повторите через несколько секунд"
+        : res.statusText
     let errCode: string | undefined
     let errEmail: string | undefined
     try {

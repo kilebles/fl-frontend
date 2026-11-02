@@ -177,6 +177,12 @@ export function Feed({ search }: { search: string }) {
           </button>
         ))}
       </div>
+      {error && jobs && (
+        <div className="flex items-center gap-2.5 rounded-[4px] border border-warn/40 bg-warn-soft px-3.5 py-2.5 text-xs text-warn">
+          <AlertTriangle className="size-3.5 shrink-0" />
+          <span>Связь с сервером генерации временно потеряна — показаны последние сохранённые данные, переподключаемся…</span>
+        </div>
+      )}
       {error && !jobs ? (
         <div className="flex items-center gap-3 rounded-[4px] border border-danger/40 bg-danger/10 p-4 text-sm text-danger">
           <AlertTriangle className="size-4 shrink-0" />

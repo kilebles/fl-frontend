@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useSyncExternalStore } from "react"
-import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query"
+import { keepPreviousData, useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query"
 import { toast } from "sonner"
 
 import { api, avatars, infographicActive, infographics, isFinished, projects, prompts, runActive, type JobDetail, type JobStatus } from "@/lib/api"
@@ -34,19 +34,53 @@ function hydrated<T>(query: UseQueryResult<T>, ready: boolean): UseQueryResult<T
   return ready ? query : ({ ...query, data: undefined, isLoading: true } as UseQueryResult<T>)
 }
 
+function transientRetry(failureCount: number, error: Error): boolean {
+  if (failureCount >= 2) return false
+  if ("status" in error && typeof error.status === "number" && error.status >= 400 && error.status < 500) {
+    return false
+  }
+  return true
+}
+
 export function useJobs() {
   const ready = useHydrated()
-  return hydrated(useQuery({ queryKey: keys.jobs, queryFn: () => api.jobs(), refetchInterval: 30_000 }), ready)
+  return hydrated(
+    useQuery({
+      queryKey: keys.jobs,
+      queryFn: () => api.jobs(),
+      refetchInterval: 30_000,
+      placeholderData: keepPreviousData,
+      retry: transientRetry,
+    }),
+    ready
+  )
 }
 
 export function useJob(id: string) {
   const ready = useHydrated()
-  return hydrated(useQuery({ queryKey: keys.job(id), queryFn: () => api.job(id), retry: (n, e) => n < 2 && !("status" in e && e.status === 404) }), ready)
+  return hydrated(
+    useQuery({
+      queryKey: keys.job(id),
+      queryFn: () => api.job(id),
+      placeholderData: keepPreviousData,
+      retry: transientRetry,
+    }),
+    ready
+  )
 }
 
 export function useJobFiles(id: string, live: boolean) {
   const ready = useHydrated()
-  return hydrated(useQuery({ queryKey: keys.files(id), queryFn: () => api.files(id), refetchInterval: live ? 15_000 : false }), ready)
+  return hydrated(
+    useQuery({
+      queryKey: keys.files(id),
+      queryFn: () => api.files(id),
+      refetchInterval: live ? 15_000 : false,
+      placeholderData: keepPreviousData,
+      retry: transientRetry,
+    }),
+    ready
+  )
 }
 
 export function usePromptModels() {
@@ -54,23 +88,35 @@ export function usePromptModels() {
 }
 
 export function useTemplates() {
-  return hydrated(useQuery({ queryKey: keys.templates, queryFn: prompts.templates }), useHydrated())
+  return hydrated(useQuery({ queryKey: keys.templates, queryFn: prompts.templates, placeholderData: keepPreviousData, retry: transientRetry }), useHydrated())
 }
 
 export function useTemplate(id: string | null) {
-  return hydrated(useQuery({ queryKey: keys.template(id ?? ""), queryFn: () => prompts.template(id!), enabled: !!id }), useHydrated())
+  return hydrated(useQuery({ queryKey: keys.template(id ?? ""), queryFn: () => prompts.template(id!), enabled: !!id, placeholderData: keepPreviousData, retry: transientRetry }), useHydrated())
 }
 
 export function useRuns() {
   return hydrated(
-    useQuery({ queryKey: keys.runs, queryFn: prompts.runs, refetchInterval: (q) => (q.state.data?.some(runActive) ? 2_000 : 30_000) }),
+    useQuery({
+      queryKey: keys.runs,
+      queryFn: prompts.runs,
+      refetchInterval: (q) => (q.state.data?.some(runActive) ? 2_000 : 30_000),
+      placeholderData: keepPreviousData,
+      retry: transientRetry,
+    }),
     useHydrated()
   )
 }
 
 export function useRun(id: string) {
   return hydrated(
-    useQuery({ queryKey: keys.run(id), queryFn: () => prompts.run(id), refetchInterval: (q) => (q.state.data && runActive(q.state.data) ? 2_000 : false) }),
+    useQuery({
+      queryKey: keys.run(id),
+      queryFn: () => prompts.run(id),
+      refetchInterval: (q) => (q.state.data && runActive(q.state.data) ? 2_000 : false),
+      placeholderData: keepPreviousData,
+      retry: transientRetry,
+    }),
     useHydrated()
   )
 }
@@ -85,6 +131,8 @@ export function useInfographicRuns() {
       queryKey: keys.infographicRuns,
       queryFn: infographics.runs,
       refetchInterval: (q) => (q.state.data?.some(infographicActive) ? 3_000 : 30_000),
+      placeholderData: keepPreviousData,
+      retry: transientRetry,
     }),
     useHydrated()
   )
@@ -96,17 +144,19 @@ export function useInfographicRun(id: string) {
       queryKey: keys.infographicRun(id),
       queryFn: () => infographics.run(id),
       refetchInterval: (q) => (q.state.data && infographicActive(q.state.data) ? 3_000 : false),
+      placeholderData: keepPreviousData,
+      retry: transientRetry,
     }),
     useHydrated()
   )
 }
 
 export function useProjects() {
-  return hydrated(useQuery({ queryKey: keys.projects, queryFn: projects.list }), useHydrated())
+  return hydrated(useQuery({ queryKey: keys.projects, queryFn: projects.list, placeholderData: keepPreviousData, retry: transientRetry }), useHydrated())
 }
 
 export function useAvatars() {
-  return hydrated(useQuery({ queryKey: keys.avatars, queryFn: avatars.list }), useHydrated())
+  return hydrated(useQuery({ queryKey: keys.avatars, queryFn: avatars.list, placeholderData: keepPreviousData, retry: transientRetry }), useHydrated())
 }
 
 export function useJobActions() {
@@ -140,7 +190,17 @@ export function useJobEvents(enabled = true) {
 
   useEffect(() => {
     if (!enabled) return
+    let hadError = false
     const source = new EventSource(api.eventsUrl(), { withCredentials: true })
+    source.onopen = () => {
+      if (hadError) {
+        hadError = false
+        qc.invalidateQueries({ queryKey: keys.jobs })
+      }
+    }
+    source.onerror = () => {
+      hadError = true
+    }
     source.addEventListener("job", (event) => {
       const status: JobStatus = JSON.parse((event as MessageEvent).data)
       qc.setQueryData<JobStatus[]>(keys.jobs, (jobs) => {

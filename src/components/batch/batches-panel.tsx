@@ -280,6 +280,12 @@ export function BatchesPanel({ selected, onSelect }: { selected: string | null; 
   return (
     <div className="flex min-w-0 flex-col gap-4">
       <h2 className="text-lg font-semibold">Пакеты</h2>
+      {error && jobs && (
+        <div className="flex items-center gap-2.5 rounded-[4px] border border-warn/40 bg-warn-soft px-3.5 py-2.5 text-xs text-warn">
+          <AlertTriangle className="size-3.5 shrink-0" />
+          <span>Связь с сервером генерации временно потеряна — показаны последние сохранённые данные, переподключаемся…</span>
+        </div>
+      )}
       {isLoading ? (
         <div className="shimmer h-40 rounded-[4px]" />
       ) : error && !jobs ? (

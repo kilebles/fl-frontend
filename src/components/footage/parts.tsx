@@ -3,7 +3,7 @@
 import { Check, X } from "lucide-react"
 
 import { plural } from "@/lib/format"
-import type { FootageGroup, FootageProject, FootageStage, FootageStageKey } from "@/lib/api"
+import type { FootageGroup, FootageGroupStat, FootageProject, FootageStage, FootageStageKey } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
 export const GROUPS: FootageGroup[] = ["archive", "youtube", "films", "stock"]
@@ -146,5 +146,98 @@ export function GroupBar({ by, className }: { by: Partial<Record<FootageGroup, n
         ))}
       </div>
     </div>
+  )
+}
+
+export const PROVIDER_LABEL: Record<string, string> = {
+  commons: "Commons",
+  internet_archive: "Internet Archive",
+  met: "The Met",
+  youtube: "YouTube",
+  pexels: "Pexels",
+  pixabay: "Pixabay",
+  loc: "Библ. Конгресса",
+  nasa: "NASA",
+  nara: "NARA",
+  dvids: "DVIDS",
+}
+
+/** «Откуда кадры»: for each source group — how many shots, video/photo, share and which sites. */
+export function GroupBreakdown({
+  groups,
+  enabled,
+  live,
+}: {
+  groups: Partial<Record<FootageGroup, FootageGroupStat>>
+  enabled: FootageGroup[]
+  live?: boolean
+}) {
+  const total = GROUPS.reduce((a, g) => a + (groups[g]?.total ?? 0), 0)
+  const video = GROUPS.reduce((a, g) => a + (groups[g]?.video ?? 0), 0)
+  return (
+    <section className="rounded-[4px] border border-line bg-surface">
+      <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-line px-4 py-2.5">
+        <h2 className="text-sm font-semibold">
+          Откуда кадры
+          {live && <span className="ml-2 font-mono text-[11px] font-normal text-pick-text">идёт нарезка</span>}
+        </h2>
+        <span className="font-mono text-[11px] text-faint">{total ? `${total} · ${video} видео · ${total - video} фото` : "пока ни одного"}</span>
+      </div>
+      <div className="px-4 pt-4">
+        <div className="flex h-2 overflow-hidden rounded-full bg-elev">
+          {GROUPS.filter((g) => groups[g]?.total).map((g) => (
+            <div
+              key={g}
+              className={cn("h-full transition-[width] duration-700", GROUP_COLOR[g])}
+              style={{ width: `${((groups[g]?.total ?? 0) / total) * 100}%` }}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
+        {GROUPS.map((g) => {
+          const st = groups[g]
+          const n = st?.total ?? 0
+          const on = enabled.includes(g) || n > 0
+          const providers = Object.entries(st?.providers ?? {}).sort((a, b) => b[1] - a[1])
+          return (
+            <div key={g} className={cn("flex min-w-0 flex-col gap-2.5 rounded-[3px] border border-line bg-background p-3.5", !on && "opacity-60")}>
+              <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <span className={cn("size-2 rounded-full", on ? GROUP_COLOR[g] : "bg-line-strong")} />
+                  {GROUP_LABEL[g]}
+                </span>
+                <span className="font-mono text-faint">{on ? (total ? `${Math.round((n / total) * 100)}%` : "") : "выключено"}</span>
+              </div>
+              <div className={cn("font-mono text-2xl leading-none font-medium", !n && "text-faint")}>{on ? n : "—"}</div>
+              {n > 0 && st ? (
+                <>
+                  <div>
+                    <div className="flex h-1 overflow-hidden rounded-full bg-elev">
+                      <div className={cn("h-full", GROUP_COLOR[g])} style={{ width: `${(st.video / n) * 100}%` }} />
+                      <div className={cn("h-full opacity-35", GROUP_COLOR[g])} style={{ width: `${(st.image / n) * 100}%` }} />
+                    </div>
+                    <div className="mt-1.5 flex justify-between font-mono text-[11px] text-faint">
+                      <span>{st.video} видео</span>
+                      <span>{st.image} фото</span>
+                    </div>
+                  </div>
+                  {providers.length > 0 && (
+                    <div
+                      className="truncate font-mono text-[11px] text-muted-foreground"
+                      title={providers.map(([k, v]) => `${PROVIDER_LABEL[k] ?? k} ${v}`).join(" · ")}
+                    >
+                      {providers.map(([k, v]) => `${PROVIDER_LABEL[k] ?? k} ${v}`).join(" · ")}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="font-mono text-[11px] text-faint">{on ? "ничего не взято" : "не искали"}</div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </section>
   )
 }

@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { AlertTriangle, Download, FileText, Loader2, RotateCcw, Square, Trash2, TriangleAlert } from "lucide-react"
 import { toast } from "sonner"
 
-import { GroupBar, StageSteps, aiCalls, clock, shotsText } from "@/components/footage/parts"
+import { GroupBreakdown, StageSteps, aiCalls, clock, shotsText } from "@/components/footage/parts"
 import { fkeys, useFootageLog, useFootageOptions } from "@/components/footage/queries"
 import { ConfirmDialog } from "@/components/script/parts"
 import { setUrlParams } from "@/components/script/queries"
@@ -113,6 +113,14 @@ export function ProjectView({ project: p }: { project: FootageProject }) {
   const ai = (s?.not_found ?? 0) + (s?.error ?? 0)
   const calls = aiCalls(p)
   const active = p.stages.find((x) => x.state === "active")
+  // итог берётся из manifest.json, по ходу работы — из событий; у старых проектов есть только счётчики по группам
+  const breakdown =
+    (done
+      ? (s?.groups ??
+        (s?.by_group ? Object.fromEntries(Object.entries(s.by_group).map(([g, n]) => [g, { total: n ?? 0, video: 0, image: 0, providers: {} }])) : null))
+      : null) ??
+    (pr.groups && Object.keys(pr.groups).length ? pr.groups : null) ??
+    (p.status === "running" && active?.key === "cut" ? {} : null)
 
   const captions = {
     plan: pr.shots ? shotsText(pr.shots) : p.status === "queued" ? "в очереди" : active?.key === "plan" ? (p.step ?? "") : "",
@@ -189,7 +197,7 @@ export function ProjectView({ project: p }: { project: FootageProject }) {
           </div>
         )}
         <div className="mt-4 flex flex-wrap items-end justify-between gap-4 border-t border-line pt-4">
-          {done && s?.by_group ? <GroupBar by={s.by_group} className="min-w-64 flex-1" /> : <span className="flex-1" />}
+          <span className="flex-1" />
           <div className="flex flex-wrap items-center gap-2">
             {running ? (
               <button
@@ -245,6 +253,8 @@ export function ProjectView({ project: p }: { project: FootageProject }) {
           </div>
         </div>
       </section>
+
+      {!planOnly && breakdown && <GroupBreakdown groups={breakdown} enabled={p.options.groups} live={p.status === "running"} />}
 
       <Log id={p.id} />
 

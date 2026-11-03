@@ -1112,6 +1112,14 @@ export interface FootageOptionsSet {
   plan_only: boolean
 }
 
+/** Shots taken from one source group: video/photo split and which sites they came from. */
+export interface FootageGroupStat {
+  total: number
+  video: number
+  image: number
+  providers: Record<string, number>
+}
+
 export interface FootageStats {
   total: number
   ok?: number
@@ -1122,6 +1130,7 @@ export interface FootageStats {
   error?: number
   risky?: number
   by_group?: Partial<Record<FootageGroup, number>>
+  groups?: Partial<Record<FootageGroup, FootageGroupStat>>
   ai_usage?: Record<string, { calls?: number; seconds?: number }> | null
   elapsed_sec?: number | null
   plan_only?: boolean
@@ -1138,7 +1147,7 @@ export interface FootageProject {
   source: { kind: "voice" | "file"; name: string; voice_job?: number; language: string; paragraphs: number; tracks: number }
   options: FootageOptionsSet
   step: string | null
-  progress: { paragraphs?: number; with_audio?: number; shots?: number; searchable?: number; done?: number; total?: number; counts?: Record<string, number>; plan_failed?: number[] }
+  progress: { paragraphs?: number; with_audio?: number; shots?: number; searchable?: number; done?: number; total?: number; counts?: Record<string, number>; plan_failed?: number[]; groups?: Partial<Record<FootageGroup, FootageGroupStat>> }
   stages: FootageStage[]
   stats: FootageStats | null
   error: string | null

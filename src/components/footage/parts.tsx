@@ -162,7 +162,7 @@ export const PROVIDER_LABEL: Record<string, string> = {
   dvids: "DVIDS",
 }
 
-/** «Откуда кадры»: for each source group — how many shots, video/photo, share and which sites. */
+/** «Раскадровка»: for each source group — how many shots, video/photo, share and which sites. */
 export function GroupBreakdown({
   groups,
   enabled,
@@ -178,7 +178,7 @@ export function GroupBreakdown({
     <section className="rounded-[4px] border border-line bg-surface">
       <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-line px-4 py-2.5">
         <h2 className="text-sm font-semibold">
-          Откуда кадры
+          Раскадровка
           {live && <span className="ml-2 font-mono text-[11px] font-normal text-pick-text">идёт нарезка</span>}
         </h2>
         <span className="font-mono text-[11px] text-faint">{total ? `${total} · ${video} видео · ${total - video} фото` : "пока ни одного"}</span>

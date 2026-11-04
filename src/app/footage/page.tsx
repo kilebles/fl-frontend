@@ -1,5 +1,5 @@
-import { DevStub } from "@/components/shell/page-header"
+import { FootageView } from "@/components/footage/footage-view"
 
 export default function Page() {
-  return <DevStub title="Поиск видео" subtitle="Реальные кадры из открытых архивов и стоков под сцену сценария. Лицензия видна до того, как кадр попадёт в ролик." />
+  return <FootageView />
 }

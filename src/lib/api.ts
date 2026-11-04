@@ -286,7 +286,7 @@ export const isFinished = (state: JobState) => FINISHED.includes(state)
 /** A one-prompt generation from the Create page; everything else is a batch. */
 export const isSingle = (job: JobStatus) => job.progress.total === 1 && job.mode !== "f2v"
 
-// Prompts (hdoc-prompt: /api/prompts/*, Caddy → Windows :8040)
+// Prompts (fl-prompts: /api/prompts/*, Caddy → Windows :8040)
 
 export type PgMode = "regular" | "avatar"
 export type PgBase = "template" | "passport"

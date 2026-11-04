@@ -30,7 +30,7 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
 
 - «Сценарий» и «Аналитика» talk to fl-scenario at `/api/scenario/*` (Caddy → Windows :8020); its SSE `/api/scenario/events`
   invalidates the `["scenario", …]` queries. Selection is the logo blue in both themes (`--pick*` tokens), languages green.
-- «Промпты» talk to hdoc-prompt at `/api/prompts/*` (Caddy → Windows :8040): niche master prompts (обычный / аватар),
+- «Промпты» talk to fl-prompts at `/api/prompts/*` (Caddy → Windows :8040): niche master prompts (обычный / аватар),
   projects brief → prompts → check → done, result rows; SSE `/api/prompts/events` invalidates `["prompts", …]`.
   «Генерации пакетом» take finished prompts from there too (`/batch?prompts=<id>&mode=i2i2v`).
 

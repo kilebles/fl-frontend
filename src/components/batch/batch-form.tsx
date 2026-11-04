@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { AlertTriangle, Check, Loader2 } from "lucide-react"
@@ -9,11 +9,12 @@ import { toast } from "sonner"
 import { Dropzone } from "@/components/create/dropzone"
 import { lines, usePicture } from "@/components/create/form-parts"
 import { Select } from "@/components/prompts/select"
-import { api, prompts, type JobRow } from "@/lib/api"
+import { usePgProjects } from "@/components/prompts/queries"
+import { api, promptgen, type JobRow } from "@/lib/api"
 import { plural } from "@/lib/format"
 import { MODES, type ModeMeta } from "@/lib/modes"
 import { useCurrentProject, withStyle } from "@/lib/project"
-import { keys, useAvatars, useProjectStyle, useRuns } from "@/lib/queries"
+import { keys, useAvatars, useProjectStyle } from "@/lib/queries"
 import { cn } from "@/lib/utils"
 
 type Source = "list" | "excel" | "template"
@@ -45,7 +46,7 @@ export function BatchForm() {
   const qc = useQueryClient()
   const [projectId] = useCurrentProject()
   const style = useProjectStyle(projectId)
-  const { data: runs } = useRuns()
+  const { data: promptProjects } = usePgProjects(projectId)
   const { data: avatarList } = useAvatars()
   const [title, setTitle] = useState("")
   const [source, setSource] = useState<Source>("list")
@@ -60,7 +61,25 @@ export function BatchForm() {
   const modes = MODES.filter((m) => (kind === "video" ? m.makesVideos : !m.makesVideos))
   const mode = modes.find((m) => m.id === modeId) ?? modes[0]
   const avatar = avatarList?.find((a) => a.id === avatarId)
-  const doneRuns = (runs ?? []).filter((r) => r.state === "done" && (!projectId || r.project_id === projectId))
+  const doneRuns = (promptProjects ?? []).filter((r) => r.status === "done")
+
+  // «В производство» из «Промптов»: /batch?prompts=<id>&mode=i2i2v — сразу выбрать промпты и режим
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search)
+    const from = q.get("prompts")
+    const m = q.get("mode")
+    if (!from) return
+    const t = setTimeout(() => {
+      setSource("template")
+      setRunId(from)
+      const meta = MODES.find((x) => x.id === m)
+      if (meta) {
+        setKind(meta.makesVideos ? "video" : "image")
+        setModeId(meta.id)
+      }
+    }, 0)
+    return () => clearTimeout(t)
+  }, [])
 
   const rows: JobRow[] =
     source === "excel"
@@ -74,7 +93,7 @@ export function BatchForm() {
           }))
 
   const run = doneRuns.find((r) => r.id === runId)
-  const count = source === "template" ? (run ? run.total * run.pair_count : 0) : rows.length
+  const count = source === "template" ? (run ? run.summary?.scenes ?? run.script.count * run.pairs : 0) : rows.length
   const problem =
     (count === 0 && (source === "list" ? "Добавьте промпты" : source === "excel" ? "Загрузите .xlsx" : "Выберите промпты")) ||
     (mode.avatar && !avatar ? "Выберите аватар" : null) ||
@@ -84,8 +103,10 @@ export function BatchForm() {
     mutationFn: async () => {
       let jobRows = rows
       if (source === "template" && run) {
-        const detail = await prompts.run(run.id)
-        jobRows = detail.rows.map((r) => ({ name: `${r.paragraph_number}.${r.pair_number}`, prompt: r.vid, image_prompt: r.img }))
+        const detail = await promptgen.result(run.id)
+        jobRows = detail.rows
+          .filter((r) => r.img || r.vid)
+          .map((r) => ({ name: r.number, prompt: mode.needsVideoPrompt ? r.vid : null, image_prompt: mode.needsImagePrompt ? r.img : null }))
       }
       if (mode.avatar && avatar?.appearance) {
         jobRows = jobRows.map((r) => ({ ...r, image_prompt: r.image_prompt ? `${r.image_prompt}. ${avatar.appearance}` : r.image_prompt }))
@@ -95,7 +116,7 @@ export function BatchForm() {
       return api.createJob({
         mode: mode.id,
         rows: useStill ? jobRows.map((r) => ({ ...r, image_prompt: null })) : jobRows,
-        title: title.trim() || run?.scenario_name || null,
+        title: title.trim() || run?.title || null,
         project_id: projectId,
         strategy: mode.chain ? "sequential" : "parallel",
         avatar: mode.avatar ? avatar?.image_keys[0] : null,
@@ -175,7 +196,11 @@ export function BatchForm() {
               value={runId}
               onChange={setRunId}
               placeholder={doneRuns.length ? "Выберите" : "Нет готовых — создайте во вкладке «Промпты»"}
-              options={doneRuns.map((r) => ({ value: r.id, label: r.scenario_name, hint: `${r.template_title} · ${r.total * r.pair_count} строк` }))}
+              options={doneRuns.map((r) => ({
+                value: r.id,
+                label: r.title,
+                hint: `${r.mode === "avatar" ? "аватар" : "обычный"} · ${r.summary?.scenes ?? r.script.count * r.pairs} строк`,
+              }))}
             />
           )}
         </div>

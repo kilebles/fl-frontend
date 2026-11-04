@@ -286,104 +286,232 @@ export const isFinished = (state: JobState) => FINISHED.includes(state)
 /** A one-prompt generation from the Create page; everything else is a batch. */
 export const isSingle = (job: JobStatus) => job.progress.total === 1 && job.mode !== "f2v"
 
-// Prompts
+// Prompts (fl-prompts: /api/prompts/*, Caddy → Windows :8040)
 
-export interface PromptPairSpec {
-  number: number
-  id: string
-  title: string
-  intent: string
-  frame: string
-  people: string
-  camera: string
+export type PgMode = "regular" | "avatar"
+export type PgBase = "template" | "passport"
+export type PgStageKey = "brief" | "prompts" | "check" | "done"
+export type PgStageState = "todo" | "active" | "done" | "error"
+export type PgStatus = "queued" | "running" | "brief_ready" | "done" | "error" | "stopped"
+
+export interface PgStage {
+  key: PgStageKey
+  state: PgStageState
+  done?: number
+  total?: number
+  flagged?: number
 }
 
-export interface PromptTemplateData {
+export interface PgTemplateInfo {
+  kind: PgMode
+  name: string
+  uploaded: string
+  status: "queued" | "running" | "ready" | "error"
+  error: string
+  warnings: string[]
+  shots: string[]
+  count_selectable: boolean | null
+  targets: { image?: string; video?: string }
+  scene_limits: { image?: number; video?: number }
+  spoken: { max_chars: number; language: string } | null
+}
+
+export interface PgAnalysis {
+  kind: PgMode
+  shots: { title: string; description: string }[]
+  count_selectable: boolean
+  image_fixed: string[]
+  video_fixed: string[]
+  negatives: string[]
+  negatives_target: "both" | "image" | "video"
+  scene_limits: { image: number; video: number }
+  spoken: { max_chars: number; language: string } | null
+  rules: { no_dashes: boolean; english_only: boolean }
+  image_scene_format: string
+  video_scene_format: string
+}
+
+export interface PgTemplateFull extends PgTemplateInfo {
+  text: string
+  analysis: PgAnalysis | null
+}
+
+export interface PgNiche {
+  slug: string
+  name: string
+  description: string
+  has_passport: boolean
+  templates: { regular: PgTemplateInfo | null; avatar: PgTemplateInfo | null }
+}
+
+export interface PgModel {
+  id: string
+  label: string
+  word?: string
+}
+
+export interface PgOptions {
+  backends: { id: string; label: string; enabled: boolean; installed: boolean; info: string; models: PgModel[]; stage_models: Record<string, string> }[]
+  default_backend: string
+  pair_counts: number[]
+  worker_online: boolean
+}
+
+export interface PgScript {
+  id: string
   title: string
-  targets: { image: string; video: string }
-  sub_periods: { id: string; title: string; when: string }[]
-  lore: string
-  pairs: PromptPairSpec[]
-  color_palette: string
+  niche: string
+  niche_name: string
+  updated: string | null
+  language: string
+}
+
+export interface PgSummary {
+  paragraphs: number
+  scenes: number
+  with_problems: number
+  with_flags: number
+  stock_queries: number
+}
+
+export interface PgProject {
+  id: string
+  title: string
+  created: string
+  updated: string
+  project_id: string | null
+  niche: string
+  niche_name: string
+  mode: PgMode
+  base: PgBase
+  pairs: number
+  shots: string[]
+  notes: string
+  model: string
+  review_brief: boolean
+  launched: boolean
+  script: { source: "project" | "file" | "text"; id?: string; name?: string; title?: string; language?: string; count: number }
+  template: { name: string; builtin: boolean }
+  status: PgStatus
+  stage: "" | "brief" | "prompts" | "export"
+  progress: { done: number; total: number; flagged: number }
+  error: string
+  waiting_until: string | null
+  usage: { calls: number; seconds: number; tokens: Record<string, number> }
+  summary: PgSummary | null
+  stop_requested: boolean
+  has_brief: boolean
+  stages: PgStage[]
+  files: { name: string; size: number }[]
+}
+
+export interface PgSubPeriod {
+  id: string
+  name: string
+  when: string
+  description: string
+  material: string
+  palette: string
   lighting: string
   textures: string
-  image_rules: string
-  video_rules: string
-  deterministic: { image_suffix: string; video_suffix: string; negatives: string }
 }
 
-export interface PromptTemplate {
-  id: string
+export interface PgBrief {
   title: string
-  pairs: number
-  image_target: string
-  video_target: string
-  is_system?: boolean
-  created_at: string
+  era: string
+  synopsis: string
+  sub_periods: PgSubPeriod[]
+  host: { gender: string; clothing: string; voice: string; changes: { from: number; to: number; clothing: string }[] } | null
+  characters: { name: string; cue: string; likeness: string }[]
+  locations: { id: string; cue: string }[]
+  restrictions: { paragraph: number; rule: string }[]
+  paragraphs: { n: number; period: string; location: string; beat: string; characters: string[]; stock: string[] }[]
+  filled_by_program?: number[]
 }
 
-export interface PromptTemplateDetail extends PromptTemplate {
-  data: PromptTemplateData
-}
-
-export type RunState = "queued" | "running" | "done" | "failed"
-
-export interface PromptRun {
-  id: string
-  project_id: string | null
-  template_id: string
-  template_title: string
-  model: string
-  pair_count: number
-  scenario_name: string
-  state: RunState
-  done: number
-  total: number
-  error: string | null
-  created_at: string
-  finished_at: string | null
-}
-
-export interface GeneratedPair {
-  paragraph_number: number
-  pair_number: number
+export interface PgRow {
+  number: string
+  paragraph_n: number
+  scene_n: number
+  shot: string
   img: string
   vid: string
-  stock_queries: string[]
-  paragraph_text: string
+  scene_img: string
+  scene_vid: string
+  stock: string[]
+  paragraph: string
+  problems: string[]
+  flags: string[]
 }
 
-export interface PromptRunDetail extends PromptRun {
-  rows: GeneratedPair[]
+export interface PgResult {
+  rows: PgRow[]
+  summary: PgSummary
+  brief: PgBrief
+  /** true while the project runs: only finished paragraphs so far */
+  partial: boolean
 }
 
-export const prompts = {
-  models: () => request<{ id: string; label: string }[]>("/api/prompts/models"),
-  templates: () => request<PromptTemplate[]>("/api/prompts/templates"),
-  template: (id: string) => request<PromptTemplateDetail>(`/api/prompts/templates/${id}`),
-  createTemplate: (file: File) => {
+export interface PgLogItem {
+  time: string
+  kind: "info" | "warn" | "error" | "done" | "limit"
+  text: string
+}
+
+export interface PgCreate {
+  title?: string
+  niche?: string
+  mode: PgMode
+  base: PgBase
+  pairs?: number
+  notes?: string
+  model?: string
+  review_brief?: boolean
+  project_id?: string | null
+  script: { source: "project"; id: string } | { source: "file"; name: string; paragraphs: string[] }
+}
+
+const pgp = (id: string) => `/api/prompts/projects/${encodeURIComponent(id)}`
+const pgt = (slug: string, kind: PgMode) => `/api/prompts/niches/${encodeURIComponent(slug)}/templates/${kind}`
+const pgToken = (path: string) => `${apiBase()}${path}${API_TOKEN ? `${path.includes("?") ? "&" : "?"}token=${encodeURIComponent(API_TOKEN)}` : ""}`
+
+export const promptgen = {
+  health: () => request<{ status: string; worker_online: boolean }>("/api/prompts/health"),
+  options: () => request<PgOptions>("/api/prompts/options"),
+  niches: () => request<{ niches: PgNiche[]; scenario_online: boolean; error: string }>("/api/prompts/niches"),
+  template: (slug: string, kind: PgMode) => request<PgTemplateFull>(pgt(slug, kind)),
+  uploadTemplate: (slug: string, kind: PgMode, file: File) => {
     const form = new FormData()
     form.append("file", file)
-    return request<PromptTemplateDetail>("/api/prompts/templates", { method: "POST", body: form })
+    return request<PgTemplateInfo>(`${pgt(slug, kind)}/file`, { method: "POST", body: form })
   },
-  renameTemplate: (id: string, title: string) => request<PromptTemplateDetail>(`/api/prompts/templates/${id}`, json("PATCH", { title })),
-  removeTemplate: (id: string) => request<void>(`/api/prompts/templates/${id}`, { method: "DELETE" }),
-  runs: () => request<PromptRun[]>("/api/prompts/runs"),
-  run: (id: string) => request<PromptRunDetail>(`/api/prompts/runs/${id}`),
-  createRun: (file: File, templateId: string, model: string, pairCount: number, projectId?: string | null) => {
+  reanalyze: (slug: string, kind: PgMode) => request<PgTemplateInfo>(`${pgt(slug, kind)}/analyze`, json("POST")),
+  removeTemplate: (slug: string, kind: PgMode) => request<void>(pgt(slug, kind), { method: "DELETE" }),
+  builtin: (kind: PgMode) => request<{ kind: PgMode; name: string; text: string; analysis: PgAnalysis }>(`/api/prompts/templates/builtin/${kind}`),
+  scripts: (niche?: string) => request<PgScript[]>(`/api/prompts/scripts${niche ? `?niche=${encodeURIComponent(niche)}` : ""}`),
+  scriptFile: (file: File) => {
     const form = new FormData()
-    if (projectId) form.append("project_id", projectId)
     form.append("file", file)
-    form.append("template_id", templateId)
-    form.append("model", model)
-    form.append("pair_count", String(pairCount))
-    return request<PromptRun>("/api/prompts/runs", { method: "POST", body: form })
+    return request<{ name: string; count: number; paragraphs: string[]; preview: string[] }>("/api/prompts/files/script", { method: "POST", body: form })
   },
-  removeRun: (id: string) => request<void>(`/api/prompts/runs/${id}`, { method: "DELETE" }),
-  xlsxUrl: (id: string) => `${apiBase()}/api/prompts/runs/${id}/xlsx${API_TOKEN ? `?token=${encodeURIComponent(API_TOKEN)}` : ""}`,
+  projects: (projectId?: string | null) =>
+    request<PgProject[]>(`/api/prompts/projects${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ""}`),
+  project: (id: string) => request<PgProject>(pgp(id)),
+  create: (body: PgCreate) => request<PgProject>("/api/prompts/projects", json("POST", body)),
+  remove: (id: string) => request<void>(pgp(id), { method: "DELETE" }),
+  stop: (id: string) => request<PgProject>(`${pgp(id)}/stop`, json("POST")),
+  resume: (id: string) => request<PgProject>(`${pgp(id)}/resume`, json("POST")),
+  launch: (id: string) => request<PgProject>(`${pgp(id)}/launch`, json("POST")),
+  rebrief: (id: string, notes?: string) => request<PgProject>(`${pgp(id)}/rebrief`, json("POST", notes === undefined ? {} : { notes })),
+  brief: (id: string) => request<PgBrief>(`${pgp(id)}/brief`),
+  saveBrief: (id: string, brief: PgBrief) => request<PgProject>(`${pgp(id)}/brief`, json("PUT", brief)),
+  result: (id: string) => request<PgResult>(`${pgp(id)}/result`),
+  log: (id: string) => request<{ items: PgLogItem[]; next: number }>(`${pgp(id)}/log`),
+  fileUrl: (id: string, name: string) => pgToken(`${pgp(id)}/files/${encodeURIComponent(name)}`),
+  eventsUrl: () => pgToken("/api/prompts/events"),
 }
 
-export const runActive = (run: Pick<PromptRun, "state">) => run.state === "queued" || run.state === "running"
+export const pgActive = (p: Pick<PgProject, "status">) => p.status === "queued" || p.status === "running"
 
 // Infographics
 

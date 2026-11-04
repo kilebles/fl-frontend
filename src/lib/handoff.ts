@@ -1,11 +1,13 @@
 /** A script handed from «Сценарий» to «Промпты» / «Озвучка» (lives in memory across client navigation). */
 
-type Handoff = { to: "prompts"; file: File; at: number } | { to: "voice"; scriptId: string; at: number }
+type Handoff =
+  | { to: "prompts"; scriptId: string; niche?: string; title?: string; at: number }
+  | { to: "voice"; scriptId: string; at: number }
 
 let pending: Handoff | null = null
 const TTL_MS = 60_000
 
-export function handOff(h: { to: "prompts"; file: File } | { to: "voice"; scriptId: string }) {
+export function handOff(h: { to: "prompts"; scriptId: string; niche?: string; title?: string } | { to: "voice"; scriptId: string }) {
   pending = { ...h, at: Date.now() } as Handoff
 }
 

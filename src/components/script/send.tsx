@@ -11,11 +11,17 @@ import { cn } from "@/lib/utils"
 
 type Target = "prompts" | "voice"
 
-/** The finished .docx → «Промпты» (file pre-filled) or «Озвучка» (uploaded and selected). */
+/** The finished script → «Промпты» (project pre-selected) or «Озвучка» (.docx uploaded and selected). */
 export function useSendScript() {
   const router = useRouter()
   const [busy, setBusy] = useState<string | null>(null)
   const send = async (p: ScenarioProject, to: Target) => {
+    if (to === "prompts") {
+      // «Промпты» берут сценарий у «Сценария» сами (script.json) — передаём только проект
+      handOff({ to: "prompts", scriptId: p.id, niche: p.niche || undefined, title: p.title || undefined })
+      router.push("/prompts")
+      return
+    }
     const docx = p.job?.files.find((f) => f.name.endsWith(".docx"))
     if (!docx) {
       toast.error("У сценария нет .docx")
@@ -24,14 +30,9 @@ export function useSendScript() {
     setBusy(`${p.id}:${to}`)
     try {
       const file = await scenario.file(p.id, docx.name)
-      if (to === "prompts") {
-        handOff({ to: "prompts", file })
-        router.push("/prompts")
-      } else {
-        const info = await voice.uploadScript(file, p.title || undefined)
-        handOff({ to: "voice", scriptId: info.script_id })
-        router.push("/voice")
-      }
+      const info = await voice.uploadScript(file, p.title || undefined)
+      handOff({ to: "voice", scriptId: info.script_id })
+      router.push("/voice")
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Не удалось передать сценарий")
     } finally {

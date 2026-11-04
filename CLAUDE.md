@@ -16,7 +16,7 @@ Tokens in `globals.css` (`--electric` is the accent of either theme, `--dev` the
 
 ```
 src/app/            / (Генерации: вручную — feed + composer), batch/ (Генерации: пакетом — form + batches),
-                    jobs/[id]/ (batch results), avatars/, prompts/ (+ runs/[id]), graphics/ (+ runs/[id], motion-aign cards),
+                    jobs/[id]/ (batch results), avatars/, prompts/ (projects ?p=, niche templates ?tab=templates), graphics/ (+ runs/[id], motion-aign cards),
                     script/ (Сценарий: projects ?p=, niches ?tab=niches), analytics/ (topic picks ?a=), voice/,
                     footage/ (Поиск видео: projects ?p=, sources ?tab=sources),
                     videos, music, edit, library, history — DevStub pages
@@ -35,6 +35,9 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
 - «Поиск видео» talks to fl-footage at `/api/footage/*` (Caddy → Windows :8030); SSE `/api/footage/events` invalidates
   `["footage", …]`. The script comes from a «Озвучка» project (fl-footage reads it from the voice API) or a file;
   results are downloaded as zips — shots are not previewed on the page.
+- «Промпты» talk to fl-prompts at `/api/prompts/*` (Caddy → Windows :8040): niche master prompts (обычный / аватар),
+  projects brief → prompts → check → done, result rows; SSE `/api/prompts/events` invalidates `["prompts", …]`.
+  «Генерации пакетом» take finished prompts from there too (`/batch?prompts=<id>&mode=i2i2v`).
 
 - Projects (ролики): the current project lives in localStorage; screens filter by it and new jobs/runs carry `project_id`.
   The project's style line is appended to every prompt (composer, batch, «В производство», avatar scene).

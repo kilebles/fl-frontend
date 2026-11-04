@@ -219,6 +219,19 @@ export interface UserSession {
   is_current: boolean
 }
 
+export interface ApiToken {
+  id: string
+  name: string
+  token_prefix: string
+  created_at: string
+  last_used_at: string | null
+  expires_at: string | null
+}
+
+export interface CreatedApiToken extends ApiToken {
+  token: string
+}
+
 export interface AdminUser {
   id: string
   username: string
@@ -260,6 +273,10 @@ export const auth = {
   sessions: () => request<UserSession[]>("/api/auth/sessions"),
   revokeSession: (id: string) => request<void>(`/api/auth/sessions/${encodeURIComponent(id)}`, { method: "DELETE" }),
   revokeOtherSessions: () => request<{ revoked: number }>("/api/auth/sessions/revoke-others", json("POST")),
+  tokens: () => request<ApiToken[]>("/api/auth/tokens"),
+  createToken: (body: { name: string; expires_in_days?: number | null }) =>
+    request<CreatedApiToken>("/api/auth/tokens", json("POST", body)),
+  revokeToken: (id: string) => request<void>(`/api/auth/tokens/${encodeURIComponent(id)}`, { method: "DELETE" }),
   googleStartUrl: (next = "/", intent: "login" | "link" = "login") => {
     const params = new URLSearchParams({ next, intent })
     return `${apiBase()}/api/auth/google/start?${params.toString()}`

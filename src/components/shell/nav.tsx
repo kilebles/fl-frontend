@@ -22,6 +22,7 @@ import {
   ScanSearch,
   Shield,
   SquarePlay,
+  Terminal,
   TrendingUp,
   UserCog,
   UserRound,
@@ -49,6 +50,8 @@ interface NavItem {
   icon: LucideIcon
   /** Still in development: marked, opens a stub. */
   dev?: boolean
+  /** Compact mono badge on the right when expanded. */
+  badge?: string
   /** Other paths that belong to this item. */
   also?: string[]
 }
@@ -67,6 +70,7 @@ const TOOLS: NavItem[] = [
   { href: "/edit", label: "Монтаж", icon: Scissors, dev: true },
 ]
 const BOTTOM: NavItem[] = [
+  { href: "/docs", label: "Документация", icon: Terminal, badge: "MCP" },
   { href: "/library", label: "Библиотека", icon: Folder, dev: true },
   { href: "/history", label: "История", icon: History, dev: true },
 ]
@@ -93,6 +97,11 @@ function Item({ item, pathname, collapsed, onNavigate }: { item: NavItem; pathna
     >
       <Icon className={cn("size-[18px] shrink-0", on ? "text-electric" : "text-muted-foreground")} strokeWidth={1.75} />
       {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
+      {!collapsed && item.badge && (
+        <span className="shrink-0 rounded-[2px] bg-electric-soft px-1.5 py-px font-mono text-[10px] font-medium text-electric-text uppercase">
+          {item.badge}
+        </span>
+      )}
       {!collapsed && item.dev && <span className="size-1.5 shrink-0 rounded-[1px] bg-dev" aria-label="в разработке" />}
     </Link>
   )
@@ -186,6 +195,10 @@ function AccountMenu({ collapsed, pathname, onNavigate }: { collapsed: boolean; 
         <DropdownMenuItem render={<Link href="/account?tab=security" onClick={onNavigate} />} className="cursor-pointer rounded-[3px] px-2 py-1.5">
           <KeyRound className="size-4 text-muted-foreground" />
           Пароль и сессии
+        </DropdownMenuItem>
+        <DropdownMenuItem render={<Link href="/docs" onClick={onNavigate} />} className="cursor-pointer rounded-[3px] px-2 py-1.5">
+          <Terminal className="size-4 text-muted-foreground" />
+          Документация MCP
         </DropdownMenuItem>
         {user?.role === "admin" && (
           <DropdownMenuItem render={<Link href="/account?tab=admin" onClick={onNavigate} />} className="cursor-pointer rounded-[3px] px-2 py-1.5">

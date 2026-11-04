@@ -1,10 +1,12 @@
 "use client"
 
 import { useRef, useState } from "react"
+import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   AlertCircle,
+  ArrowUpRight,
   Camera,
   Check,
   KeyRound,
@@ -14,6 +16,7 @@ import {
   Monitor,
   Shield,
   Smartphone,
+  Terminal,
   Trash2,
   UserCog,
 } from "lucide-react"
@@ -635,6 +638,27 @@ function SecurityTab() {
             })
           )}
         </div>
+      </section>
+
+      <section className="flex flex-wrap items-center justify-between gap-3 rounded-[4px] border border-line bg-surface p-5">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-[3px] border border-line-strong bg-background">
+            <Terminal className="size-4 text-electric" />
+          </span>
+          <div>
+            <h2 className="text-[15px] font-semibold">Ключи MCP и подключение ИИ</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Персональные ключи <code className="font-mono text-foreground-2">flk_…</code> для Antigravity, Claude и Cursor
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/docs"
+          className="inline-flex h-8 items-center gap-1.5 rounded-[3px] border border-line-strong bg-background px-3 text-xs font-medium transition-colors hover:border-faint"
+        >
+          Открыть документацию
+          <ArrowUpRight className="size-3.5 text-muted-foreground" />
+        </Link>
       </section>
     </div>
   )

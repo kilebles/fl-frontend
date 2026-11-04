@@ -16,6 +16,7 @@ export const authKeys = {
   me: ["auth", "me"] as const,
   providers: ["auth", "providers"] as const,
   sessions: ["auth", "sessions"] as const,
+  tokens: ["auth", "tokens"] as const,
   adminUsers: ["admin", "users"] as const,
 }
 

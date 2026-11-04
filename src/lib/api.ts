@@ -1133,6 +1133,7 @@ export interface FootageStats {
   groups?: Partial<Record<FootageGroup, FootageGroupStat>>
   ai_usage?: Record<string, { calls?: number; seconds?: number }> | null
   elapsed_sec?: number | null
+  timing?: { total_sec: number; phases_sec: Record<string, number>; inside_sec: Record<string, { sec: number; count: number }> } | null
   plan_only?: boolean
 }
 

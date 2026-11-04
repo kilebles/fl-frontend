@@ -92,6 +92,33 @@ function Log({ id }: { id: string }) {
   )
 }
 
+/** Where the run's time went: phases (wall clock) and the slowest work inside them (summed over threads). */
+function Timing({ t }: { t: NonNullable<NonNullable<FootageProject["stats"]>["timing"]> }) {
+  const phases = Object.entries(t.phases_sec)
+  const max = Math.max(...phases.map(([, v]) => v), 1)
+  const inside = Object.entries(t.inside_sec ?? {}).slice(0, 3)
+  return (
+    <Card title="Время" aside={<span className="font-mono text-[11px] text-faint">{clock(t.total_sec)}</span>} bodyClass="p-0">
+      <ul className="py-1.5">
+        {phases.map(([k, v]) => (
+          <li key={k} className="grid grid-cols-[minmax(0,240px)_minmax(0,1fr)_64px] items-center gap-3 px-4 py-1.5 text-xs">
+            <span className="truncate text-foreground-2">{k}</span>
+            <span className="h-1 overflow-hidden rounded-full bg-elev">
+              <span className="block h-full rounded-full bg-pick/70" style={{ width: `${(v / max) * 100}%` }} />
+            </span>
+            <span className="text-right font-mono text-faint">{clock(v)}</span>
+          </li>
+        ))}
+      </ul>
+      {inside.length > 0 && (
+        <div className="border-t border-line px-4 py-2.5 font-mono text-[11px] text-faint">
+          дольше всего: {inside.map(([k, v]) => `${k} — ${clock(v.sec)} (${v.count})`).join(" · ")}
+        </div>
+      )}
+    </Card>
+  )
+}
+
 export function ProjectView({ project: p }: { project: FootageProject }) {
   const qc = useQueryClient()
   const { data: options } = useFootageOptions()
@@ -255,6 +282,8 @@ export function ProjectView({ project: p }: { project: FootageProject }) {
       </section>
 
       {!planOnly && breakdown && <GroupBreakdown groups={breakdown} enabled={p.options.groups} live={p.status === "running"} />}
+
+      {done && s?.timing && Object.keys(s.timing.phases_sec ?? {}).length > 0 && <Timing t={s.timing} />}
 
       <Log id={p.id} />
 

@@ -259,7 +259,7 @@ function Prompts({ project: p }: { project: PgProject }) {
               }}
               options={[
                 ["all", "Все"],
-                ["issues", `Замечания и пометки · ${issues}`],
+                ["issues", `С пометками · ${issues}`],
               ]}
             />
           </div>

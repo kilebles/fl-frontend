@@ -4,17 +4,12 @@ import { useEffect, useSyncExternalStore } from "react"
 import { keepPreviousData, useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query"
 import { toast } from "sonner"
 
-import { api, avatars, infographicActive, infographics, isFinished, projects, prompts, runActive, type JobDetail, type JobStatus } from "@/lib/api"
+import { api, avatars, infographicActive, infographics, isFinished, projects, type JobDetail, type JobStatus } from "@/lib/api"
 
 export const keys = {
   jobs: ["jobs"] as const,
   job: (id: string) => ["job", id] as const,
   files: (id: string) => ["files", id] as const,
-  templates: ["prompt-templates"] as const,
-  template: (id: string) => ["prompt-template", id] as const,
-  runs: ["prompt-runs"] as const,
-  run: (id: string) => ["prompt-run", id] as const,
-  models: ["prompt-models"] as const,
   categories: ["infographic-categories"] as const,
   infographicRuns: ["infographic-runs"] as const,
   infographicRun: (id: string) => ["infographic-run", id] as const,
@@ -80,44 +75,6 @@ export function useJobFiles(id: string, live: boolean) {
       retry: transientRetry,
     }),
     ready
-  )
-}
-
-export function usePromptModels() {
-  return hydrated(useQuery({ queryKey: keys.models, queryFn: prompts.models, staleTime: Infinity }), useHydrated())
-}
-
-export function useTemplates() {
-  return hydrated(useQuery({ queryKey: keys.templates, queryFn: prompts.templates, placeholderData: keepPreviousData, retry: transientRetry }), useHydrated())
-}
-
-export function useTemplate(id: string | null) {
-  return hydrated(useQuery({ queryKey: keys.template(id ?? ""), queryFn: () => prompts.template(id!), enabled: !!id, placeholderData: keepPreviousData, retry: transientRetry }), useHydrated())
-}
-
-export function useRuns() {
-  return hydrated(
-    useQuery({
-      queryKey: keys.runs,
-      queryFn: prompts.runs,
-      refetchInterval: (q) => (q.state.data?.some(runActive) ? 2_000 : 30_000),
-      placeholderData: keepPreviousData,
-      retry: transientRetry,
-    }),
-    useHydrated()
-  )
-}
-
-export function useRun(id: string) {
-  return hydrated(
-    useQuery({
-      queryKey: keys.run(id),
-      queryFn: () => prompts.run(id),
-      refetchInterval: (q) => (q.state.data && runActive(q.state.data) ? 2_000 : false),
-      placeholderData: keepPreviousData,
-      retry: transientRetry,
-    }),
-    useHydrated()
   )
 }
 

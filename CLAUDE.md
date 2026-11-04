@@ -16,7 +16,7 @@ Tokens in `globals.css` (`--electric` is the accent of either theme, `--dev` the
 
 ```
 src/app/            / (Генерации: вручную — feed + composer), batch/ (Генерации: пакетом — form + batches),
-                    jobs/[id]/ (batch results), avatars/, prompts/ (+ runs/[id]), graphics/ (+ runs/[id], motion-aign cards),
+                    jobs/[id]/ (batch results), avatars/, prompts/ (projects ?p=, niche templates ?tab=templates), graphics/ (+ runs/[id], motion-aign cards),
                     script/ (Сценарий: projects ?p=, niches ?tab=niches), analytics/ (topic picks ?a=), voice/,
                     videos, footage, music, edit, library, history — DevStub pages
 src/components/     shell/ (nav sidebar, logo, theme, project-picker, page-header + DevStub), create/ (composer, feed,
@@ -30,6 +30,9 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
 
 - «Сценарий» и «Аналитика» talk to fl-scenario at `/api/scenario/*` (Caddy → Windows :8020); its SSE `/api/scenario/events`
   invalidates the `["scenario", …]` queries. Selection is the logo blue in both themes (`--pick*` tokens), languages green.
+- «Промпты» talk to hdoc-prompt at `/api/prompts/*` (Caddy → Windows :8040): niche master prompts (обычный / аватар),
+  projects brief → prompts → check → done, result rows; SSE `/api/prompts/events` invalidates `["prompts", …]`.
+  «Генерации пакетом» take finished prompts from there too (`/batch?prompts=<id>&mode=i2i2v`).
 
 - Projects (ролики): the current project lives in localStorage; screens filter by it and new jobs/runs carry `project_id`.
   The project's style line is appended to every prompt (composer, batch, «В производство», avatar scene).

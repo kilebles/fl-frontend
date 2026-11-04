@@ -61,7 +61,7 @@ const TOOLS: NavItem[] = [
   { href: "/voice", label: "Озвучка", icon: Mic },
   { href: "/", label: "Генерации", icon: SquarePlay, also: ["/batch", "/jobs"] },
   { href: "/avatars", label: "Аватар", icon: UserRound },
-  { href: "/footage", label: "Поиск видео", icon: ScanSearch, dev: true },
+  { href: "/footage", label: "Поиск видео", icon: ScanSearch },
   { href: "/graphics", label: "Графика", icon: Layers },
   { href: "/music", label: "Музыка", icon: Music, dev: true },
   { href: "/edit", label: "Монтаж", icon: Scissors, dev: true },

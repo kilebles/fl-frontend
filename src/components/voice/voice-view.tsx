@@ -87,6 +87,22 @@ const LANG_NAMES: Record<string, string> = {
 const MAIN_LANGS = ["EN", "RU", "ES", "PT", "DE", "IT", "PL", "FR"]
 const EXTRA_LANGS = ["JA", "AR", "KO", "NL", "TR", "SV", "NO", "DA", "CS"]
 const ALL_LANGS = [...MAIN_LANGS, ...EXTRA_LANGS]
+const allTargets = (src: string) => ALL_LANGS.filter((l) => l !== src)
+
+// the voice profile picked last time on this device (falls back to «p2», then the first one)
+const PROFILE_KEY = "voice.launchProfile"
+const savedProfile = (): string | null => {
+  try {
+    return localStorage.getItem(PROFILE_KEY)
+  } catch {
+    return null
+  }
+}
+const saveProfile = (id: string) => {
+  try {
+    localStorage.setItem(PROFILE_KEY, id)
+  } catch {}
+}
 
 function formatDuration(sec: number | null | undefined): string {
   if (!sec || sec <= 0) return "—"
@@ -285,7 +301,15 @@ export function VoiceView() {
   const [launchMode, setLaunchMode] = useState<VoiceJobMode>("all")
   const [launchProfileId, setLaunchProfileId] = useState<string>("p2")
   const [launchSourceLang, setLaunchSourceLang] = useState<string>("EN")
-  const [launchTargets, setLaunchTargets] = useState<string[]>(["RU", "ES", "PT", "DE", "IT", "PL", "FR"])
+  const [launchTargets, setLaunchTargets] = useState<string[]>(() => allTargets("EN"))
+  const profileReady = useRef(false)
+  // a new source language: «all languages» stays all of them, otherwise only the new source drops out
+  const changeSource = useCallback((lang: string) => {
+    setLaunchSourceLang(lang)
+    setLaunchTargets((prev) =>
+      ALL_LANGS.filter((l) => !prev.includes(l)).length <= 1 ? allTargets(lang) : prev.filter((x) => x !== lang)
+    )
+  }, [])
   const [launchVoices, setLaunchVoices] = useState<Record<string, string>>({})
   const [launchModel, setLaunchModel] = useState<string>("gemini-4-argon-medium")
   const [launchVoiceModel, setLaunchVoiceModel] = useState<VoiceModelId>("s2.1")
@@ -353,10 +377,12 @@ export function VoiceView() {
         const handed = peekHandoff("voice")
         const first = scriptsRes.find((s) => s.script_id === handed?.scriptId) ?? scriptsRes[0]
         setLaunchScriptId(first.script_id)
-        setLaunchSourceLang(first.source_lang)
+        changeSource(first.source_lang)
       }
-      if (profsRes.length > 0) {
-        const defProf = profsRes.find((p) => p.id === "p2") ?? profsRes[0]
+      if (profsRes.length > 0 && !profileReady.current) {
+        profileReady.current = true
+        const saved = savedProfile()
+        const defProf = profsRes.find((p) => p.id === saved) ?? profsRes.find((p) => p.id === "p2") ?? profsRes[0]
         setLaunchProfileId(defProf.id)
         setLaunchVoices({ ...defProf.default })
         setEditingProfileId(defProf.id)
@@ -366,7 +392,7 @@ export function VoiceView() {
     } finally {
       setLoading(false)
     }
-  }, [launchScriptId])
+  }, [launchScriptId, changeSource])
 
   useEffect(() => {
     void loadInitialData()
@@ -666,7 +692,7 @@ export function VoiceView() {
       const info = await voice.uploadScript(file)
       setScripts((prev) => [info, ...prev.filter((s) => s.script_id !== info.script_id)])
       setLaunchScriptId(info.script_id)
-      setLaunchSourceLang(info.source_lang)
+      changeSource(info.source_lang)
       toast.success(`Сценарий «${info.title}» загружен (${info.paragraphs_total} абзацев)`)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Ошибка чтения .docx")
@@ -931,7 +957,7 @@ export function VoiceView() {
                     onChange={(id) => {
                       const sc = scripts.find((x) => x.script_id === id)
                       setLaunchScriptId(id)
-                      if (sc) setLaunchSourceLang(sc.source_lang)
+                      if (sc) changeSource(sc.source_lang)
                     }}
                     options={scripts.map((sc) => ({
                       value: sc.script_id,
@@ -988,9 +1014,7 @@ export function VoiceView() {
                       value={launchSourceLang}
                       title="Язык оригинала — определяется по тексту; поменяйте, если определился неверно"
                       onChange={(e) => {
-                        const lang = e.target.value
-                        setLaunchSourceLang(lang)
-                        setLaunchTargets((prev) => prev.filter((x) => x !== lang))
+                        changeSource(e.target.value)
                       }}
                       className="h-6 cursor-pointer appearance-none rounded-[3px] border border-line-strong bg-background py-0 pr-5 pl-1.5 font-mono text-xs text-foreground outline-none hover:border-electric/50 focus:border-electric/60"
                     >
@@ -1059,6 +1083,7 @@ export function VoiceView() {
                 value={launchProfileId}
                 onChange={(pid) => {
                   setLaunchProfileId(pid)
+                  saveProfile(pid)
                   const prof = profiles.find((p) => p.id === pid)
                   if (prof) setLaunchVoices({ ...prof.default })
                 }}

@@ -127,7 +127,7 @@ function doneFacts(job: VoiceJob): { facts: string[]; warning: string | null } {
   const inNorm = langs.reduce((a, l) => a + (l.in_norm || 0), 0)
   const facts = [
     formatDuration(job.summary?.duration_sec ?? job.source_duration_sec),
-    `${job.targets.length} яз.`,
+    job.targets.length ? `${job.targets.length} яз.` : job.source_lang,
     total ? `в норме ${Math.round((inNorm / total) * 100)}%` : "",
   ].filter(Boolean)
   const skipped = Object.keys(job.summary?.skipped ?? {})

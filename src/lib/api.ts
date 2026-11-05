@@ -54,6 +54,7 @@ export interface JobDetail extends JobStatus {
   position: number | null
   video_model_key: string | null
   avatar: string | null
+  avatar_keys?: string[]
   static_image: string | null
 }
 
@@ -75,6 +76,7 @@ export interface JobRequest {
   project_id?: string | null
   strategy?: Strategy
   avatar?: string | null
+  avatar_keys?: string[] | null
   static_image?: string | null
 }
 
@@ -593,6 +595,8 @@ export interface Project {
   created_at: string
 }
 
+export type AvatarAngleId = "front" | "three_quarter" | "profile" | "full_body"
+
 export interface Avatar {
   id: string
   name: string
@@ -600,6 +604,12 @@ export interface Avatar {
   image_keys: string[]
   image_urls: string[]
   download_urls?: string[]
+  pack_job_id?: string | null
+  pack_state?: JobState | null
+  pack_stage?: "base" | "angles" | null
+  pack_angles?: AvatarAngleId[]
+  pack_done?: number
+  pack_total?: number
   created_at: string
 }
 
@@ -613,6 +623,18 @@ export const projects = {
 export const avatars = {
   list: () => request<Avatar[]>("/api/avatars"),
   create: (body: { name: string; appearance: string; image_keys: string[] }) => request<Avatar>("/api/avatars", json("POST", body)),
+  generate: (body: {
+    name: string
+    appearance: string
+    angles?: AvatarAngleId[]
+    style?: string
+    project_id?: string | null
+  }) => request<Avatar>("/api/avatars/generate", json("POST", body)),
+  buildAngles: (
+    id: string,
+    body?: { angles?: AvatarAngleId[]; style?: string; project_id?: string | null }
+  ) => request<Avatar>(`/api/avatars/${id}/angles`, json("POST", body ?? {})),
+  cancelAngles: (id: string) => request<Avatar>(`/api/avatars/${id}/angles/cancel`, json("POST")),
   update: (id: string, patch: Partial<{ name: string; appearance: string; image_keys: string[] }>) => request<Avatar>(`/api/avatars/${id}`, json("PATCH", patch)),
   remove: (id: string) => request<void>(`/api/avatars/${id}`, { method: "DELETE" }),
   downloadUrl: (key: string, name?: string) => {

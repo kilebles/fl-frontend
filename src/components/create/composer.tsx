@@ -66,6 +66,13 @@ export function Composer({ avatarId, onAvatar }: { avatarId: string | null; onAv
   const attachable = !!mode.staticImage || !!mode.avatar
   const prompt = draft.text.trim()
   const avatarKey = mode.avatar ? (avatar?.image_keys[0] ?? picture.picture?.key) : null
+  const avatarKeys = mode.avatar
+    ? avatar?.image_keys.length
+      ? avatar.image_keys
+      : picture.picture?.key
+        ? [picture.picture.key]
+        : null
+    : null
   const blocked = !prompt || (mode.avatar && !avatarKey) || !!picture.picture?.busy
 
   const submit = useMutation({
@@ -84,6 +91,7 @@ export function Composer({ avatarId, onAvatar }: { avatarId: string | null; onAv
           },
         ],
         avatar: avatarKey,
+        avatar_keys: avatarKeys,
         static_image: still ?? null,
       })
     },
@@ -103,8 +111,19 @@ export function Composer({ avatarId, onAvatar }: { avatarId: string | null; onAv
       {(picture.picture || (mode.avatar && avatar)) && (
         <div className="mb-2 flex items-center gap-2 px-1">
           <span className="relative">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={avatar && mode.avatar ? avatar.image_urls[0] : picture.picture!.preview} alt="" className={cn("size-12 rounded-[3px] object-cover", picture.picture?.busy && "opacity-50")} />
+            {avatar && mode.avatar ? (
+              avatar.image_urls[0] ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={avatar.image_urls[0]} alt="" className="size-12 rounded-[3px] object-cover" />
+              ) : (
+                <span className="shimmer grid size-12 place-items-center rounded-[3px]">
+                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                </span>
+              )
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={picture.picture!.preview} alt="" className={cn("size-12 rounded-[3px] object-cover", picture.picture?.busy && "opacity-50")} />
+            )}
             {picture.picture?.busy && <Loader2 className="absolute inset-0 m-auto size-4 animate-spin text-white" />}
             <button
               type="button"
@@ -115,7 +134,14 @@ export function Composer({ avatarId, onAvatar }: { avatarId: string | null; onAv
               <X className="size-3" />
             </button>
           </span>
-          <span className="text-xs text-muted-foreground">{mode.avatar ? (avatar?.name ?? "Аватар") : "Свой кадр"}</span>
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span>{mode.avatar ? (avatar?.name ?? "Аватар") : "Свой кадр"}</span>
+            {mode.avatar && avatar && avatar.image_keys.length > 1 && (
+              <span className="rounded-[2px] bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-foreground-2">
+                {Math.min(avatar.image_keys.length, 4)} рак.
+              </span>
+            )}
+          </span>
         </div>
       )}
       <textarea
@@ -140,10 +166,17 @@ export function Composer({ avatarId, onAvatar }: { avatarId: string | null; onAv
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" side="top" sideOffset={8} className="w-60 p-1.5">
               {avatarList?.map((a) => (
-                <DropdownMenuItem key={a.id} onClick={() => onAvatar(a.id)} className="gap-2.5 rounded-[3px] px-2 py-1.5">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={a.image_urls[0]} alt="" className="size-8 rounded-[2px] object-cover" />
-                  <span className="flex-1 truncate">{a.name}</span>
+                <DropdownMenuItem key={a.id} disabled={!a.image_keys.length} onClick={() => onAvatar(a.id)} className="gap-2.5 rounded-[3px] px-2 py-1.5">
+                  {a.image_urls[0] ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={a.image_urls[0]} alt="" className="size-8 rounded-[2px] object-cover" />
+                  ) : (
+                    <span className="shimmer grid size-8 place-items-center rounded-[2px]">
+                      <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+                    </span>
+                  )}
+                  <span className="min-w-0 flex-1 truncate">{a.name}</span>
+                  {a.image_keys.length > 1 && <span className="font-mono text-[11px] text-muted-foreground">{Math.min(a.image_keys.length, 4)} рак.</span>}
                   {a.id === avatarId && <Check className="size-4 text-electric" />}
                 </DropdownMenuItem>
               ))}

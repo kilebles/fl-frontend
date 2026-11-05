@@ -97,6 +97,7 @@ export function BatchForm() {
   const problem =
     (count === 0 && (source === "list" ? "Добавьте промпты" : source === "excel" ? "Загрузите .xlsx" : "Выберите промпты")) ||
     (mode.avatar && !avatar ? "Выберите аватар" : null) ||
+    (mode.avatar && avatar && !avatar.image_keys.length ? "Портрет аватара ещё генерируется" : null) ||
     (still.picture?.busy ? "Картинка ещё загружается" : null)
 
   const submit = useMutation({
@@ -120,6 +121,7 @@ export function BatchForm() {
         project_id: projectId,
         strategy: mode.chain ? "sequential" : "parallel",
         avatar: mode.avatar ? avatar?.image_keys[0] : null,
+        avatar_keys: mode.avatar && avatar?.image_keys.length ? avatar.image_keys : null,
         static_image: useStill ? still.picture!.key : null,
       })
     },
@@ -247,7 +249,16 @@ export function BatchForm() {
             value={avatarId}
             onChange={setAvatarId}
             placeholder={avatarList?.length ? "Выберите аватар" : "Нет аватаров — создайте в разделе «Аватар»"}
-            options={(avatarList ?? []).map((a) => ({ value: a.id, label: a.name, hint: a.appearance }))}
+            options={(avatarList ?? []).map((a) => ({
+              value: a.id,
+              label: a.name,
+              hint: [
+                a.image_keys.length > 1 ? `${Math.min(a.image_keys.length, 4)} рак. в Flow` : "",
+                a.appearance,
+              ]
+                .filter(Boolean)
+                .join(" · "),
+            }))}
           />
         )}
         {mode.staticImage && (

@@ -4,7 +4,7 @@ import { useEffect, useSyncExternalStore } from "react"
 import { keepPreviousData, useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query"
 import { toast } from "sonner"
 
-import { api, avatars, infographicActive, infographics, isFinished, projects, type JobDetail, type JobStatus } from "@/lib/api"
+import { api, avatars, infographicActive, infographics, isFinished, projects, type Avatar, type JobDetail, type JobStatus } from "@/lib/api"
 
 export const keys = {
   jobs: ["jobs"] as const,
@@ -113,7 +113,16 @@ export function useProjects() {
 }
 
 export function useAvatars() {
-  return hydrated(useQuery({ queryKey: keys.avatars, queryFn: avatars.list, placeholderData: keepPreviousData, retry: transientRetry }), useHydrated())
+  return hydrated(
+    useQuery({
+      queryKey: keys.avatars,
+      queryFn: avatars.list,
+      refetchInterval: (q) => (q.state.data?.some((a) => !!a.pack_job_id) ? 2_500 : false),
+      placeholderData: keepPreviousData,
+      retry: transientRetry,
+    }),
+    useHydrated()
+  )
 }
 
 export function useJobActions() {
@@ -177,6 +186,9 @@ export function useJobEvents(enabled = true) {
           qc.invalidateQueries({ queryKey: keys.files(status.id) })
         }
         if (status.state !== previous.state) qc.invalidateQueries({ queryKey: keys.job(status.id) })
+      }
+      if (qc.getQueryData<Avatar[]>(keys.avatars)?.some((a) => a.pack_job_id === status.id)) {
+        qc.invalidateQueries({ queryKey: keys.avatars })
       }
     })
     return () => source.close()

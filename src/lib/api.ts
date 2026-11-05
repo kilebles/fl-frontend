@@ -1426,3 +1426,239 @@ export const footage = {
   zipUrl: (id: string, kind: "clips" | "files") => withToken(`${fid(id)}/zip/${kind}`),
   eventsUrl: () => withToken("/api/footage/events"),
 }
+
+/* ------------------------------------------------------------------ reels (fl-reel, /api/reels/*) */
+
+export type ReelCategory = "ai" | "video" | "history" | "graphics" | "avatar"
+export type ReelStatus = "queued" | "running" | "done" | "error" | "stopped"
+export type ReelStepKey = "script" | "voice" | "storyboard" | "materials" | "assembly"
+export type ReelStepState = "done" | "active" | "queued" | "todo" | "skipped" | "error" | "stopped"
+export type ReelShares = Record<ReelCategory, number>
+
+export interface ReelStep {
+  key: ReelStepKey
+  label: string
+  state: ReelStepState
+  done?: number
+  total?: number
+  /** What the active step does now (progress.step of the reel). */
+  step?: string
+  /** The step exists in the plan but is not built yet. */
+  soon?: boolean
+}
+
+export interface ReelMix {
+  target: ReelShares
+  actual: ReelShares
+  seconds: ReelShares
+  shots: Record<ReelCategory, number>
+  total_sec: number
+  tolerance: number
+  within_tolerance: boolean
+  short: ReelCategory[]
+  weak: number
+}
+
+export interface ReelUsage {
+  calls?: number
+  cache_hits?: number
+  input_tokens?: number
+  output_tokens?: number
+  seconds?: number
+}
+
+export interface Reel {
+  id: string
+  title: string
+  project_id: string | null
+  status: ReelStatus
+  created: string
+  updated: string
+  started: string | null
+  finished: string | null
+  source: { kind: "topic" | "voice" | "file"; name: string; voice_job?: number; language: string; paragraphs: number; timed: number }
+  settings: ReelSettings
+  stage: string
+  steps: ReelStep[]
+  /** step: storyboard brief | shots | allocate; script — the stage of «Сценарий» (outline, chapter, polish…); voice — voice | mix */
+  progress: { stage?: string; step?: string; done?: number; total?: number; wait?: string }
+  summary: { shots: number; total_sec: number; mix: ReelMix; fallback_paragraphs: number[]; errors: string[]; usage: ReelUsage } | null
+  error: string | null
+  /** Only on GET /api/reels/{id}: the last build of the language tracks. */
+  tracks?: ReelTracksStatus
+  /** Orders to the modules: per planned category — total, done, gone to a fallback, failed. */
+  materials?: { by_category: Partial<Record<ReelCategory, { total: number; done: number; fallback: number; failed: number }>>; done: number; total: number } | null
+  /** The assembled reel: mp4 and the montage project for DaVinci. */
+  result?: {
+    mp4: { name: string; size: number }
+    montage: { name: string; size: number }
+    sec: number
+    renderer: "remotion" | "ffmpeg"
+    languages: string[]
+    fallbacks: number
+    failed: number
+  } | null
+}
+
+export interface ReelTracksStatus {
+  state: "none" | "building" | "done" | "error"
+  stage?: "download" | "build" | "done"
+  langs?: string[]
+  base?: string
+  done?: number
+  total?: number
+  files?: { lang: string; name: string; size: number }[]
+  missing?: Record<string, number[]>
+  host?: number[]
+  sec?: number
+  zip?: string
+  size?: number
+  error?: string | null
+  finished?: string | null
+}
+
+export interface ReelTracksInfo {
+  base: string
+  /** Languages mixed in «Озвучка» — the tracks are built from them. */
+  mixed: string[]
+  /** Languages of the reel not mixed yet. */
+  pending: string[]
+  reason?: string
+  status: ReelTracksStatus
+}
+
+export interface ReelShot {
+  id: string
+  paragraph: number
+  sec: number
+  start: number
+  show: string
+  fit: Record<ReelCategory, number>
+  category: ReelCategory
+  type: string
+  queries: { stock?: string[]; archive?: string[]; youtube?: string[] }
+  ai: string
+  card: { subject?: string; kind?: string; caption?: string }
+  avoid: string[]
+  fallback: boolean
+  executor: string
+}
+
+export interface ReelParagraph {
+  number: number
+  text: string
+  chapter: string
+  duration: number
+  duration_source: "audio" | "chars"
+  gap: number
+  slot: number
+}
+
+export interface ReelBrief {
+  era?: string
+  setting?: string
+  look?: string
+  people?: { name: string; note?: string }[]
+  places?: { name: string; note?: string }[]
+  real_material?: string
+  rules?: string[]
+  chapters?: { title: string; first_paragraph?: number; mood?: string; tempo?: string }[]
+  error?: string
+}
+
+export interface ReelStoryboard {
+  direction?: { style: string; host: boolean; shot_sec: [number, number] }
+  brief: ReelBrief
+  shots: ReelShot[]
+  mix: ReelMix
+  paragraphs: ReelParagraph[]
+  fallback_paragraphs: number[]
+  errors: string[]
+  engine?: string
+  model?: string
+}
+
+/** Settings of a reel — the six steps of the menu. */
+export interface ReelSettings {
+  niche: string
+  niche_name?: string
+  script: { mode: "topic" | "ready"; topic?: string; minutes?: number | null; language?: string; tone?: string; model?: string; notes?: string }
+  /** targets — languages of translation; voices — a voice per language (empty: the profile's default). */
+  voice: { profile?: string; name?: string; targets?: string[]; voices?: Record<string, string> }
+  avatar: { id: string; name?: string; voice?: string }
+  storyboard: { shares: ReelShares; engine: string; model: string; style: string; notes: string }
+  montage: { style: string; music: string }
+  format: "16:9" | "9:16"
+}
+
+export interface ReelMontageStyle {
+  value: string
+  label: string
+  use: string
+  cuts: string
+  look: string
+  text: string
+  shot_sec: [number, number]
+}
+
+export interface ReelOptions {
+  categories: { value: ReelCategory; label: string; executor: string }[]
+  shares: ReelShares
+  tolerance: number
+  engines: { value: string; label: string; model: string }[]
+  defaults: { engine: string }
+  shot_sec: [number, number]
+  montage: ReelMontageStyle[]
+  montage_default: string
+  music: { value: string; label: string }[]
+}
+
+export interface ReelVoiceSource {
+  id: number
+  title: string
+  language: string
+  paragraphs: number
+  duration_sec: number | null
+  status: string
+  created: string
+  project_id?: string | null
+  /** The base track is mixed: paragraph lengths are final; translations may still be running («сначала база»). */
+  base_ready?: boolean
+  translating?: boolean
+}
+
+export interface ReelCreate extends Omit<ReelSettings, "format"> {
+  title?: string
+  project_id?: string | null
+  source: "topic" | "voice" | "file"
+  voice_job?: number
+  format?: "16:9" | "9:16"
+}
+
+const rid = (id: string) => `/api/reels/${encodeURIComponent(id)}`
+
+export const reels = {
+  health: () => request<{ status: string; worker_online: boolean }>("/api/reels/health"),
+  options: () => request<ReelOptions>("/api/reels/options"),
+  voiceSources: () => request<ReelVoiceSource[]>("/api/reels/voice-sources"),
+  list: () => request<Reel[]>("/api/reels"),
+  get: (id: string) => request<Reel>(rid(id)),
+  storyboard: (id: string) => request<ReelStoryboard>(`${rid(id)}/storyboard`),
+  create: (body: ReelCreate, script?: File | null) => {
+    const form = new FormData()
+    form.append("data", JSON.stringify(body))
+    if (script) form.append("script", script)
+    return request<Reel>("/api/reels", { method: "POST", body: form })
+  },
+  preset: (niche: string) => request<Partial<ReelSettings>>(`/api/reels/presets/${encodeURIComponent(niche)}`),
+  shares: (id: string, shares: ReelShares) => request<Reel>(`${rid(id)}/shares`, json("PUT", { shares })),
+  rename: (id: string, title: string) => request<Reel>(rid(id), json("PATCH", { title })),
+  stop: (id: string) => request<Reel>(`${rid(id)}/stop`, json("POST")),
+  resume: (id: string, again = false) => request<Reel>(`${rid(id)}/resume`, json("POST", { again })),
+  remove: (id: string) => request<void>(rid(id), { method: "DELETE" }),
+  tracks: (id: string) => request<ReelTracksInfo>(`${rid(id)}/tracks`),
+  buildTracks: (id: string) => request<ReelTracksStatus>(`${rid(id)}/tracks`, json("POST")),
+  tracksZipUrl: (id: string) => withToken(`${rid(id)}/tracks/zip`),
+  resultUrl: (id: string, kind: "mp4" | "montage") => withToken(`${rid(id)}/result/${kind}`),
+  eventsUrl: () => withToken("/api/reels/events"),
+}

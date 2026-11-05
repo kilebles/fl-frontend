@@ -14,8 +14,11 @@ import { cn } from "@/lib/utils"
 /** YouTube language tracks: one mp3 per mixed language, as long as the reel, on the reel's common grid. */
 export function TracksCard({ reel: r }: { reel: Reel }) {
   const qc = useQueryClient()
-  const fromVoice = r.source.kind === "voice"
-  const { data: info, error, isLoading } = useReelTracks(r.id, fromVoice)
+  const hasVoice =
+    r.source.kind === "voice" ||
+    r.steps.some((s) => s.key === "voice" && s.state === "done") ||
+    (!!r.tracks && r.tracks.state !== "none")
+  const { data: info, error, isLoading } = useReelTracks(r.id, hasVoice)
   const st = r.tracks ?? info?.status ?? { state: "none" as const }
   const build = useMutation({
     mutationFn: () => reels.buildTracks(r.id),
@@ -25,7 +28,7 @@ export function TracksCard({ reel: r }: { reel: Reel }) {
     },
     onError: (e) => toast.error(e.message),
   })
-  if (!fromVoice) return null
+  if (!hasVoice) return null
 
   const mixed = info?.mixed ?? []
   const base = info?.base ?? r.source.language.toUpperCase()
@@ -93,6 +96,14 @@ export function TracksCard({ reel: r }: { reel: Reel }) {
                   <span className="w-10 font-mono text-xs text-ok">{f.lang}</span>
                   <span className="min-w-0 flex-1 truncate text-foreground-2">{f.name}</span>
                   <span className="font-mono text-[11px] text-faint">{bytes(f.size)}</span>
+                  <a
+                    href={reels.trackUrl(r.id, f.lang)}
+                    download={f.name}
+                    title={`Скачать ${f.lang} (.mp3)`}
+                    className="grid size-7 place-items-center rounded-[3px] text-muted-foreground hover:bg-elev hover:text-foreground"
+                  >
+                    <Download className="size-3.5" />
+                  </a>
                 </div>
               ))}
             </div>

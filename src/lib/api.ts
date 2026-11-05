@@ -1661,6 +1661,7 @@ export const reels = {
   tracks: (id: string) => request<ReelTracksInfo>(`${rid(id)}/tracks`),
   buildTracks: (id: string) => request<ReelTracksStatus>(`${rid(id)}/tracks`, json("POST")),
   tracksZipUrl: (id: string) => withToken(`${rid(id)}/tracks/zip`),
+  trackUrl: (id: string, lang: string) => withToken(`${rid(id)}/tracks/${encodeURIComponent(lang.toUpperCase())}`),
   resultUrl: (id: string, kind: "mp4" | "montage") => withToken(`${rid(id)}/result/${kind}`),
   eventsUrl: () => withToken("/api/reels/events"),
 }

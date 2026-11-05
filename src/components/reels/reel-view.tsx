@@ -147,10 +147,11 @@ export function ReelView({ reel: r }: { reel: Reel }) {
   const pr = r.progress
   const active = r.status === "running" || r.status === "queued"
   const usage = s?.usage
+  const now = (stage: string) => active && (pr.stage ?? "storyboard") === stage
   const captions = {
-    script: r.source.kind === "voice" ? `из «Озвучки»` : r.source.name,
-    voice: r.source.timed ? `${r.source.language.toUpperCase()} · ${r.source.timed} дорожек` : "",
-    storyboard: done && s ? shotsText(s.shots) : active ? statusText(r) : "",
+    script: now("script") ? statusText(r) : r.source.kind === "voice" ? `из «Озвучки»` : r.source.kind === "topic" ? "по теме" : r.source.name,
+    voice: now("voice") ? statusText(r) : r.source.timed ? `${r.source.language.toUpperCase()} · ${r.source.timed} дорожек` : "",
+    storyboard: done && s ? shotsText(s.shots) : now("storyboard") ? statusText(r) : "",
   }
   const total = s?.total_sec ?? 0
 
@@ -184,7 +185,11 @@ export function ReelView({ reel: r }: { reel: Reel }) {
 
       <section className="rounded-[4px] border border-line bg-surface p-4">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          <Tile label="Абзацы" value={r.source.paragraphs} sub={r.source.timed ? `по озвучке · ${r.source.timed} дорожек` : "длительность по тексту"} />
+          <Tile
+            label="Абзацы"
+            value={r.source.paragraphs || "—"}
+            sub={r.source.timed ? `по озвучке · ${r.source.timed} дорожек` : r.source.paragraphs ? "длительность по тексту" : ""}
+          />
           <Tile label="Длительность" value={total ? clock(total) : "—"} sub={total ? "с паузами после абзацев" : ""} />
           <Tile label="Кадров" value={s?.shots ?? "—"} sub={s?.shots ? `в среднем ${(total / s.shots).toFixed(1)} с` : ""} />
           <Tile

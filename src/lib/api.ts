@@ -1379,6 +1379,8 @@ export interface ReelStep {
   state: ReelStepState
   done?: number
   total?: number
+  /** What the active step does now (progress.step of the reel). */
+  step?: string
   /** The step exists in the plan but is not built yet. */
   soon?: boolean
 }
@@ -1412,11 +1414,12 @@ export interface Reel {
   updated: string
   started: string | null
   finished: string | null
-  source: { kind: "voice" | "file"; name: string; voice_job?: number; language: string; paragraphs: number; timed: number }
+  source: { kind: "topic" | "voice" | "file"; name: string; voice_job?: number; language: string; paragraphs: number; timed: number }
   settings: ReelSettings
   stage: string
   steps: ReelStep[]
-  progress: { stage?: string; step?: "brief" | "shots" | "allocate"; done?: number; total?: number; wait?: string }
+  /** step: storyboard brief | shots | allocate; script — the stage of «Сценарий» (outline, chapter, polish…); voice — voice | mix */
+  progress: { stage?: string; step?: string; done?: number; total?: number; wait?: string }
   summary: { shots: number; total_sec: number; mix: ReelMix; fallback_paragraphs: number[]; errors: string[]; usage: ReelUsage } | null
   error: string | null
   /** Only on GET /api/reels/{id}: the last build of the language tracks. */
@@ -1553,7 +1556,7 @@ export interface ReelVoiceSource {
 export interface ReelCreate extends Omit<ReelSettings, "format"> {
   title?: string
   project_id?: string | null
-  source: "voice" | "file"
+  source: "topic" | "voice" | "file"
   voice_job?: number
   format?: "16:9" | "9:16"
 }

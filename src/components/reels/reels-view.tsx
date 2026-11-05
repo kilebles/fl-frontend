@@ -49,8 +49,12 @@ export function ReelsView() {
             <span className="font-mono text-[13px]">
               {[
                 reel.settings.niche_name || "",
-                reel.source.kind === "voice" ? `озвучка ${reel.source.language.toUpperCase()}` : reel.source.name,
-                `${reel.source.paragraphs} абз.`,
+                reel.source.kind === "voice"
+                  ? `озвучка ${reel.source.language.toUpperCase()}`
+                  : reel.source.kind === "topic"
+                    ? "по теме"
+                    : reel.source.name,
+                reel.source.paragraphs ? `${reel.source.paragraphs} абз.` : "",
                 reel.summary ? clock(reel.summary.total_sec) : "",
               ]
                 .filter(Boolean)

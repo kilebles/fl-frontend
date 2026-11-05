@@ -93,7 +93,7 @@ export function ReelWizard({ onCreated }: { onCreated: (id: string) => void }) {
         {
           title: d.title.trim(),
           project_id: projectId,
-          source: s.from,
+          source: s.mode === "topic" ? "topic" : s.from,
           voice_job: fromVoice && s.voiceJob ? Number(s.voiceJob) : undefined,
           niche: d.niche,
           niche_name: d.nicheName,
@@ -116,7 +116,6 @@ export function ReelWizard({ onCreated }: { onCreated: (id: string) => void }) {
 
   const step = Math.min(d.step, STEPS.length)
   const Body = step < STEPS.length ? STEPS[step].body : null
-  const topic = s.mode === "topic"
 
   return (
     <div className="space-y-5">
@@ -177,8 +176,7 @@ export function ReelWizard({ onCreated }: { onCreated: (id: string) => void }) {
             </button>
           ) : (
             <div className="flex flex-wrap items-center gap-3">
-              {topic && <span className="text-xs text-faint">Запуск по теме — со следующим шагом: автопилот сценария и озвучки</span>}
-              <button type="button" disabled={topic || !ok.every(Boolean) || launch.isPending} onClick={() => launch.mutate()} className={BTN_PRIMARY}>
+              <button type="button" disabled={!ok.every(Boolean) || launch.isPending} onClick={() => launch.mutate()} className={BTN_PRIMARY}>
                 {launch.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Clapperboard className="size-3.5" />}
                 Запустить
               </button>

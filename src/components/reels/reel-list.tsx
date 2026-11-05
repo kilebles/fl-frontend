@@ -13,10 +13,14 @@ import { useCurrentProject } from "@/lib/project"
 
 const STEP_TEXT: Record<string, string> = { brief: "бриф фильма", shots: "кадры", allocate: "доли" }
 
+/** What the reel does now, one short line. */
 export function statusText(r: Reel): string {
   const pr = r.progress
   if (r.status === "queued") return "в очереди"
   if (pr.wait) return pr.wait
+  if (pr.stage === "script") return pr.total ? `сценарий пишется · ${pr.done ?? 0} из ${pr.total}` : "сценарий пишется"
+  if (pr.stage === "voice")
+    return pr.step === "mix" ? "сводится базовая дорожка" : pr.total ? `озвучка базы · ${pr.done ?? 0} из ${pr.total}` : "озвучка базы"
   const step = pr.step ? STEP_TEXT[pr.step] ?? pr.step : "запуск"
   return pr.step === "shots" && pr.total ? `${step} · пачка ${pr.done ?? 0} из ${pr.total}` : step
 }

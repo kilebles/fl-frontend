@@ -41,8 +41,8 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
   «Генерации пакетом» take finished prompts from there too (`/batch?prompts=<id>&mode=i2i2v`).
 - «Ролики» talk to fl-reel (the brain of the full cycle) at `/api/reels/*` (Caddy → Windows :8050); SSE `/api/reels/events`
   invalidates `["reels", …]`. «Новый ролик» (`?new=1`) is a six-step wizard: niche (fl-scenario niches; picking one
-  loads the niche preset from fl-reel) → script (by topic — needs the autopilot, not yet; or ready from «Озвучка» / a
-  file) → voice profile + translation languages with a voice each → host (fl-api avatar + Veo voice) → storyboard (shares, picture style, details) → montage
+  loads the niche preset from fl-reel) → script (by topic — the brain orders it from «Сценарий», then «Озвучка»; or ready
+  from «Озвучка» / a file) → voice profile + translation languages with a voice each → host (fl-api avatar + Veo voice) → storyboard (shares, picture style, details) → montage
   style + music; the draft lives in localStorage. A reel's storyboard gives every shot a category (ИИ / видео /
   исторические / графика / ведущий — the host takes whole paragraphs; colours in `reels/parts.tsx`); new shares
   re-allocate a finished storyboard on the server at once. «Дорожки для YouTube» on the reel screen: fl-reel builds one

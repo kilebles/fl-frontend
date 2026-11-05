@@ -120,11 +120,13 @@ function DurationSwitch({
 export function Composer({ avatarId, onAvatar }: { avatarId: string | null; onAvatar: (id: string | null) => void }) {
   const qc = useQueryClient()
   const file = useRef<HTMLInputElement>(null)
+  const endFile = useRef<HTMLInputElement>(null)
   const draft = useDraft()
   const [projectId] = useCurrentProject()
   const style = useProjectStyle(projectId)
   const { data: avatarList } = useAvatars()
   const picture = usePicture()
+  const endPicture = usePicture()
   const mode = MODE_BY_ID[draft.mode ?? "t2v"]
   const duration = resolveDuration(mode, draft.duration)
   const aspectRatio = resolveAspectRatio(mode, draft.aspectRatio)
@@ -140,11 +142,14 @@ export function Composer({ avatarId, onAvatar }: { avatarId: string | null; onAv
         ? [picture.picture.key]
         : null
     : null
-  const blocked = !prompt || (mode.avatar && !avatarKey) || !!picture.picture?.busy
+  const missingFrames = !!mode.requiresFrames && (!picture.picture?.key || !endPicture.picture?.key)
+  const blocked =
+    !prompt || (mode.avatar && !avatarKey) || missingFrames || !!picture.picture?.busy || !!endPicture.picture?.busy
 
   const submit = useMutation({
     mutationFn: () => {
       const still = mode.staticImage ? picture.picture?.key : null
+      const endStill = mode.endImage && still ? endPicture.picture?.key : null
       const imagePrompt = mode.avatar && avatar?.appearance ? `${prompt}. ${avatar.appearance}` : prompt
       return api.createJob({
         mode: mode.id,
@@ -162,6 +167,7 @@ export function Composer({ avatarId, onAvatar }: { avatarId: string | null; onAv
         avatar: avatarKey,
         avatar_keys: avatarKeys,
         static_image: still ?? null,
+        end_image: endStill ?? null,
       })
     },
     onSuccess: () => {
@@ -175,43 +181,118 @@ export function Composer({ avatarId, onAvatar }: { avatarId: string | null; onAv
     if (!blocked && !submit.isPending) submit.mutate()
   }
 
+  const showDualFrames = !!mode.requiresFrames || (!!mode.endImage && !!picture.picture)
+
   return (
     <div className="rounded-[4px] border border-line-strong bg-surface p-3 shadow-[0_12px_40px_-12px_rgb(0_0_0/0.45)] focus-within:border-faint">
-      {(picture.picture || (mode.avatar && avatar)) && (
-        <div className="mb-2 flex items-center gap-2 px-1">
-          <span className="relative">
-            {avatar && mode.avatar ? (
-              avatar.image_urls[0] ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={avatar.image_urls[0]} alt="" className="size-12 rounded-[3px] object-cover" />
-              ) : (
-                <span className="shimmer grid size-12 place-items-center rounded-[3px]">
-                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                </span>
-              )
-            ) : (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={picture.picture!.preview} alt="" className={cn("size-12 rounded-[3px] object-cover", picture.picture?.busy && "opacity-50")} />
-            )}
-            {picture.picture?.busy && <Loader2 className="absolute inset-0 m-auto size-4 animate-spin text-white" />}
+      {showDualFrames ? (
+        <div className="mb-2 flex flex-wrap items-center gap-2.5 px-1">
+          {picture.picture ? (
+            <div className="flex items-center gap-2">
+              <span className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={picture.picture.preview}
+                  alt=""
+                  className={cn("size-12 rounded-[3px] object-cover", picture.picture.busy && "opacity-50")}
+                />
+                {picture.picture.busy && <Loader2 className="absolute inset-0 m-auto size-4 animate-spin text-white" />}
+                <button
+                  type="button"
+                  onClick={() => {
+                    picture.clear()
+                    if (!mode.requiresFrames) endPicture.clear()
+                  }}
+                  className="absolute -top-1.5 -right-1.5 grid size-5 place-items-center rounded-full bg-elev text-muted-foreground ring-1 ring-line-strong hover:text-foreground"
+                  aria-label="Убрать начальный кадр"
+                >
+                  <X className="size-3" />
+                </button>
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {endPicture.picture || mode.requiresFrames ? "Кадр А (старт)" : "Начальный кадр"}
+              </span>
+            </div>
+          ) : (
             <button
               type="button"
-              onClick={() => (avatar && mode.avatar ? onAvatar(null) : picture.clear())}
-              className="absolute -top-1.5 -right-1.5 grid size-5 place-items-center rounded-full bg-elev text-muted-foreground ring-1 ring-line-strong hover:text-foreground"
-              aria-label="Убрать"
+              onClick={() => file.current?.click()}
+              className="flex h-12 items-center gap-2 rounded-[3px] border border-dashed border-line-strong bg-surface-2/60 px-3 text-xs text-muted-foreground transition-colors hover:border-faint hover:text-foreground"
             >
-              <X className="size-3" />
+              <Plus className="size-3.5" /> Кадр А (старт)
             </button>
-          </span>
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span>{mode.avatar ? (avatar?.name ?? "Аватар") : "Свой кадр"}</span>
-            {mode.avatar && avatar && avatar.image_keys.length > 1 && (
-              <span className="rounded-[2px] bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-foreground-2">
-                {Math.min(avatar.image_keys.length, 4)} рак.
+          )}
+
+          <ArrowRight className="size-3.5 text-faint" />
+
+          {endPicture.picture ? (
+            <div className="flex items-center gap-2">
+              <span className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={endPicture.picture.preview}
+                  alt=""
+                  className={cn("size-12 rounded-[3px] object-cover", endPicture.picture.busy && "opacity-50")}
+                />
+                {endPicture.picture.busy && <Loader2 className="absolute inset-0 m-auto size-4 animate-spin text-white" />}
+                <button
+                  type="button"
+                  onClick={() => endPicture.clear()}
+                  className="absolute -top-1.5 -right-1.5 grid size-5 place-items-center rounded-full bg-elev text-muted-foreground ring-1 ring-line-strong hover:text-foreground"
+                  aria-label="Убрать финальный кадр"
+                >
+                  <X className="size-3" />
+                </button>
               </span>
-            )}
-          </span>
+              <span className="text-xs text-muted-foreground">Кадр Б (финал)</span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => endFile.current?.click()}
+              className="flex h-12 items-center gap-2 rounded-[3px] border border-dashed border-line-strong bg-surface-2/60 px-3 text-xs text-muted-foreground transition-colors hover:border-faint hover:text-foreground"
+            >
+              <Plus className="size-3.5" /> {mode.requiresFrames ? "Кадр Б (финал)" : "Финальный кадр"}
+            </button>
+          )}
         </div>
+      ) : (
+        (picture.picture || (mode.avatar && avatar)) && (
+          <div className="mb-2 flex items-center gap-2 px-1">
+            <span className="relative">
+              {avatar && mode.avatar ? (
+                avatar.image_urls[0] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={avatar.image_urls[0]} alt="" className="size-12 rounded-[3px] object-cover" />
+                ) : (
+                  <span className="shimmer grid size-12 place-items-center rounded-[3px]">
+                    <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                  </span>
+                )
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={picture.picture!.preview} alt="" className={cn("size-12 rounded-[3px] object-cover", picture.picture?.busy && "opacity-50")} />
+              )}
+              {picture.picture?.busy && <Loader2 className="absolute inset-0 m-auto size-4 animate-spin text-white" />}
+              <button
+                type="button"
+                onClick={() => (avatar && mode.avatar ? onAvatar(null) : picture.clear())}
+                className="absolute -top-1.5 -right-1.5 grid size-5 place-items-center rounded-full bg-elev text-muted-foreground ring-1 ring-line-strong hover:text-foreground"
+                aria-label="Убрать"
+              >
+                <X className="size-3" />
+              </button>
+            </span>
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span>{mode.avatar ? (avatar?.name ?? "Аватар") : "Свой кадр"}</span>
+              {mode.avatar && avatar && avatar.image_keys.length > 1 && (
+                <span className="rounded-[2px] bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-foreground-2">
+                  {Math.min(avatar.image_keys.length, 4)} рак.
+                </span>
+              )}
+            </span>
+          </div>
+        )
       )}
       <textarea
         value={draft.text}
@@ -223,7 +304,13 @@ export function Composer({ avatarId, onAvatar }: { avatarId: string | null; onAv
           }
         }}
         rows={2}
-        placeholder={mode.makesVideos ? "Что создаём? Опишите сцену, свет и движение камеры" : "Что создаём? Опишите кадр"}
+        placeholder={
+          mode.requiresFrames
+            ? "Опишите движение камеры и действие между кадром А и кадром Б"
+            : mode.makesVideos
+              ? "Что создаём? Опишите сцену, свет и движение камеры"
+              : "Что создаём? Опишите кадр"
+        }
         className="field-sizing-content max-h-60 min-h-14 w-full resize-none bg-transparent px-1.5 py-1 text-[15px] leading-relaxed outline-none placeholder:text-faint"
       />
       <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -262,8 +349,14 @@ export function Composer({ avatarId, onAvatar }: { avatarId: string | null; onAv
           <button
             type="button"
             disabled={!attachable}
-            onClick={() => file.current?.click()}
-            title={attachable ? "Свой кадр вместо сгенерированного" : "В этом режиме картинка не нужна"}
+            onClick={() => (picture.picture && mode.endImage && !endPicture.picture ? endFile.current?.click() : file.current?.click())}
+            title={
+              picture.picture && mode.endImage && !endPicture.picture
+                ? "Добавить финальный кадр (Кадр Б)"
+                : attachable
+                  ? "Свой начальный кадр"
+                  : "В этом режиме картинка не нужна"
+            }
             className="grid size-10 place-items-center rounded-[3px] border border-line-strong bg-surface-2 text-foreground-2 transition-colors hover:text-foreground disabled:opacity-35"
             aria-label="Прикрепить картинку"
           >
@@ -287,6 +380,19 @@ export function Composer({ avatarId, onAvatar }: { avatarId: string | null; onAv
             e.target.value = ""
           }}
         />
+        <input
+          ref={endFile}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) {
+              endPicture.upload(f)
+            }
+            e.target.value = ""
+          }}
+        />
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {mode.durations.length > 0 && duration !== null && (
             <DurationSwitch
@@ -301,6 +407,7 @@ export function Composer({ avatarId, onAvatar }: { avatarId: string | null; onAv
             onMode={(m) => {
               setDraft({ mode: m.id, duration: null })
               if (!(m.avatar || m.staticImage)) picture.clear()
+              if (!m.endImage) endPicture.clear()
             }}
             onAspectRatio={(r) => setDraft({ aspectRatio: r })}
           />

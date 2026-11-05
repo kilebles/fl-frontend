@@ -187,7 +187,7 @@ export const PIPELINE_STAGES: PipelineStageInfo[] = [
     title: "Генерации",
     href: "/",
     entryTool: "handoff_prompts_to_job",
-    flow: "Очередь t2v / i2v / i2i2v / f2v → результаты",
+    flow: "Очередь t2v / i2v / fl2v / i2i2v / f2v → результаты",
   },
   {
     step: "04",
@@ -270,7 +270,7 @@ export const MCP_TOOLS: McpToolItem[] = [
     category: "jobs",
     mode: "read",
     summary:
-      "Список режимов генерации (t2v, flash_t2v, img, i2v, flash_i2v, i2i2v, f2v), доступных длительностей (4 / 6 / 8 / 10 с) и форматов (16:9 / 9:16 / 1:1).",
+      "Список режимов генерации (t2v, flash_t2v, img, i2v, fl2v, flash_i2v, i2i2v, f2v), доступных длительностей (4 / 6 / 8 / 10 с) и форматов (16:9 / 9:16 / 1:1).",
   },
   {
     name: "list_jobs",
@@ -297,9 +297,9 @@ export const MCP_TOOLS: McpToolItem[] = [
     name: "submit_generation_job",
     category: "jobs",
     mode: "write",
-    args: "mode, rows? | prompts? | xlsx_path?, duration?, aspect_ratio?, title?, project_id?, avatar_id?",
+    args: "mode, rows? | prompts? | xlsx_path?, duration?, aspect_ratio?, static_image_key?, end_image_key?, title?, project_id?, avatar_id?",
     summary:
-      "Постановка новой одиночной или пакетной генерации в очередь с выбором длительности (4 / 6 / 8 / 10 с), формата (16:9 / 9:16 / 1:1), автоподстановкой стиля проекта и аватара.",
+      "Постановка новой одиночной или пакетной генерации в очередь с выбором длительности (4 / 6 / 8 / 10 с), формата (16:9 / 9:16 / 1:1), начального и финального кадра (fl2v), автоподстановкой стиля проекта и аватара.",
   },
   {
     name: "control_job",
@@ -634,7 +634,7 @@ export const MCP_RESOURCES: McpResourceItem[] = [
     uri: "fl://modes",
     title: "Спецификация режимов генерации",
     summary:
-      "JSON-таблица всех режимов (t2v, flash_t2v, img, i2v, flash_i2v, i2i2v, f2v), поддерживаемых длительностей (4 / 6 / 8 / 10 с), форматов и требований к промптам.",
+      "JSON-таблица всех режимов (t2v, flash_t2v, img, i2v, fl2v, flash_i2v, i2i2v, f2v), поддерживаемых длительностей (4 / 6 / 8 / 10 с), форматов и требований к промптам.",
   },
   {
     uri: "fl://pipeline",

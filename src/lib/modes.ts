@@ -1,4 +1,5 @@
 import {
+  ArrowRightLeft,
   Clapperboard,
   Film,
   Image as ImageIcon,
@@ -26,6 +27,8 @@ export interface ModeMeta {
   needsImagePrompt: boolean
   avatar?: boolean
   staticImage?: boolean
+  endImage?: boolean
+  requiresFrames?: boolean
   chain?: boolean
   durations: readonly VideoDuration[]
   defaultDuration: VideoDuration | null
@@ -95,6 +98,26 @@ export const MODES: ModeMeta[] = [
     needsVideoPrompt: true,
     needsImagePrompt: true,
     staticImage: true,
+    endImage: true,
+    durations: [4, 6, 8],
+    defaultDuration: 8,
+    aspectRatios: ["16:9", "9:16"],
+    defaultAspectRatio: "16:9",
+  },
+  {
+    id: "fl2v",
+    title: "Кадр А → Кадр Б",
+    short: "FL2V",
+    description: "Переход / облёт по 2 кадрам · 4, 6 или 8 с",
+    steps: [ImageIcon, ArrowRightLeft, Film],
+    icon: ArrowRightLeft,
+    makesImages: false,
+    makesVideos: true,
+    needsVideoPrompt: true,
+    needsImagePrompt: false,
+    staticImage: true,
+    endImage: true,
+    requiresFrames: true,
     durations: [4, 6, 8],
     defaultDuration: 8,
     aspectRatios: ["16:9", "9:16"],

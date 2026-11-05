@@ -59,6 +59,7 @@ export function BatchForm() {
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>("16:9")
   const [avatarId, setAvatarId] = useState<string | null>(null)
   const still = usePicture()
+  const endStill = usePicture()
 
   const modes = MODES.filter((m) => (kind === "video" ? m.makesVideos : !m.makesVideos))
   const mode = modes.find((m) => m.id === modeId) ?? modes[0]
@@ -110,7 +111,9 @@ export function BatchForm() {
     (count === 0 && (source === "list" ? "Добавьте промпты" : source === "excel" ? "Загрузите .xlsx" : "Выберите промпты")) ||
     (mode.avatar && !avatar ? "Выберите аватар" : null) ||
     (mode.avatar && avatar && !avatar.image_keys.length ? "Портрет аватара ещё генерируется" : null) ||
-    (still.picture?.busy ? "Картинка ещё загружается" : null)
+    (mode.requiresFrames && (!still.picture?.key || !endStill.picture?.key) ? "Загрузите начальный и финальный кадры" : null) ||
+    (still.picture?.busy ? "Начальный кадр ещё загружается" : null) ||
+    (endStill.picture?.busy ? "Финальный кадр ещё загружается" : null)
 
   const submit = useMutation({
     mutationFn: async () => {
@@ -126,6 +129,7 @@ export function BatchForm() {
       }
       jobRows = jobRows.map((r) => ({ ...r, prompt: r.prompt && withStyle(r.prompt, style), image_prompt: r.image_prompt && withStyle(r.image_prompt, style) }))
       const useStill = mode.staticImage && still.picture?.key
+      const useEndStill = useStill && mode.endImage && endStill.picture?.key
       return api.createJob({
         mode: mode.id,
         rows: useStill ? jobRows.map((r) => ({ ...r, image_prompt: null })) : jobRows,
@@ -137,6 +141,7 @@ export function BatchForm() {
         avatar: mode.avatar ? avatar?.image_keys[0] : null,
         avatar_keys: mode.avatar && avatar?.image_keys.length ? avatar.image_keys : null,
         static_image: useStill ? still.picture!.key : null,
+        end_image: useEndStill ? endStill.picture!.key : null,
       })
     },
     onSuccess: (job) => {
@@ -297,16 +302,33 @@ export function BatchForm() {
           />
         )}
         {mode.staticImage && (
-          <Dropzone
-            accept="image/*"
-            title="Одна картинка на все видео"
-            hint="Необязательно"
-            busy={still.picture?.busy}
-            preview={still.picture?.preview}
-            fileName={still.picture?.name}
-            onFile={still.upload}
-            onClear={still.clear}
-          />
+          <div className="flex flex-col gap-3">
+            <Dropzone
+              accept="image/*"
+              title={mode.requiresFrames ? "Начальный кадр (Кадр А)" : "Одна картинка на все видео (старт)"}
+              hint={mode.requiresFrames ? "Обязательно" : "Необязательно"}
+              busy={still.picture?.busy}
+              preview={still.picture?.preview}
+              fileName={still.picture?.name}
+              onFile={still.upload}
+              onClear={() => {
+                still.clear()
+                if (!mode.requiresFrames) endStill.clear()
+              }}
+            />
+            {mode.endImage && (mode.requiresFrames || !!still.picture) && (
+              <Dropzone
+                accept="image/*"
+                title="Финальный кадр (Кадр Б)"
+                hint={mode.requiresFrames ? "Обязательно" : "Необязательно — включит переход А → Б"}
+                busy={endStill.picture?.busy}
+                preview={endStill.picture?.preview}
+                fileName={endStill.picture?.name}
+                onFile={endStill.upload}
+                onClear={endStill.clear}
+              />
+            )}
+          </div>
         )}
       </div>
 

@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Loader2, Mic, Paperclip, Trash2 } from "lucide-react"
 
-import { ENGINE_LABEL, MixBar, StepBars, clock, shotsText } from "@/components/reels/parts"
+import { MixBar, StepBars, clock, shotsText } from "@/components/reels/parts"
 import { rkeys, useReels } from "@/components/reels/queries"
 import { ConfirmDialog, useNow } from "@/components/script/parts"
 import { reels, type Reel } from "@/lib/api"
@@ -45,7 +45,7 @@ function Row({ r, now, onOpen, onDelete }: { r: Reel; now: number | null; onOpen
   const meta = [
     `${r.source.paragraphs} абз.`,
     r.source.timed ? "по озвучке" : "по тексту",
-    ENGINE_LABEL[r.settings.engine] ?? r.settings.engine,
+    r.settings.niche_name || "",
     now !== null ? timeAgo(r.created, now) : "",
   ].filter(Boolean)
   return (

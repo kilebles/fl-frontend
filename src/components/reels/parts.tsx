@@ -6,19 +6,23 @@ import { plural } from "@/lib/format"
 import type { ReelCategory, ReelShares, ReelStep } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
-export const CATEGORIES: ReelCategory[] = ["ai", "video", "history", "graphics"]
+export const CATEGORIES: ReelCategory[] = ["ai", "video", "history", "graphics", "avatar"]
+/** Categories without the host: the host shows only when the reel has an avatar. */
+export const BASE_CATEGORIES: ReelCategory[] = ["ai", "video", "history", "graphics"]
 export const CAT_LABEL: Record<ReelCategory, string> = {
   ai: "ИИ-генерации",
   video: "Подбор видео",
   history: "Исторические кадры",
   graphics: "Графика",
+  avatar: "Ведущий",
 }
-export const CAT_SHORT: Record<ReelCategory, string> = { ai: "ИИ", video: "видео", history: "история", graphics: "графика" }
+export const CAT_SHORT: Record<ReelCategory, string> = { ai: "ИИ", video: "видео", history: "история", graphics: "графика", avatar: "ведущий" }
 export const CAT_HINT: Record<ReelCategory, string> = {
   ai: "Промпты → Генерации (Veo)",
   video: "Поиск видео: стоки, YouTube",
   history: "Поиск видео: архивы и музеи",
   graphics: "Графика: карточки",
+  avatar: "говорит в кадре сам, берёт абзацы целиком",
 }
 /** One hue per category, the same in both themes (graphics is not the light theme's terracotta accent). */
 export const CAT_BG: Record<ReelCategory, string> = {
@@ -26,12 +30,14 @@ export const CAT_BG: Record<ReelCategory, string> = {
   video: "bg-[#4fb3a9]",
   history: "bg-[#c9a04f]",
   graphics: "bg-[#d9658f]",
+  avatar: "bg-[#e8804a]",
 }
 export const CAT_TEXT: Record<ReelCategory, string> = {
   ai: "text-[#8b7cf0]",
   video: "text-[#3e9c92]",
   history: "text-[#b08a3c]",
   graphics: "text-[#c9527c]",
+  avatar: "text-[#d06a35]",
 }
 
 export const TYPE_LABEL: Record<string, string> = {
@@ -44,14 +50,31 @@ export const TYPE_LABEL: Record<string, string> = {
   portrait: "портрет",
   archive: "хроника",
   infographic: "карточка",
+  avatar: "ведущий",
 }
 
 export const ENGINE_LABEL: Record<string, string> = { agy: "agy (Gemini)", claude: "Claude Code", fake: "тестовый", "": "" }
 
 export const PRESETS: { label: string; shares: ReelShares }[] = [
-  { label: "40 · 30 · 20 · 10", shares: { ai: 40, video: 30, history: 20, graphics: 10 } },
-  { label: "30 · 30 · 30 · 10", shares: { ai: 30, video: 30, history: 30, graphics: 10 } },
+  { label: "40 · 30 · 20 · 10", shares: { ai: 40, video: 30, history: 20, graphics: 10, avatar: 0 } },
+  { label: "30 · 30 · 30 · 10", shares: { ai: 30, video: 30, history: 30, graphics: 10, avatar: 0 } },
 ]
+/** The same mixes with the host taking 10% from AI. */
+export const HOST_PRESETS: { label: string; shares: ReelShares }[] = [
+  { label: "30 · 30 · 20 · 10 · 10", shares: { ai: 30, video: 30, history: 20, graphics: 10, avatar: 10 } },
+  { label: "20 · 30 · 30 · 10 · 10", shares: { ai: 20, video: 30, history: 30, graphics: 10, avatar: 10 } },
+]
+
+/** Picture styles for the AI scenes; only the first two go with real footage. */
+export const STYLES: { value: string; realistic: boolean }[] = [
+  { value: "реалистичный исторический, естественный свет", realistic: true },
+  { value: "кинематографичный, как в историческом фильме", realistic: true },
+  { value: "мультяшный, яркие цвета", realistic: false },
+  { value: "акварельная иллюстрация", realistic: false },
+  { value: "старинная гравюра", realistic: false },
+]
+export const STYLE_LABEL = ["Реалистичный", "Кинематографичный", "Мультяшный", "Акварель", "Гравюра"]
+export const isRealistic = (style: string) => !style.trim() || STYLES.some((s) => s.realistic && s.value === style.trim())
 
 export const shotsText = (n: number) => `${n} ${plural(n, "кадр", "кадра", "кадров")}`
 export const parasText = (n: number) => `${n} ${plural(n, "абзац", "абзаца", "абзацев")}`
@@ -71,11 +94,21 @@ export const roundShares = (s: ReelShares): ReelShares =>
   Object.fromEntries(CATEGORIES.map((c) => [c, Math.round(Number(s[c]) || 0)])) as ReelShares
 
 /** Four shares in %, step 5 by the buttons or any number typed in; they must add up to 100. */
-export function SharesInput({ value, onChange, short }: { value: ReelShares; onChange: (s: ReelShares) => void; short?: boolean }) {
+export function SharesInput({
+  value,
+  onChange,
+  short,
+  cats = BASE_CATEGORIES,
+}: {
+  value: ReelShares
+  onChange: (s: ReelShares) => void
+  short?: boolean
+  cats?: ReelCategory[]
+}) {
   const set = (c: ReelCategory, v: number) => onChange({ ...value, [c]: Math.max(0, Math.min(100, Math.round(v))) })
   return (
-    <div className="grid grid-cols-2 gap-[3px] rounded-[3px] bg-surface-2 p-[3px] sm:grid-cols-4">
-      {CATEGORIES.map((c) => (
+    <div className={cn("grid grid-cols-2 gap-[3px] rounded-[3px] bg-surface-2 p-[3px]", cats.length > 4 ? "sm:grid-cols-5" : "sm:grid-cols-4")}>
+      {cats.map((c) => (
         <div key={c} className="flex min-w-0 flex-col gap-1.5 rounded-[2px] bg-background px-2.5 pt-2 pb-1.5" title={CAT_HINT[c]}>
           <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
             <span className={cn("size-2 shrink-0 rounded-full", value[c] ? CAT_BG[c] : "bg-line-strong")} />
@@ -114,11 +147,21 @@ export function SharesInput({ value, onChange, short }: { value: ReelShares; onC
 
 /** The same four shares as rows, one under another: a slider and the number; `seconds` (the reel's length, when known)
  *  adds how many minutes each category gets. */
-export function SharesRows({ value, onChange, seconds }: { value: ReelShares; onChange: (s: ReelShares) => void; seconds?: number }) {
+export function SharesRows({
+  value,
+  onChange,
+  seconds,
+  cats = BASE_CATEGORIES,
+}: {
+  value: ReelShares
+  onChange: (s: ReelShares) => void
+  seconds?: number
+  cats?: ReelCategory[]
+}) {
   const set = (c: ReelCategory, v: number) => onChange({ ...value, [c]: Math.max(0, Math.min(100, Math.round(v))) })
   return (
     <div className="divide-y divide-line rounded-[3px] border border-line-strong bg-background">
-      {CATEGORIES.map((c) => (
+      {cats.map((c) => (
         <div
           key={c}
           className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1.5 px-3 py-2 sm:grid-cols-[minmax(0,190px)_minmax(0,1fr)_auto]"
@@ -180,11 +223,11 @@ export function SharesRows({ value, onChange, seconds }: { value: ReelShares; on
 }
 
 /** «сумма 95%» in red when the shares do not add up, and the two usual mixes. */
-export function SharesAside({ value, onChange }: { value: ReelShares; onChange: (s: ReelShares) => void }) {
+export function SharesAside({ value, onChange, host }: { value: ReelShares; onChange: (s: ReelShares) => void; host?: boolean }) {
   const sum = sharesSum(value)
   return (
     <span className="flex items-center gap-2 text-xs">
-      {PRESETS.map((p) => (
+      {(host ? HOST_PRESETS : PRESETS).map((p) => (
         <button
           key={p.label}
           type="button"

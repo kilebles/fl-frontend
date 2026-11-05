@@ -1367,7 +1367,7 @@ export const footage = {
 
 /* ------------------------------------------------------------------ reels (fl-reel, /api/reels/*) */
 
-export type ReelCategory = "ai" | "video" | "history" | "graphics"
+export type ReelCategory = "ai" | "video" | "history" | "graphics" | "avatar"
 export type ReelStatus = "queued" | "running" | "done" | "error" | "stopped"
 export type ReelStepKey = "script" | "voice" | "storyboard" | "materials" | "assembly"
 export type ReelStepState = "done" | "active" | "queued" | "todo" | "skipped" | "error" | "stopped"
@@ -1413,7 +1413,7 @@ export interface Reel {
   started: string | null
   finished: string | null
   source: { kind: "voice" | "file"; name: string; voice_job?: number; language: string; paragraphs: number; timed: number }
-  settings: { shares: ReelShares; engine: string; model: string; notes: string }
+  settings: ReelSettings
   stage: string
   steps: ReelStep[]
   progress: { stage?: string; step?: "brief" | "shots" | "allocate"; done?: number; total?: number; wait?: string }
@@ -1461,6 +1461,7 @@ export interface ReelBrief {
 }
 
 export interface ReelStoryboard {
+  direction?: { style: string; host: boolean; shot_sec: [number, number] }
   brief: ReelBrief
   shots: ReelShot[]
   mix: ReelMix
@@ -1471,6 +1472,28 @@ export interface ReelStoryboard {
   model?: string
 }
 
+/** Settings of a reel — the six steps of the menu. */
+export interface ReelSettings {
+  niche: string
+  niche_name?: string
+  script: { mode: "topic" | "ready"; topic?: string; minutes?: number | null; language?: string; tone?: string; model?: string; notes?: string }
+  voice: { profile?: string; name?: string }
+  avatar: { id: string; name?: string; voice?: string }
+  storyboard: { shares: ReelShares; engine: string; model: string; style: string; notes: string }
+  montage: { style: string; music: string }
+  format: "16:9" | "9:16"
+}
+
+export interface ReelMontageStyle {
+  value: string
+  label: string
+  use: string
+  cuts: string
+  look: string
+  text: string
+  shot_sec: [number, number]
+}
+
 export interface ReelOptions {
   categories: { value: ReelCategory; label: string; executor: string }[]
   shares: ReelShares
@@ -1478,6 +1501,9 @@ export interface ReelOptions {
   engines: { value: string; label: string; model: string }[]
   defaults: { engine: string }
   shot_sec: [number, number]
+  montage: ReelMontageStyle[]
+  montage_default: string
+  music: { value: string; label: string }[]
 }
 
 export interface ReelVoiceSource {
@@ -1491,14 +1517,12 @@ export interface ReelVoiceSource {
   project_id?: string | null
 }
 
-export interface ReelCreate {
+export interface ReelCreate extends Omit<ReelSettings, "format"> {
   title?: string
   project_id?: string | null
   source: "voice" | "file"
   voice_job?: number
-  shares: ReelShares
-  engine?: string
-  notes?: string
+  format?: "16:9" | "9:16"
 }
 
 const rid = (id: string) => `/api/reels/${encodeURIComponent(id)}`
@@ -1516,6 +1540,7 @@ export const reels = {
     if (script) form.append("script", script)
     return request<Reel>("/api/reels", { method: "POST", body: form })
   },
+  preset: (niche: string) => request<Partial<ReelSettings>>(`/api/reels/presets/${encodeURIComponent(niche)}`),
   shares: (id: string, shares: ReelShares) => request<Reel>(`${rid(id)}/shares`, json("PUT", { shares })),
   rename: (id: string, title: string) => request<Reel>(rid(id), json("PATCH", { title })),
   stop: (id: string) => request<Reel>(`${rid(id)}/stop`, json("POST")),

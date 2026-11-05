@@ -6,6 +6,7 @@ import { AlertTriangle, Clock, Loader2, RotateCcw, Square, Trash2, TriangleAlert
 import { toast } from "sonner"
 
 import {
+  BASE_CATEGORIES,
   CATEGORIES,
   CAT_BG,
   CAT_LABEL,
@@ -22,7 +23,7 @@ import {
   shotsText,
 } from "@/components/reels/parts"
 import { statusText } from "@/components/reels/reel-list"
-import { rkeys, useStoryboard } from "@/components/reels/queries"
+import { rkeys, useReelOptions, useStoryboard } from "@/components/reels/queries"
 import { BriefCard, StoryboardCard } from "@/components/reels/storyboard"
 import { ConfirmDialog } from "@/components/script/parts"
 import { setUrlParams } from "@/components/script/queries"
@@ -43,7 +44,9 @@ function Tile({ label, value, sub, tone }: { label: string; value: React.ReactNo
 /** Plan vs fact per category; new shares re-allocate the finished storyboard at once, without the model. */
 function MixCard({ reel, sb }: { reel: Reel; sb: ReelStoryboard }) {
   const qc = useQueryClient()
-  const plan = roundShares(reel.settings.shares)
+  const plan = roundShares(reel.settings.storyboard.shares)
+  const host = !!reel.settings.avatar?.id
+  const cats = host ? CATEGORIES : BASE_CATEGORIES
   const [draft, setDraft] = useState<ReelShares>(plan)
   const changed = !sameShares(draft, plan)
   const mix = sb.mix
@@ -81,7 +84,7 @@ function MixCard({ reel, sb }: { reel: Reel; sb: ReelStoryboard }) {
             ))}
           </div>
           <ul className="divide-y divide-line">
-            {CATEGORIES.map((c) => {
+            {cats.map((c) => {
               const d = mix.actual[c] - mix.target[c]
               return (
                 <li key={c} className="grid grid-cols-[minmax(0,1fr)_52px_52px_64px] items-center gap-2 py-2 text-xs sm:grid-cols-[minmax(0,1fr)_52px_52px_64px_76px]">
@@ -101,9 +104,9 @@ function MixCard({ reel, sb }: { reel: Reel; sb: ReelStoryboard }) {
         <div className="flex flex-col p-4">
           <div className="mb-2 flex items-center justify-between gap-2 text-[13px] text-muted-foreground">
             <span>Новые доли</span>
-            <SharesAside value={draft} onChange={setDraft} />
+            <SharesAside value={draft} onChange={setDraft} host={host} />
           </div>
-          <SharesInput value={draft} onChange={setDraft} short />
+          <SharesInput value={draft} onChange={setDraft} short cats={cats} />
           <div className="mt-auto flex items-center justify-between gap-3 pt-4">
             <span className="text-xs text-faint">Кадры раскладываются заново по уже готовым оценкам — без модели и лимита.</span>
             <button
@@ -137,6 +140,8 @@ export function ReelView({ reel: r }: { reel: Reel }) {
     onError: (e) => toast.error(e.message),
   })
 
+  const { data: options } = useReelOptions()
+  const montage = options?.montage.find((m) => m.value === r.settings.montage?.style)?.label ?? ""
   const s = r.summary
   const pr = r.progress
   const active = r.status === "running" || r.status === "queued"
@@ -191,7 +196,7 @@ export function ReelView({ reel: r }: { reel: Reel }) {
             label="Вызовов модели"
             value={usage?.calls ?? "—"}
             sub={[
-              sb?.engine ? `${ENGINE_LABEL[sb.engine] ?? sb.engine} ${sb.model ?? ""}`.trim() : ENGINE_LABEL[r.settings.engine] || "из настроек",
+              sb?.engine ? `${ENGINE_LABEL[sb.engine] ?? sb.engine} ${sb.model ?? ""}`.trim() : ENGINE_LABEL[r.settings.storyboard.engine] || "из настроек",
               usage?.cache_hits ? `${usage.cache_hits} из кэша` : "",
             ]
               .filter(Boolean)
@@ -199,7 +204,16 @@ export function ReelView({ reel: r }: { reel: Reel }) {
           />
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-4">
-          <span className="min-w-0 flex-1 truncate text-xs text-faint">{r.settings.notes ? `Правила ниши: ${r.settings.notes}` : ""}</span>
+          <span className="min-w-0 flex-1 truncate text-xs text-faint">
+            {[
+              montage ? `Монтаж: ${montage}` : "",
+              r.settings.storyboard.style ? `стиль: ${r.settings.storyboard.style}` : "",
+              r.settings.avatar?.id ? `ведущий: ${r.settings.avatar.name || "аватар"}` : "",
+              r.settings.storyboard.notes ? `детали: ${r.settings.storyboard.notes}` : "",
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </span>
           <div className="flex flex-wrap items-center gap-2">
             {active ? (
               <button
@@ -243,7 +257,7 @@ export function ReelView({ reel: r }: { reel: Reel }) {
       {done && sbError && <div className="py-6 text-center text-sm text-danger">{sbError.message}</div>}
       {done && sb && (
         <>
-          <MixCard key={JSON.stringify(r.settings.shares)} reel={r} sb={sb} />
+          <MixCard key={JSON.stringify(r.settings.storyboard.shares)} reel={r} sb={sb} />
           <BriefCard brief={sb.brief} />
           <StoryboardCard sb={sb} />
         </>

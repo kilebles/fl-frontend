@@ -4,7 +4,7 @@ import { Fragment, useMemo, useState } from "react"
 import { ChevronDown, Copy, Download, TriangleAlert } from "lucide-react"
 import { toast } from "sonner"
 
-import { CATEGORIES, CAT_BG, CAT_LABEL, CAT_SHORT, CAT_TEXT, TYPE_LABEL, clock, shotsText } from "@/components/reels/parts"
+import { BASE_CATEGORIES, CATEGORIES, CAT_BG, CAT_LABEL, CAT_SHORT, CAT_TEXT, TYPE_LABEL, clock, shotsText } from "@/components/reels/parts"
 import { Card } from "@/components/script/ui"
 import type { ReelBrief, ReelCategory, ReelParagraph, ReelShot, ReelStoryboard } from "@/lib/api"
 import { cn } from "@/lib/utils"
@@ -42,10 +42,11 @@ function download(name: string, text: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-function FitBars({ shot }: { shot: ReelShot }) {
+function FitBars({ shot, host }: { shot: ReelShot; host: boolean }) {
+  const cats = host ? CATEGORIES : BASE_CATEGORIES
   return (
-    <div className="grid grid-cols-4 gap-2">
-      {CATEGORIES.map((c) => (
+    <div className={cn("grid gap-2", cats.length > 4 ? "grid-cols-5" : "grid-cols-4")}>
+      {cats.map((c) => (
         <div key={c} className="min-w-0">
           <div className="mb-1 flex justify-between font-mono text-[11px]">
             <span className={c === shot.category ? "font-medium text-foreground" : "text-faint"}>{CAT_SHORT[c]}</span>
@@ -69,7 +70,7 @@ function Detail({ label, children }: { label: string; children: React.ReactNode 
   )
 }
 
-function ShotRow({ shot, open, onToggle }: { shot: ReelShot; open: boolean; onToggle: () => void }) {
+function ShotRow({ shot, open, onToggle, host }: { shot: ReelShot; open: boolean; onToggle: () => void; host: boolean }) {
   const weak = (shot.fit[shot.category] ?? 0) < WEAK
   const q = [
     ["стоки", shot.queries.stock],
@@ -101,7 +102,8 @@ function ShotRow({ shot, open, onToggle }: { shot: ReelShot; open: boolean; onTo
       </button>
       {open && (
         <div className="mx-2 mt-1 mb-2 space-y-2.5 rounded-[3px] border border-line bg-background p-3">
-          <FitBars shot={shot} />
+          <FitBars shot={shot} host={host} />
+          {shot.category === "avatar" && <Detail label="Ведущий">произносит этот абзац в кадре сам; диктор на нём молчит</Detail>}
           {shot.category === "ai" && shot.ai && <Detail label="Задание ИИ">{shot.ai}</Detail>}
           {(shot.category === "video" || shot.category === "history") &&
             q.map(([k, v]) => (
@@ -174,7 +176,7 @@ export function StoryboardCard({ sb }: { sb: ReelStoryboard }) {
 
   const chips: [Filter, string, number][] = [
     ["all", "Все", sb.shots.length],
-    ...CATEGORIES.map((c) => [c, CAT_LABEL[c], sb.mix.shots[c] ?? 0] as [Filter, string, number]),
+    ...CATEGORIES.filter((c) => c !== "avatar" || (sb.mix.shots.avatar ?? 0) > 0).map((c) => [c, CAT_LABEL[c], sb.mix.shots[c] ?? 0] as [Filter, string, number]),
     ...(weak ? [["weak", "Слабые", weak] as [Filter, string, number]] : []),
   ]
 
@@ -274,7 +276,7 @@ export function StoryboardCard({ sb }: { sb: ReelStoryboard }) {
                 </div>
                 <ul className="min-w-0">
                   {shots.map((s) => (
-                    <ShotRow key={s.id} shot={s} open={open === s.id} onToggle={() => setOpen(open === s.id ? null : s.id)} />
+                    <ShotRow key={s.id} shot={s} host={!!sb.direction?.host} open={open === s.id} onToggle={() => setOpen(open === s.id ? null : s.id)} />
                   ))}
                 </ul>
               </li>

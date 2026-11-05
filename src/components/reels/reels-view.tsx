@@ -1,13 +1,15 @@
 "use client"
 
-import { ArrowLeft, Loader2 } from "lucide-react"
+import { ArrowLeft, Loader2, Plus, RotateCcw } from "lucide-react"
 
-import { LaunchPanel } from "@/components/reels/launch-panel"
-import { ENGINE_LABEL, clock } from "@/components/reels/parts"
+import { clock } from "@/components/reels/parts"
 import { useReel, useReelEvents, useReelsHealth } from "@/components/reels/queries"
 import { ReelList } from "@/components/reels/reel-list"
 import { ReelView } from "@/components/reels/reel-view"
+import { ReelWizard } from "@/components/reels/wizard"
+import { clearDraft } from "@/components/reels/wizard-draft"
 import { setUrlParams, useUrlParam } from "@/components/script/queries"
+import { BTN_PRIMARY, BTN_SMALL } from "@/components/script/ui"
 import { PageHeader } from "@/components/shell/page-header"
 
 /** Shown only when something is wrong: the API is down or nobody runs the queue. */
@@ -25,14 +27,15 @@ function WorkerBadge() {
 export function ReelsView() {
   useReelEvents()
   const id = useUrlParam("p")
+  const wizard = useUrlParam("new") === "1" && !id
   const { data: reel, isLoading, error } = useReel(id)
 
   return (
     <div className="px-4 pt-6 pb-24 sm:px-7">
-      {id && (
+      {(id || wizard) && (
         <button
           type="button"
-          onClick={() => setUrlParams({ p: null })}
+          onClick={() => setUrlParams({ p: null, new: null })}
           className="mb-2 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="size-3.5" />
@@ -40,24 +43,51 @@ export function ReelsView() {
         </button>
       )}
       <PageHeader
-        title={id ? reel?.title || "Ролик" : "Ролики"}
+        title={wizard ? "Новый ролик" : id ? reel?.title || "Ролик" : "Ролики"}
         subtitle={
           id && reel ? (
             <span className="font-mono text-[13px]">
               {[
+                reel.settings.niche_name || "",
                 reel.source.kind === "voice" ? `озвучка ${reel.source.language.toUpperCase()}` : reel.source.name,
                 `${reel.source.paragraphs} абз.`,
                 reel.summary ? clock(reel.summary.total_sec) : "",
-                ENGINE_LABEL[reel.settings.engine] || "",
               ]
                 .filter(Boolean)
                 .join(" · ")}
             </span>
           ) : undefined
         }
-        actions={<WorkerBadge />}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <WorkerBadge />
+            {wizard ? (
+              <button
+                type="button"
+                title="Очистить все шаги"
+                onClick={() => {
+                  clearDraft()
+                  window.location.reload()
+                }}
+                className={BTN_SMALL}
+              >
+                <RotateCcw className="size-3.5" />
+                Сначала
+              </button>
+            ) : (
+              !id && (
+                <button type="button" onClick={() => setUrlParams({ new: "1" })} className={BTN_PRIMARY}>
+                  <Plus className="size-3.5" />
+                  Новый ролик
+                </button>
+              )
+            )}
+          </div>
+        }
       />
-      {id ? (
+      {wizard ? (
+        <ReelWizard onCreated={(rid) => setUrlParams({ new: null, p: rid })} />
+      ) : id ? (
         isLoading ? (
           <div className="flex justify-center py-16">
             <Loader2 className="size-4 animate-spin text-faint" />
@@ -68,10 +98,7 @@ export function ReelsView() {
           <ReelView key={reel.id} reel={reel} />
         )
       ) : (
-        <>
-          <LaunchPanel />
-          <ReelList onOpen={(rid) => setUrlParams({ p: rid })} />
-        </>
+        <ReelList onOpen={(rid) => setUrlParams({ p: rid })} />
       )}
     </div>
   )

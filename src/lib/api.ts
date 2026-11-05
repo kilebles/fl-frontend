@@ -1364,3 +1364,162 @@ export const footage = {
   zipUrl: (id: string, kind: "clips" | "files") => withToken(`${fid(id)}/zip/${kind}`),
   eventsUrl: () => withToken("/api/footage/events"),
 }
+
+/* ------------------------------------------------------------------ reels (fl-reel, /api/reels/*) */
+
+export type ReelCategory = "ai" | "video" | "history" | "graphics"
+export type ReelStatus = "queued" | "running" | "done" | "error" | "stopped"
+export type ReelStepKey = "script" | "voice" | "storyboard" | "materials" | "assembly"
+export type ReelStepState = "done" | "active" | "queued" | "todo" | "skipped" | "error" | "stopped"
+export type ReelShares = Record<ReelCategory, number>
+
+export interface ReelStep {
+  key: ReelStepKey
+  label: string
+  state: ReelStepState
+  done?: number
+  total?: number
+  /** The step exists in the plan but is not built yet. */
+  soon?: boolean
+}
+
+export interface ReelMix {
+  target: ReelShares
+  actual: ReelShares
+  seconds: ReelShares
+  shots: Record<ReelCategory, number>
+  total_sec: number
+  tolerance: number
+  within_tolerance: boolean
+  short: ReelCategory[]
+  weak: number
+}
+
+export interface ReelUsage {
+  calls?: number
+  cache_hits?: number
+  input_tokens?: number
+  output_tokens?: number
+  seconds?: number
+}
+
+export interface Reel {
+  id: string
+  title: string
+  project_id: string | null
+  status: ReelStatus
+  created: string
+  updated: string
+  started: string | null
+  finished: string | null
+  source: { kind: "voice" | "file"; name: string; voice_job?: number; language: string; paragraphs: number; timed: number }
+  settings: { shares: ReelShares; engine: string; model: string; notes: string }
+  stage: string
+  steps: ReelStep[]
+  progress: { stage?: string; step?: "brief" | "shots" | "allocate"; done?: number; total?: number; wait?: string }
+  summary: { shots: number; total_sec: number; mix: ReelMix; fallback_paragraphs: number[]; errors: string[]; usage: ReelUsage } | null
+  error: string | null
+}
+
+export interface ReelShot {
+  id: string
+  paragraph: number
+  sec: number
+  start: number
+  show: string
+  fit: Record<ReelCategory, number>
+  category: ReelCategory
+  type: string
+  queries: { stock?: string[]; archive?: string[]; youtube?: string[] }
+  ai: string
+  card: { subject?: string; kind?: string; caption?: string }
+  avoid: string[]
+  fallback: boolean
+  executor: string
+}
+
+export interface ReelParagraph {
+  number: number
+  text: string
+  chapter: string
+  duration: number
+  duration_source: "audio" | "chars"
+  gap: number
+  slot: number
+}
+
+export interface ReelBrief {
+  era?: string
+  setting?: string
+  look?: string
+  people?: { name: string; note?: string }[]
+  places?: { name: string; note?: string }[]
+  real_material?: string
+  rules?: string[]
+  chapters?: { title: string; first_paragraph?: number; mood?: string; tempo?: string }[]
+  error?: string
+}
+
+export interface ReelStoryboard {
+  brief: ReelBrief
+  shots: ReelShot[]
+  mix: ReelMix
+  paragraphs: ReelParagraph[]
+  fallback_paragraphs: number[]
+  errors: string[]
+  engine?: string
+  model?: string
+}
+
+export interface ReelOptions {
+  categories: { value: ReelCategory; label: string; executor: string }[]
+  shares: ReelShares
+  tolerance: number
+  engines: { value: string; label: string; model: string }[]
+  defaults: { engine: string }
+  shot_sec: [number, number]
+}
+
+export interface ReelVoiceSource {
+  id: number
+  title: string
+  language: string
+  paragraphs: number
+  duration_sec: number | null
+  status: string
+  created: string
+  project_id?: string | null
+}
+
+export interface ReelCreate {
+  title?: string
+  project_id?: string | null
+  source: "voice" | "file"
+  voice_job?: number
+  shares: ReelShares
+  engine?: string
+  notes?: string
+}
+
+const rid = (id: string) => `/api/reels/${encodeURIComponent(id)}`
+
+export const reels = {
+  health: () => request<{ status: string; worker_online: boolean }>("/api/reels/health"),
+  options: () => request<ReelOptions>("/api/reels/options"),
+  voiceSources: () => request<ReelVoiceSource[]>("/api/reels/voice-sources"),
+  list: () => request<Reel[]>("/api/reels"),
+  get: (id: string) => request<Reel>(rid(id)),
+  storyboard: (id: string) => request<ReelStoryboard>(`${rid(id)}/storyboard`),
+  create: (body: ReelCreate, script?: File | null) => {
+    const form = new FormData()
+    form.append("data", JSON.stringify(body))
+    if (script) form.append("script", script)
+    return request<Reel>("/api/reels", { method: "POST", body: form })
+  },
+  shares: (id: string, shares: ReelShares) => request<Reel>(`${rid(id)}/shares`, json("PUT", { shares })),
+  rename: (id: string, title: string) => request<Reel>(rid(id), json("PATCH", { title })),
+  stop: (id: string) => request<Reel>(`${rid(id)}/stop`, json("POST")),
+  resume: (id: string, again = false) => request<Reel>(`${rid(id)}/resume`, json("POST", { again })),
+  remove: (id: string) => request<void>(rid(id), { method: "DELETE" }),
+  eventsUrl: () => withToken("/api/reels/events"),
+}

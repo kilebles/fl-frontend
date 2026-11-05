@@ -18,13 +18,14 @@ Tokens in `globals.css` (`--electric` is the accent of either theme, `--dev` the
 src/app/            / (Генерации: вручную — feed + composer), batch/ (Генерации: пакетом — form + batches),
                     jobs/[id]/ (batch results), avatars/, prompts/ (projects ?p=, niche templates ?tab=templates), graphics/ (+ runs/[id], motion-aign cards),
                     script/ (Сценарий: projects ?p=, niches ?tab=niches), analytics/ (topic picks ?a=), voice/,
-                    footage/ (Поиск видео: projects ?p=, sources ?tab=sources),
-                    videos, music, edit, library, history — DevStub pages
+                    footage/ (Поиск видео: projects ?p=, sources ?tab=sources), videos/ (Ролики: reels ?p=),
+                    music, edit, library, history — DevStub pages
 src/components/     shell/ (nav sidebar, logo, theme, project-picker, page-header + DevStub), create/ (composer, feed,
                     generations-bar, form-parts, dropzone), batch/ (batch-form, batches-panel), avatars/, prompts/,
                     infographics/, jobs/ (job page, result card, lightbox, state, menu),
                     script/ (fl-scenario: launch panel, project list/view, niches, analytics, queries + SSE, send)
                     footage/ (fl-footage: launch panel, project list/view, sources, queries + SSE)
+                    reels/ (fl-reel: launch panel with shares, reel list/view, storyboard + brief, queries + SSE)
 src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), project.ts (current project, withStyle),
                     draft.ts (composer text shared with the feed), modes.ts, format.ts,
                     handoff.ts (finished script → «Промпты» / «Озвучка»)
@@ -38,6 +39,10 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
 - «Промпты» talk to fl-prompts at `/api/prompts/*` (Caddy → Windows :8040): niche master prompts (обычный / аватар),
   projects brief → prompts → check → done, result rows; SSE `/api/prompts/events` invalidates `["prompts", …]`.
   «Генерации пакетом» take finished prompts from there too (`/batch?prompts=<id>&mode=i2i2v`).
+- «Ролики» talk to fl-reel (the brain of the full cycle) at `/api/reels/*` (Caddy → Windows :8050); SSE `/api/reels/events`
+  invalidates `["reels", …]`. A reel: script (from «Озвучка» or a file) → storyboard: shots with a category each
+  (ИИ / видео / исторические / графика, colours in `reels/parts.tsx`), shares of screen time per category set per reel;
+  new shares re-allocate a finished storyboard on the server at once. Materials and assembly are next (`soon` steps).
 
 - Projects (ролики): the current project lives in localStorage; screens filter by it and new jobs/runs carry `project_id`.
   The project's style line is appended to every prompt (composer, batch, «В производство», avatar scene).

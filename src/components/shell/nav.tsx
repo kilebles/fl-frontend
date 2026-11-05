@@ -56,7 +56,7 @@ interface NavItem {
   also?: string[]
 }
 
-const TOP: NavItem[] = [{ href: "/videos", label: "Ролики", icon: LayoutGrid, dev: true }]
+const TOP: NavItem[] = [{ href: "/videos", label: "Ролики", icon: LayoutGrid }]
 const TOOLS: NavItem[] = [
   { href: "/analytics", label: "Аналитика", icon: TrendingUp },
   { href: "/script", label: "Сценарий", icon: FileText },

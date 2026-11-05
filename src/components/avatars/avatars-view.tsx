@@ -142,23 +142,26 @@ function Editor({ avatar, onSaved, onDeleted }: { avatar: Avatar | null; onSaved
   const [selectedAngles, setSelectedAngles] = useState<AvatarAngleId[]>(["three_quarter", "profile", "full_body"])
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
 
-  // Merge newly generated 360° frames arriving from SSE/polling without clobbering local edits
+  // Merge newly generated 360° frames and respect canonical server slot ordering without clobbering local edits
   const serverSig = (avatar?.image_keys ?? []).join("|")
   if (serverSig !== prevServerSig) {
     setPrevServerSig(serverSig)
     if (avatar) {
       const prevSet = new Set(prevServerSig ? prevServerSig.split("|") : [])
-      const urlByKey = new Map(avatar.image_keys.map((k, idx) => [k, avatar.image_urls[idx]]))
+      const serverSet = new Set(avatar.image_keys)
       setRefs((curr) => {
-        const refreshed = curr.map((r) => (r.key && urlByKey.has(r.key) ? { ...r, url: urlByKey.get(r.key)! } : r))
-        const existing = new Set(refreshed.map((r) => r.key).filter(Boolean))
-        const appended: Reference[] = []
+        const currByKey = new Map(curr.filter((r) => !!r.key).map((r) => [r.key!, r]))
+        const orderedServer: Reference[] = []
         avatar.image_keys.forEach((key, idx) => {
-          if (!prevSet.has(key) && !existing.has(key)) {
-            appended.push({ key, url: avatar.image_urls[idx] })
+          const local = currByKey.get(key)
+          if (local) {
+            orderedServer.push({ key, url: avatar.image_urls[idx] })
+          } else if (!prevSet.has(key)) {
+            orderedServer.push({ key, url: avatar.image_urls[idx] })
           }
         })
-        return appended.length ? [...refreshed, ...appended].slice(0, 8) : refreshed
+        const localUnsaved = curr.filter((r) => !r.key || !serverSet.has(r.key))
+        return [...orderedServer, ...localUnsaved].slice(0, 8)
       })
     }
   }
@@ -221,15 +224,34 @@ function Editor({ avatar, onSaved, onDeleted }: { avatar: Avatar | null; onSaved
   }
 
   const add = async (files: FileList | null) => {
-    for (const f of Array.from(files ?? []).slice(0, 8 - refs.length - pendingTiles.length)) {
+    const incoming = Array.from(files ?? []).slice(0, 8 - refs.length - pendingTiles.length)
+    if (!incoming.length) return
+    const existingKeys = readyRefs.map((r) => r.key!)
+    const uploadedKeys: string[] = []
+    for (const f of incoming) {
       const url = URL.createObjectURL(f)
       setRefs((r) => [...r, { key: null, url }])
       try {
         const { key } = await api.upload(f)
+        uploadedKeys.push(key)
         setRefs((r) => r.map((x) => (x.url === url ? { ...x, key } : x)))
       } catch (e) {
         setRefs((r) => r.filter((x) => x.url !== url))
         toast.error((e as Error).message)
+      }
+    }
+    const allKeys = [...existingKeys, ...uploadedKeys]
+    if (uploadedKeys.length > 0 && allKeys.length >= 2) {
+      try {
+        const { keys: sorted } = await avatars.orderReferences(allKeys)
+        setRefs((curr) => {
+          const byKey = new Map(curr.filter((r) => !!r.key).map((r) => [r.key!, r]))
+          const ordered = sorted.map((k) => byKey.get(k)).filter((x): x is Reference => !!x)
+          const rest = curr.filter((r) => !r.key || !sorted.includes(r.key))
+          return [...ordered, ...rest]
+        })
+      } catch {
+        // Server also enforces canonical order on save
       }
     }
   }
@@ -246,6 +268,7 @@ function Editor({ avatar, onSaved, onDeleted }: { avatar: Avatar | null; onSaved
     onSuccess: (a) => {
       setShowExtraAngles(false)
       setPrevServerSig(a.image_keys.join("|"))
+      setRefs(a.image_keys.map((key, idx) => ({ key, url: a.image_urls[idx] })))
       qc.invalidateQueries({ queryKey: keys.avatars })
       toast.success("Аватар сохранён")
       onSaved(a)
@@ -412,20 +435,28 @@ function Editor({ avatar, onSaved, onDeleted }: { avatar: Avatar | null; onSaved
           {refs.map((r, i) => (
             <div
               key={r.key ?? r.url}
+              draggable={false}
               className={cn(
-                "group relative aspect-square overflow-hidden rounded-[3px] bg-surface-2",
+                "group relative aspect-square select-none overflow-hidden rounded-[3px] bg-surface-2",
                 i === 0 && "ring-1 ring-electric/70"
               )}
             >
               <button
                 type="button"
-                disabled={i === 0}
-                onClick={() => setRefs((prev) => [prev[i], ...prev.filter((_, idx) => idx !== i)])}
-                className={cn("size-full", i > 0 && "cursor-pointer")}
-                title={i > 0 ? "Сделать главным референсом" : "Главный референс"}
+                onClick={() => setPreviewIndex(i)}
+                className="size-full cursor-pointer"
+                title="Открыть в полном размере"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={r.url} alt="" className={cn("size-full object-cover", !r.key && "opacity-40")} />
+                <img
+                  src={r.url}
+                  alt=""
+                  draggable={false}
+                  className={cn("size-full object-cover", !r.key && "opacity-40")}
+                />
+                <span className="pointer-events-none absolute right-1 bottom-1 grid size-5 place-items-center rounded-[2px] bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                  <Maximize2 className="size-3" />
+                </span>
               </button>
               {!r.key && <Loader2 className="absolute inset-0 m-auto size-4 animate-spin" />}
               {i === 0 ? (
@@ -445,21 +476,13 @@ function Editor({ avatar, onSaved, onDeleted }: { avatar: Avatar | null; onSaved
               <a
                 href={refDownloadHref(r, `${baseLabel}${refs.length > 1 ? ` - ${i + 1}` : ""}`)}
                 download={!r.key ? `${baseLabel} - ${i + 1}.jpg` : undefined}
+                draggable={false}
                 className="absolute top-1 left-1 grid size-5 place-items-center rounded-[2px] bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/80"
                 aria-label="Скачать референс"
                 title="Скачать референс"
               >
                 <Download className="size-3" />
               </a>
-              <button
-                type="button"
-                onClick={() => setPreviewIndex(i)}
-                className="absolute right-1 bottom-1 grid size-5 place-items-center rounded-[2px] bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/80"
-                aria-label="Открыть крупно"
-                title="Открыть крупно"
-              >
-                <Maximize2 className="size-3" />
-              </button>
               <button
                 type="button"
                 onClick={() => setRefs((x) => x.filter((y) => y.url !== r.url))}

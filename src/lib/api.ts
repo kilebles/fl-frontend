@@ -643,6 +643,8 @@ export const avatars = {
   }) => request<Avatar>("/api/avatars/generate", json("POST", body)),
   analyzeReference: (key: string) =>
     request<AvatarRefAnalysis>("/api/avatars/analyze-reference", json("POST", { key })),
+  orderReferences: (keys: string[]) =>
+    request<{ keys: string[] }>("/api/avatars/order-references", json("POST", { keys })),
   buildAngles: (
     id: string,
     body?: { angles?: AvatarAngleId[]; style?: string; project_id?: string | null }

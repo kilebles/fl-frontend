@@ -53,7 +53,7 @@ export interface McpPromptTemplateItem {
 }
 
 export const CLIENT_TABS: { id: ClientId; label: string; configPath: string }[] = [
-  { id: "antigravity", label: "Antigravity", configPath: "mcp_config.json" },
+  { id: "antigravity", label: "Antigravity", configPath: "~/.gemini/config/mcp_config.json" },
   { id: "claude-code", label: "Claude Code", configPath: "Терминал (CLI)" },
   { id: "claude-desktop", label: "Claude Desktop", configPath: "claude_desktop_config.json" },
   { id: "cursor", label: "Cursor", configPath: ".cursor/mcp.json" },
@@ -71,27 +71,11 @@ export function buildClientSnippet(
   const urlWithQuery = `${endpointUrl}?token=${token}`
 
   if (client === "antigravity") {
-    if (transport === "query") {
-      return JSON.stringify(
-        {
-          mcpServers: {
-            "motion-pr": {
-              serverUrl: urlWithQuery,
-            },
-          },
-        },
-        null,
-        2
-      )
-    }
     return JSON.stringify(
       {
         mcpServers: {
           "motion-pr": {
-            serverUrl: endpointUrl,
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            url: urlWithQuery,
           },
         },
       },

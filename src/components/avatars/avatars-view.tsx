@@ -3,7 +3,7 @@
 import { useRef, useState } from "react"
 import Link from "next/link"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { Loader2, Plus, Trash2, X } from "lucide-react"
+import { Download, Loader2, Plus, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { PageHeader } from "@/components/shell/page-header"
@@ -17,6 +17,34 @@ interface Reference {
   url: string
 }
 
+function extFromMimeOrUrl(mime: string, url: string): string {
+  if (mime === "image/png") return ".png"
+  if (mime === "image/webp") return ".webp"
+  if (mime === "image/jpeg") return ".jpg"
+  const pathname = url.split("?")[0] ?? ""
+  const match = pathname.match(/\.(jpg|jpeg|png|webp)$/i)
+  return match ? `.${match[1].toLowerCase()}` : ".jpg"
+}
+
+async function downloadAvatarImage(url: string, rawName: string) {
+  const safeName = (rawName.trim() || "avatar").replace(/[\\/:*?"<>|]+/g, "-").trim()
+  const res = await fetch(url)
+  if (!res.ok) throw new Error("Не удалось скачать изображение")
+  const blob = await res.blob()
+  const ext = extFromMimeOrUrl(blob.type, url)
+  const objectUrl = URL.createObjectURL(blob)
+  try {
+    const a = document.createElement("a")
+    a.href = objectUrl
+    a.download = `${safeName}${ext}`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
+  }
+}
+
 /** Editor of one avatar (or a new one): references, name, appearance. */
 function Editor({ avatar, onSaved, onDeleted }: { avatar: Avatar | null; onSaved: (a: Avatar) => void; onDeleted: () => void }) {
   const qc = useQueryClient()
@@ -24,7 +52,36 @@ function Editor({ avatar, onSaved, onDeleted }: { avatar: Avatar | null; onSaved
   const [name, setName] = useState(avatar?.name ?? "")
   const [appearance, setAppearance] = useState(avatar?.appearance ?? "")
   const [refs, setRefs] = useState<Reference[]>(avatar ? avatar.image_keys.map((key, i) => ({ key, url: avatar.image_urls[i] })) : [])
+  const [downloading, setDownloading] = useState<string | null>(null)
   const uploading = refs.some((r) => !r.key)
+
+  const handleDownload = async (url: string, label: string) => {
+    try {
+      setDownloading(url)
+      await downloadAvatarImage(url, label)
+    } catch (e) {
+      toast.error((e as Error).message)
+    } finally {
+      setDownloading(null)
+    }
+  }
+
+  const handleDownloadAll = async () => {
+    if (!refs.length) return
+    const base = name.trim() || avatar?.name || "avatar"
+    try {
+      setDownloading("all")
+      for (let i = 0; i < refs.length; i++) {
+        const suffix = refs.length > 1 ? ` - ${i + 1}` : ""
+        await downloadAvatarImage(refs[i].url, `${base}${suffix}`)
+        if (i < refs.length - 1) await new Promise((r) => setTimeout(r, 150))
+      }
+    } catch (e) {
+      toast.error((e as Error).message)
+    } finally {
+      setDownloading(null)
+    }
+  }
 
   const add = async (files: FileList | null) => {
     for (const f of Array.from(files ?? []).slice(0, 8 - refs.length)) {
@@ -70,10 +127,35 @@ function Editor({ avatar, onSaved, onDeleted }: { avatar: Avatar | null; onSaved
             <img src={refs[0].url} alt="" className="size-full object-cover" />
           )}
         </div>
-        <div className="min-w-0">
+        <div className="flex min-w-0 flex-1 flex-col">
           <p className="truncate text-lg font-semibold">{name || "Новый аватар"}</p>
           <p className="mt-0.5 text-[13px] text-muted-foreground">{refs.length ? `${refs.length} референс${refs.length === 1 ? "" : refs.length < 5 ? "а" : "ов"}` : "Добавьте референсы"}</p>
-          {avatar && <span className="mt-2 inline-block rounded-[2px] bg-ok/12 px-2 py-0.5 text-xs text-ok">Готов к работе</span>}
+          {avatar && <span className="mt-2 inline-block w-fit rounded-[2px] bg-ok/12 px-2 py-0.5 text-xs text-ok">Готов к работе</span>}
+          {refs[0] && (
+            <div className="mt-auto flex flex-wrap gap-1.5 pt-3">
+              <button
+                type="button"
+                disabled={downloading !== null}
+                onClick={() => handleDownload(refs[0].url, name.trim() || avatar?.name || "avatar")}
+                className="inline-flex h-8 items-center gap-1.5 rounded-[3px] border border-line-strong bg-surface-2 px-2.5 text-xs font-medium transition-colors hover:border-electric/50 hover:text-electric disabled:opacity-50"
+              >
+                {downloading === refs[0].url ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
+                Скачать аватар
+              </button>
+              {refs.length > 1 && (
+                <button
+                  type="button"
+                  disabled={downloading !== null}
+                  onClick={handleDownloadAll}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-[3px] border border-line-strong px-2.5 text-xs text-muted-foreground transition-colors hover:border-faint hover:text-foreground disabled:opacity-50"
+                  title="Скачать все референсы аватара"
+                >
+                  {downloading === "all" && <Loader2 className="size-3 animate-spin" />}
+                  Все ({refs.length})
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -82,15 +164,33 @@ function Editor({ avatar, onSaved, onDeleted }: { avatar: Avatar | null; onSaved
         <div className="grid grid-cols-4 gap-2">
           {refs.map((r, i) => (
             <div key={r.url} className="group relative aspect-square overflow-hidden rounded-[3px] bg-surface-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={r.url} alt="" className={cn("size-full object-cover", !r.key && "opacity-40")} />
+              <button
+                type="button"
+                disabled={i === 0}
+                onClick={() => setRefs((prev) => [prev[i], ...prev.filter((_, idx) => idx !== i)])}
+                className={cn("size-full", i > 0 && "cursor-pointer")}
+                title={i > 0 ? "Сделать главным референсом" : "Главный референс"}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={r.url} alt="" className={cn("size-full object-cover", !r.key && "opacity-40")} />
+              </button>
               {!r.key && <Loader2 className="absolute inset-0 m-auto size-4 animate-spin" />}
-              {i === 0 && <span className="absolute bottom-1 left-1 rounded-[2px] bg-black/60 px-1 text-[10px] text-white">главный</span>}
+              {i === 0 && <span className="pointer-events-none absolute bottom-1 left-1 rounded-[2px] bg-black/60 px-1 text-[10px] text-white">главный</span>}
+              <button
+                type="button"
+                onClick={() => handleDownload(r.url, `${name.trim() || avatar?.name || "avatar"}${refs.length > 1 ? ` - ${i + 1}` : ""}`)}
+                className="absolute top-1 left-1 grid size-5 place-items-center rounded-[2px] bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/80"
+                aria-label="Скачать референс"
+                title="Скачать референс"
+              >
+                <Download className="size-3" />
+              </button>
               <button
                 type="button"
                 onClick={() => setRefs((x) => x.filter((y) => y.url !== r.url))}
-                className="absolute top-1 right-1 grid size-5 place-items-center rounded-[2px] bg-black/60 text-white opacity-0 group-hover:opacity-100"
+                className="absolute top-1 right-1 grid size-5 place-items-center rounded-[2px] bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/80"
                 aria-label="Убрать"
+                title="Убрать"
               >
                 <X className="size-3" />
               </button>
@@ -225,8 +325,21 @@ function Scene({ avatar }: { avatar: Avatar }) {
 export function AvatarsView() {
   const { data: list, isLoading } = useAvatars()
   const [selected, setSelected] = useState<string | "new" | null>(null)
+  const [cardDownloading, setCardDownloading] = useState<string | null>(null)
   const current = selected === "new" ? null : (list?.find((a) => a.id === selected) ?? list?.[0] ?? null)
   const editing = selected === "new" || !list?.length ? null : current
+
+  const downloadCard = async (a: Avatar) => {
+    if (!a.image_urls[0]) return
+    try {
+      setCardDownloading(a.id)
+      await downloadAvatarImage(a.image_urls[0], a.name)
+    } catch (e) {
+      toast.error((e as Error).message)
+    } finally {
+      setCardDownloading(null)
+    }
+  }
 
   return (
     <div className="px-4 pt-8 pb-16 sm:px-7">
@@ -244,22 +357,34 @@ export function AvatarsView() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {isLoading && [0, 1, 2].map((i) => <div key={i} className="shimmer aspect-[3/4] rounded-[4px]" />)}
             {list?.map((a) => (
-              <button
+              <div
                 key={a.id}
-                type="button"
-                onClick={() => setSelected(a.id)}
                 className={cn(
-                  "flex flex-col overflow-hidden rounded-[4px] border bg-surface text-left transition-colors",
+                  "group relative flex flex-col overflow-hidden rounded-[4px] border bg-surface transition-colors",
                   a.id === editing?.id && selected !== "new" ? "border-electric" : "border-line hover:border-line-strong"
                 )}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={a.image_urls[0]} alt="" className="aspect-[3/4] w-full object-cover" />
-                <span className="border-t border-line p-3">
-                  <span className="block truncate font-medium">{a.name}</span>
-                  <span className="block truncate text-xs text-muted-foreground">{a.appearance || "Без описания"}</span>
-                </span>
-              </button>
+                <button type="button" onClick={() => setSelected(a.id)} className="flex flex-col text-left">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={a.image_urls[0]} alt="" className="aspect-[3/4] w-full object-cover" />
+                  <span className="border-t border-line p-3">
+                    <span className="block truncate font-medium">{a.name}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{a.appearance || "Без описания"}</span>
+                  </span>
+                </button>
+                {a.image_urls[0] && (
+                  <button
+                    type="button"
+                    disabled={cardDownloading === a.id}
+                    onClick={() => downloadCard(a)}
+                    className="absolute top-2 right-2 grid size-8 place-items-center rounded-[3px] bg-black/65 text-white opacity-0 backdrop-blur-xs transition-opacity group-hover:opacity-100 hover:bg-black/85 disabled:opacity-100"
+                    aria-label={`Скачать аватар ${a.name}`}
+                    title="Скачать аватар"
+                  >
+                    {cardDownloading === a.id ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
+                  </button>
+                )}
+              </div>
             ))}
             <button
               type="button"

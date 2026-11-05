@@ -14,6 +14,7 @@ export const rkeys = {
   list: ["reels", "list"] as const,
   reel: (id: string) => ["reels", "reel", id] as const,
   storyboard: (id: string) => ["reels", "storyboard", id] as const,
+  tracks: (id: string) => ["reels", "tracks", id] as const,
 }
 
 function ready<T>(q: T & { data?: unknown; isLoading: boolean }, ok: boolean): T {
@@ -56,6 +57,14 @@ export function useStoryboard(id: string | null, done: boolean) {
   )
 }
 
+/** Languages mixed in «Озвучка» for the reel and the last build of its YouTube tracks. */
+export function useReelTracks(id: string, enabled: boolean) {
+  return ready(
+    useQuery({ queryKey: rkeys.tracks(id), queryFn: () => reels.tracks(id), enabled, retry: false, staleTime: 15_000 }),
+    useHydrated(),
+  )
+}
+
 /** /api/reels/events (SSE): refetch exactly what changed. */
 export function useReelEvents() {
   const qc = useQueryClient()
@@ -68,6 +77,7 @@ export function useReelEvents() {
         if (typeof d.id === "string") {
           qc.invalidateQueries({ queryKey: rkeys.reel(d.id) })
           qc.invalidateQueries({ queryKey: rkeys.storyboard(d.id) })
+          qc.invalidateQueries({ queryKey: rkeys.tracks(d.id) })
         }
       } catch {}
     })

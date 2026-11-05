@@ -25,6 +25,7 @@ import {
 import { statusText } from "@/components/reels/reel-list"
 import { rkeys, useReelOptions, useStoryboard } from "@/components/reels/queries"
 import { BriefCard, StoryboardCard } from "@/components/reels/storyboard"
+import { TracksCard } from "@/components/reels/tracks"
 import { ConfirmDialog } from "@/components/script/parts"
 import { setUrlParams } from "@/components/script/queries"
 import { BTN_PRIMARY, BTN_SECONDARY, Card } from "@/components/script/ui"
@@ -209,6 +210,7 @@ export function ReelView({ reel: r }: { reel: Reel }) {
               montage ? `Монтаж: ${montage}` : "",
               r.settings.storyboard.style ? `стиль: ${r.settings.storyboard.style}` : "",
               r.settings.avatar?.id ? `ведущий: ${r.settings.avatar.name || "аватар"}` : "",
+              r.settings.voice?.targets?.length ? `переводы: ${r.settings.voice.targets.join(", ")}` : "",
               r.settings.storyboard.notes ? `детали: ${r.settings.storyboard.notes}` : "",
             ]
               .filter(Boolean)
@@ -253,6 +255,8 @@ export function ReelView({ reel: r }: { reel: Reel }) {
           </div>
         </div>
       </section>
+
+      <TracksCard reel={r} />
 
       {done && sbError && <div className="py-6 text-center text-sm text-danger">{sbError.message}</div>}
       {done && sb && (

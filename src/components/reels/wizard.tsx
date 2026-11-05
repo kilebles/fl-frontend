@@ -36,7 +36,7 @@ const STEPS = [
 const HEADINGS = [
   "Выберите нишу или создайте новую — она подставит остальные настройки",
   "Сценарий: написать по теме или взять готовый",
-  "Профиль голосов для озвучки",
+  "Голоса и языки перевода",
   "Ведущий в кадре",
   "Из чего собрать картинку",
   "Стиль монтажа и музыки",
@@ -80,7 +80,7 @@ export function ReelWizard({ onCreated }: { onCreated: (id: string) => void }) {
   const summary = [
     d.nicheName || "не выбрана",
     s.mode === "topic" ? (s.topic ? `${s.minutes} мин · ${s.language.toUpperCase()}` : "по теме") : fromVoice ? (v?.title ?? "из «Озвучки»") : (file?.name ?? "файл"),
-    fromVoice ? "уже озвучено" : d.voice.name || "не выбран",
+    `${fromVoice ? "уже озвучено" : d.voice.name || "не выбран"}${d.voice.targets.length ? ` + ${d.voice.targets.length} яз.` : ""}`,
     d.host.on ? d.host.name || "не выбран" : "без ведущего",
     shareText(d.storyboard.shares, d.host.on),
     montageLabel,

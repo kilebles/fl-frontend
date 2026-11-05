@@ -1419,6 +1419,35 @@ export interface Reel {
   progress: { stage?: string; step?: "brief" | "shots" | "allocate"; done?: number; total?: number; wait?: string }
   summary: { shots: number; total_sec: number; mix: ReelMix; fallback_paragraphs: number[]; errors: string[]; usage: ReelUsage } | null
   error: string | null
+  /** Only on GET /api/reels/{id}: the last build of the language tracks. */
+  tracks?: ReelTracksStatus
+}
+
+export interface ReelTracksStatus {
+  state: "none" | "building" | "done" | "error"
+  stage?: "download" | "build" | "done"
+  langs?: string[]
+  base?: string
+  done?: number
+  total?: number
+  files?: { lang: string; name: string; size: number }[]
+  missing?: Record<string, number[]>
+  host?: number[]
+  sec?: number
+  zip?: string
+  size?: number
+  error?: string | null
+  finished?: string | null
+}
+
+export interface ReelTracksInfo {
+  base: string
+  /** Languages mixed in «Озвучка» — the tracks are built from them. */
+  mixed: string[]
+  /** Languages of the reel not mixed yet. */
+  pending: string[]
+  reason?: string
+  status: ReelTracksStatus
 }
 
 export interface ReelShot {
@@ -1477,7 +1506,8 @@ export interface ReelSettings {
   niche: string
   niche_name?: string
   script: { mode: "topic" | "ready"; topic?: string; minutes?: number | null; language?: string; tone?: string; model?: string; notes?: string }
-  voice: { profile?: string; name?: string }
+  /** targets — languages of translation; voices — a voice per language (empty: the profile's default). */
+  voice: { profile?: string; name?: string; targets?: string[]; voices?: Record<string, string> }
   avatar: { id: string; name?: string; voice?: string }
   storyboard: { shares: ReelShares; engine: string; model: string; style: string; notes: string }
   montage: { style: string; music: string }
@@ -1546,5 +1576,8 @@ export const reels = {
   stop: (id: string) => request<Reel>(`${rid(id)}/stop`, json("POST")),
   resume: (id: string, again = false) => request<Reel>(`${rid(id)}/resume`, json("POST", { again })),
   remove: (id: string) => request<void>(rid(id), { method: "DELETE" }),
+  tracks: (id: string) => request<ReelTracksInfo>(`${rid(id)}/tracks`),
+  buildTracks: (id: string) => request<ReelTracksStatus>(`${rid(id)}/tracks`, json("POST")),
+  tracksZipUrl: (id: string) => withToken(`${rid(id)}/tracks/zip`),
   eventsUrl: () => withToken("/api/reels/events"),
 }

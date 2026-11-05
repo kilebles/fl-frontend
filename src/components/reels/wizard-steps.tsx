@@ -104,7 +104,12 @@ export function NicheStep({ d, up }: StepProps) {
       }
       if (preset.storyboard) {
         next.presetFrom = n.name
-        next.voice = { profile: preset.voice?.profile ?? "", name: preset.voice?.name ?? "" }
+        next.voice = {
+          profile: preset.voice?.profile ?? "",
+          name: preset.voice?.name ?? "",
+          targets: preset.voice?.targets ?? [],
+          voices: preset.voice?.voices ?? {},
+        }
         next.host = { on: !!preset.avatar?.id, id: preset.avatar?.id ?? "", name: preset.avatar?.name ?? "", voice: preset.avatar?.voice ?? "" }
         next.storyboard = {
           shares: { ...x.storyboard.shares, ...preset.storyboard.shares },
@@ -356,24 +361,65 @@ export function ScriptStep({ d, up, file, setFile }: StepProps) {
 
 /* ------------------------------------------------------------------ 3. Озвучка */
 
+/** Language code as «Озвучка» names it in its API (PT_BR → PT). */
+const apiLang = (c: string) => {
+  const u = c.trim().toUpperCase().replace("-", "_")
+  return u === "PT_BR" || u === "BR" ? "PT" : u
+}
+
 export function VoiceStep({ d, up }: StepProps) {
-  const ready = d.script.mode === "ready"
-  const { data: voices } = useReelVoiceSources(ready && d.script.from === "voice")
-  const { data: profiles, isLoading, error } = useQuery({ queryKey: ["reels", "voice-profiles"], queryFn: voice.profiles, enabled: !(ready && d.script.from === "voice") })
-  const { data: entries } = useQuery({ queryKey: ["reels", "voice-entries"], queryFn: voice.voices, enabled: !(ready && d.script.from === "voice") })
-  if (ready && d.script.from === "voice") {
-    const v = voices?.find((x) => String(x.id) === d.script.voiceJob)
-    return (
-      <Note>
-        Озвучка уже есть: проект «{v?.title ?? "из «Озвучки»"}»{v ? `, ${v.language.toUpperCase()}, ${v.duration_sec ? clock(v.duration_sec) : "без дорожек"}` : ""}. Профиль голосов не нужен.
-      </Note>
-    )
-  }
-  const lang = (d.script.mode === "topic" ? d.script.language : "en").toUpperCase()
+  const fromVoice = d.script.mode === "ready" && d.script.from === "voice"
+  const jobId = Number(d.script.voiceJob) || 0
+  const { data: job } = useQuery({ queryKey: ["reels", "voice-job", jobId], queryFn: () => voice.job(jobId), enabled: fromVoice && jobId > 0 })
+  const { data: profiles, isLoading, error } = useQuery({ queryKey: ["reels", "voice-profiles"], queryFn: voice.profiles })
+  const { data: entries } = useQuery({ queryKey: ["reels", "voice-entries"], queryFn: voice.voices })
+  const profileId = fromVoice ? (job?.profile_id ?? "") : d.voice.profile
+  const { data: langInfo } = useQuery({
+    queryKey: ["reels", "voice-languages", profileId],
+    queryFn: () => voice.languages(profileId || undefined),
+  })
+  const base = apiLang(fromVoice ? (job?.source_lang ?? "EN") : d.script.language || "en")
   const name = (id: string) => entries?.find((e) => e.id === id)?.name ?? id
+  const profile = profiles?.find((p) => p.id === profileId)
+  const voicesOf = (lang: string) => {
+    if (!profile) return { list: [] as string[], main: "" }
+    const key = Object.keys(profile.voices).find((k) => apiLang(k) === lang)
+    const main = Object.entries(profile.default).find(([k]) => apiLang(k) === lang)?.[1] ?? ""
+    return { list: key ? profile.voices[key] : [], main }
+  }
+  const langs = (langInfo ?? [])
+    .map((l) => ({ ...l, code: apiLang(l.code) }))
+    .filter((l) => l.code !== base && voicesOf(l.code).list.length > 0)
+  const inProject = new Set((job?.languages ?? []).map((l) => apiLang(l.lang)))
+  const targets = d.voice.targets.filter((t) => t !== base)
+
+  const setVoice = (patch: Partial<Draft["voice"]>) =>
+    up((x) => ({
+      ...x,
+      voice: {
+        ...x.voice,
+        ...(fromVoice && job ? { profile: job.profile_id, name: job.profile_name } : {}),
+        ...patch,
+      },
+    }))
+  const toggle = (code: string) =>
+    setVoice({ targets: targets.includes(code) ? targets.filter((t) => t !== code) : [...targets, code] })
+  const pickProfile = (id: string, title: string) =>
+    up((x) => {
+      const p = profiles?.find((q) => q.id === id)
+      const has = (c: string) => !!p && Object.keys(p.voices).some((k) => apiLang(k) === c)
+      return { ...x, voice: { profile: id, name: title, targets: x.voice.targets.filter(has), voices: {} } }
+    })
+  const missing = fromVoice ? targets.filter((t) => !inProject.has(t)) : []
+
   return (
-    <div className="space-y-4">
-      {isLoading ? (
+    <div className="space-y-5">
+      {fromVoice ? (
+        <Note>
+          Базовый язык уже озвучен: проект «{job?.title ?? "из «Озвучки»"}»
+          {job ? `, ${base}, профиль «${job.profile_name}»` : ""}.
+        </Note>
+      ) : isLoading ? (
         <div className="flex justify-center py-8">
           <Loader2 className="size-4 animate-spin text-faint" />
         </div>
@@ -382,22 +428,105 @@ export function VoiceStep({ d, up }: StepProps) {
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {(profiles ?? []).map((p) => {
-            const main = p.default[lang] ?? p.default[lang.toLowerCase()]
-            const langs = Object.keys(p.voices).length
+            const main = Object.entries(p.default).find(([k]) => apiLang(k) === base)?.[1]
+            const n = Object.keys(p.voices).length
             return (
-              <Choice key={p.id} on={d.voice.profile === p.id} onClick={() => up((x) => ({ ...x, voice: { profile: p.id, name: p.name } }))}>
+              <Choice key={p.id} on={d.voice.profile === p.id} onClick={() => pickProfile(p.id, p.name)}>
                 <span className="pr-6 text-sm font-medium">{p.name}</span>
-                <span className="text-xs text-muted-foreground">{main ? `${lang}: ${name(main)}` : `для ${lang} голоса нет`}</span>
-                <span className="mt-1 font-mono text-[11px] text-faint">{[`${langs} яз.`, ...p.channels].join(" · ")}</span>
+                <span className="text-xs text-muted-foreground">{main ? `${base}: ${name(main)}` : `для ${base} голоса нет`}</span>
+                <span className="mt-1 font-mono text-[11px] text-faint">{[`${n} яз.`, ...p.channels].join(" · ")}</span>
               </Choice>
             )
           })}
         </div>
       )}
+
+      {profile && (
+        <div>
+          <Label
+            aside={
+              langs.length > 0 && (
+                <span className="flex gap-3 text-xs">
+                  {fromVoice && inProject.size > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setVoice({ targets: langs.map((l) => l.code).filter((c) => inProject.has(c)) })}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      как в проекте
+                    </button>
+                  )}
+                  <button type="button" onClick={() => setVoice({ targets: langs.map((l) => l.code) })} className="text-muted-foreground hover:text-foreground">
+                    все
+                  </button>
+                  <button type="button" onClick={() => setVoice({ targets: [] })} className="text-muted-foreground hover:text-foreground">
+                    ни одного
+                  </button>
+                </span>
+              )
+            }
+          >
+            Языки перевода
+          </Label>
+          {langs.length === 0 ? (
+            <Note>В профиле «{profile.name}» нет голосов других языков — их добавляют во вкладке «Озвучка».</Note>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {langs.map((l) => {
+                const on = targets.includes(l.code)
+                return (
+                  <button
+                    key={l.code}
+                    type="button"
+                    onClick={() => toggle(l.code)}
+                    title={l.name}
+                    className={cn(
+                      "flex h-8 items-center gap-1.5 rounded-[3px] border px-2.5 text-sm transition-colors",
+                      on ? "border-ok/40 bg-ok/15 font-medium text-ok" : "border-line-strong text-muted-foreground hover:border-faint hover:text-foreground",
+                    )}
+                  >
+                    <span className="font-mono text-xs">{l.code}</span>
+                    <span className="hidden sm:inline">{l.native_name || l.name}</span>
+                    {fromVoice && inProject.has(l.code) && <span className="font-mono text-[10px] text-faint">есть</span>}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {profile && targets.length > 0 && (
+        <div className="overflow-hidden rounded-[3px] border border-line">
+          {targets.map((code) => {
+            const { list, main } = voicesOf(code)
+            const chosen = d.voice.voices[code] ?? ""
+            return (
+              <div key={code} className="flex items-center gap-3 border-b border-line px-3 py-2 last:border-b-0">
+                <span className="w-10 font-mono text-xs text-ok">{code}</span>
+                <div className="min-w-0 flex-1">
+                  {list.length > 1 ? (
+                    <Pick
+                      value={chosen || main}
+                      onChange={(v) => setVoice({ voices: { ...d.voice.voices, [code]: v === main ? "" : v } })}
+                      options={list.map((v) => ({ value: v, label: name(v), hint: v === main ? "по умолчанию" : undefined }))}
+                    />
+                  ) : (
+                    <span className="block truncate text-sm text-foreground-2">{name(list[0] ?? main)}</span>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       <Note>
-        {d.script.mode === "topic"
-          ? `Озвучивается только базовый язык (${lang}); переводы делаются потом во вкладке «Озвучка».`
-          : "У файла нет озвучки: профиль запомнится для ниши, а длительность сейчас считается по тексту."}
+        {targets.length
+          ? `Переводы сводятся под базовый язык (${base}): у всех языков одна длина каждого абзаца, и дорожки для YouTube собираются на экране ролика ровно по длине видео.`
+          : `Озвучивается только базовый язык (${base}).`}
+        {missing.length > 0 && ` ${missing.join(", ")} в проекте ещё нет — их перевод мозг закажет со следующим шагом (автопилот); пока дорожки соберутся из сведённых языков.`}
+        {!fromVoice && d.script.mode === "ready" && " У файла нет озвучки: длительность сейчас считается по тексту."}
       </Note>
     </div>
   )
@@ -630,7 +759,7 @@ export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & {
           ? `из «Озвучки»: ${v?.title ?? "проект"}`
           : `файл ${file?.name ?? "—"}`,
     ],
-    ["Озвучка", s.mode === "ready" && s.from === "voice" ? "уже озвучено" : d.voice.name || "профиль не выбран"],
+    ["Озвучка", `${s.mode === "ready" && s.from === "voice" ? "уже озвучено" : d.voice.name || "профиль не выбран"}${d.voice.targets.length ? ` · переводы: ${d.voice.targets.join(", ")}` : ""}`],
     ["Ведущий", d.host.on ? `${d.host.name || "аватар не выбран"}${d.host.voice ? ` · ${d.host.voice}` : ""}` : "без ведущего"],
     [
       "Раскадровка",

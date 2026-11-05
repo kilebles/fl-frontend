@@ -25,7 +25,7 @@ src/components/     shell/ (nav sidebar, logo, theme, project-picker, page-heade
                     infographics/, jobs/ (job page, result card, lightbox, state, menu),
                     script/ (fl-scenario: launch panel, project list/view, niches, analytics, queries + SSE, send)
                     footage/ (fl-footage: launch panel, project list/view, sources, queries + SSE)
-                    reels/ (fl-reel: «Новый ролик» wizard + draft, reel list/view, storyboard + brief, YouTube tracks, queries + SSE)
+                    reels/ (fl-reel: «Новый ролик» wizard + draft, reel list/view, storyboard + brief, materials + result, YouTube tracks, queries + SSE)
 src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), project.ts (current project, withStyle),
                     draft.ts (composer text shared with the feed), modes.ts, format.ts,
                     handoff.ts (finished script → «Промпты» / «Озвучка»)
@@ -46,8 +46,9 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
   style + music; the draft lives in localStorage. A reel's storyboard gives every shot a category (ИИ / видео /
   исторические / графика / ведущий — the host takes whole paragraphs; colours in `reels/parts.tsx`); new shares
   re-allocate a finished storyboard on the server at once. «Дорожки для YouTube» on the reel screen: fl-reel builds one
-  mp3 per language mixed in «Озвучка», each exactly as long as the reel (`/api/reels/{id}/tracks`). Materials and
-  assembly are next (`soon` steps).
+  mp3 per language mixed in «Озвучка», each exactly as long as the reel (`/api/reels/{id}/tracks`). After the
+  storyboard the brain orders materials from the modules (`reels/result.tsx` → «Материалы» by category) and assembles
+  the reel: «Готовый ролик» — player, mp4 and the DaVinci montage project (`/api/reels/{id}/result/mp4|montage`).
 
 - Projects (ролики): the current project lives in localStorage; screens filter by it and new jobs/runs carry `project_id`.
   The project's style line is appended to every prompt (composer, batch, «В производство», avatar scene).

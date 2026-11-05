@@ -25,6 +25,7 @@ import {
 import { statusText } from "@/components/reels/reel-list"
 import { rkeys, useReelOptions, useStoryboard } from "@/components/reels/queries"
 import { BriefCard, StoryboardCard } from "@/components/reels/storyboard"
+import { MaterialsCard, ResultCard } from "@/components/reels/result"
 import { TracksCard } from "@/components/reels/tracks"
 import { ConfirmDialog } from "@/components/script/parts"
 import { setUrlParams } from "@/components/script/queries"
@@ -152,7 +153,10 @@ export function ReelView({ reel: r }: { reel: Reel }) {
     script: now("script") ? statusText(r) : r.source.kind === "voice" ? `из «Озвучки»` : r.source.kind === "topic" ? "по теме" : r.source.name,
     voice: now("voice") ? statusText(r) : r.source.timed ? `${r.source.language.toUpperCase()} · ${r.source.timed} дорожек` : "",
     storyboard: done && s ? shotsText(s.shots) : now("storyboard") ? statusText(r) : "",
+    materials: now("materials") ? statusText(r) : r.materials?.total ? `${r.materials.done} из ${r.materials.total} кадров` : "",
+    assembly: now("assembly") ? statusText(r) : r.result ? clock(r.result.sec) : "",
   }
+  const more = !active && r.steps.some((x) => x.key === "materials" && x.state === "todo") && done
   const total = s?.total_sec ?? 0
 
   return (
@@ -232,6 +236,11 @@ export function ReelView({ reel: r }: { reel: Reel }) {
                 <Square className="size-3" />
                 Стоп
               </button>
+            ) : more ? (
+              <button type="button" disabled={act.isPending} onClick={() => act.mutate("resume")} className={BTN_PRIMARY}>
+                {act.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />}
+                Дальше: материалы и сборка
+              </button>
             ) : done ? (
               <button
                 type="button"
@@ -261,6 +270,8 @@ export function ReelView({ reel: r }: { reel: Reel }) {
         </div>
       </section>
 
+      <ResultCard reel={r} />
+      <MaterialsCard reel={r} />
       <TracksCard reel={r} />
 
       {done && sbError && <div className="py-6 text-center text-sm text-danger">{sbError.message}</div>}

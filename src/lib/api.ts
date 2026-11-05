@@ -1424,6 +1424,18 @@ export interface Reel {
   error: string | null
   /** Only on GET /api/reels/{id}: the last build of the language tracks. */
   tracks?: ReelTracksStatus
+  /** Orders to the modules: per planned category — total, done, gone to a fallback, failed. */
+  materials?: { by_category: Partial<Record<ReelCategory, { total: number; done: number; fallback: number; failed: number }>>; done: number; total: number } | null
+  /** The assembled reel: mp4 and the montage project for DaVinci. */
+  result?: {
+    mp4: { name: string; size: number }
+    montage: { name: string; size: number }
+    sec: number
+    renderer: "remotion" | "ffmpeg"
+    languages: string[]
+    fallbacks: number
+    failed: number
+  } | null
 }
 
 export interface ReelTracksStatus {
@@ -1585,5 +1597,6 @@ export const reels = {
   tracks: (id: string) => request<ReelTracksInfo>(`${rid(id)}/tracks`),
   buildTracks: (id: string) => request<ReelTracksStatus>(`${rid(id)}/tracks`, json("POST")),
   tracksZipUrl: (id: string) => withToken(`${rid(id)}/tracks/zip`),
+  resultUrl: (id: string, kind: "mp4" | "montage") => withToken(`${rid(id)}/result/${kind}`),
   eventsUrl: () => withToken("/api/reels/events"),
 }

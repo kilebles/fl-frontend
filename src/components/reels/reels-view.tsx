@@ -55,7 +55,7 @@ export function ReelsView() {
                     ? "по теме"
                     : reel.source.name,
                 reel.source.paragraphs ? `${reel.source.paragraphs} абз.` : "",
-                reel.summary ? clock(reel.summary.total_sec) : "",
+                reel.result ? clock(reel.result.sec) : reel.summary ? clock(reel.summary.total_sec) : "",
               ]
                 .filter(Boolean)
                 .join(" · ")}

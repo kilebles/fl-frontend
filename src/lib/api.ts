@@ -390,7 +390,7 @@ export interface PgScript {
   niche: string
   niche_name: string
   updated: string | null
-  language: string
+  language: string | { value?: string | null } | null
 }
 
 export interface PgSummary {

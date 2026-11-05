@@ -158,7 +158,10 @@ export function LaunchPanel() {
     }
   }
 
-  const scriptOptions = (scripts ?? []).map((s) => ({ value: s.id, label: s.title || "Без названия", hint: [s.niche_name, s.language?.toUpperCase()].filter(Boolean).join(" · ") }))
+  const scriptOptions = (scripts ?? []).map((s) => {
+    const lang = typeof s.language === "string" ? s.language : s.language?.value ?? ""
+    return { value: s.id, label: s.title || "Без названия", hint: [s.niche_name, lang.toUpperCase()].filter(Boolean).join(" · ") }
+  })
   if (script?.source === "project" && !scriptOptions.some((o) => o.value === script.id))
     scriptOptions.unshift({ value: script.id, label: script.title || "Сценарий из «Сценария»", hint: "передан" })
 

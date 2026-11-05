@@ -112,6 +112,73 @@ export function SharesInput({ value, onChange, short }: { value: ReelShares; onC
   )
 }
 
+/** The same four shares as rows, one under another: a slider and the number; `seconds` (the reel's length, when known)
+ *  adds how many minutes each category gets. */
+export function SharesRows({ value, onChange, seconds }: { value: ReelShares; onChange: (s: ReelShares) => void; seconds?: number }) {
+  const set = (c: ReelCategory, v: number) => onChange({ ...value, [c]: Math.max(0, Math.min(100, Math.round(v))) })
+  return (
+    <div className="divide-y divide-line rounded-[3px] border border-line-strong bg-background">
+      {CATEGORIES.map((c) => (
+        <div
+          key={c}
+          className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1.5 px-3 py-2 sm:grid-cols-[minmax(0,190px)_minmax(0,1fr)_auto]"
+        >
+          <span className="flex min-w-0 items-center gap-2 text-sm" title={CAT_HINT[c]}>
+            <span className={cn("size-2 shrink-0 rounded-full", value[c] ? CAT_BG[c] : "bg-line-strong")} />
+            <span className={cn("truncate", !value[c] && "text-faint")}>{CAT_LABEL[c]}</span>
+            {seconds ? <span className="shrink-0 font-mono text-[11px] text-faint">{clock((seconds * value[c]) / 100)}</span> : null}
+          </span>
+          <span className="relative order-last col-span-2 h-5 sm:order-none sm:col-span-1">
+            <span className="absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 overflow-hidden rounded-full bg-elev">
+              <span className={cn("block h-full rounded-full transition-[width] duration-150", CAT_BG[c])} style={{ width: `${value[c]}%` }} />
+            </span>
+            <span
+              className={cn("pointer-events-none absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background", CAT_BG[c])}
+              style={{ left: `${value[c]}%` }}
+            />
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={value[c]}
+              aria-label={CAT_LABEL[c]}
+              onChange={(e) => set(c, Number(e.target.value))}
+              className="absolute inset-0 w-full cursor-pointer opacity-0"
+            />
+          </span>
+          <span className="flex items-center gap-0.5">
+            <button
+              type="button"
+              aria-label={`${CAT_LABEL[c]}: меньше`}
+              onClick={() => set(c, value[c] - 5)}
+              className="grid size-6 shrink-0 place-items-center rounded-[2px] text-faint hover:bg-elev hover:text-foreground"
+            >
+              <Minus className="size-3" />
+            </button>
+            <input
+              value={String(value[c])}
+              inputMode="numeric"
+              aria-label={`${CAT_LABEL[c]}, %`}
+              onChange={(e) => set(c, Number(e.target.value.replace(/\D/g, "").slice(0, 3)) || 0)}
+              className={cn("w-9 bg-transparent text-right font-mono text-sm outline-none", !value[c] && "text-faint")}
+            />
+            <span className="-ml-0.5 font-mono text-sm text-faint">%</span>
+            <button
+              type="button"
+              aria-label={`${CAT_LABEL[c]}: больше`}
+              onClick={() => set(c, value[c] + 5)}
+              className="grid size-6 shrink-0 place-items-center rounded-[2px] text-faint hover:bg-elev hover:text-foreground"
+            >
+              <Plus className="size-3" />
+            </button>
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 /** «сумма 95%» in red when the shares do not add up, and the two usual mixes. */
 export function SharesAside({ value, onChange }: { value: ReelShares; onChange: (s: ReelShares) => void }) {
   const sum = sharesSum(value)
@@ -122,12 +189,15 @@ export function SharesAside({ value, onChange }: { value: ReelShares; onChange: 
           key={p.label}
           type="button"
           onClick={() => onChange(p.shares)}
-          className={cn("font-mono text-[11px]", sameShares(p.shares, value) ? "text-pick-text" : "text-faint hover:text-foreground")}
+          className={cn(
+            "hidden font-mono text-[11px] whitespace-nowrap sm:inline",
+            sameShares(p.shares, value) ? "text-pick-text" : "text-faint hover:text-foreground",
+          )}
         >
           {p.label}
         </button>
       ))}
-      <span className={cn("font-mono text-[11px]", sum === 100 ? "text-faint" : "font-medium text-danger")}>= {sum}%</span>
+      <span className={cn("font-mono text-[11px] whitespace-nowrap", sum === 100 ? "text-faint" : "font-medium text-danger")}>= {sum}%</span>
     </span>
   )
 }

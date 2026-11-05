@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Clapperboard, FileText, Loader2, Mic, Paperclip, X } from "lucide-react"
 import { toast } from "sonner"
 
-import { CATEGORIES, CAT_SHORT, PRESETS, SharesAside, SharesInput, clock, parasText, roundShares, sharesSum, shotsText } from "@/components/reels/parts"
+import { PRESETS, SharesAside, SharesRows, clock, parasText, roundShares, sharesSum, shotsText } from "@/components/reels/parts"
 import { rkeys, useReelOptions, useReelVoiceSources } from "@/components/reels/queries"
 import { BTN_PRIMARY, INPUT, Label, ON_BLUE, Pick } from "@/components/script/ui"
 import { reels, type ReelShares } from "@/lib/api"
@@ -81,7 +81,7 @@ export function LaunchPanel() {
     onError: (e) => toast.error(e.message),
   })
 
-  // что получится: длительность и примерные секунды каждой категории
+  // что получится: длительность и число кадров; минуты каждой категории — в строках долей
   const sec = from === "voice" && v?.duration_sec ? v.duration_sec + (v.paragraphs || 0) : 0
   const meta =
     from === "voice"
@@ -90,7 +90,6 @@ export function LaunchPanel() {
             parasText(v.paragraphs),
             sec ? `${clock(sec)} по озвучке ${v.language.toUpperCase()}` : "без озвучки — длительность по тексту",
             sec ? `≈ ${shotsText(Math.round(sec / 5.5))}` : "",
-            sec ? CATEGORIES.filter((c) => shares[c]).map((c) => `${CAT_SHORT[c]} ${clock((sec * shares[c]) / 100)}`).join(" · ") : "",
           ]
         : []
       : script
@@ -205,23 +204,24 @@ export function LaunchPanel() {
           >
             Доли материала, % экранного времени
           </Label>
-          <SharesInput
+          <SharesRows
             value={shares}
+            seconds={sec}
             onChange={(s) => {
               setShares(s)
               remember({ shares: s })
             }}
           />
         </div>
-        <div className="md:col-span-2 xl:col-span-5">
+        <div className="flex flex-col md:col-span-2 xl:col-span-5">
           <Label aside={<span className="font-mono text-[11px] text-faint">для модели</span>}>Правила ниши</Label>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             onBlur={() => remember({ notes: notes.trim() })}
-            rows={2}
+            rows={3}
             placeholder="Например: без детей, без крови, сцены боя только издалека"
-            className="h-[68px] w-full resize-none rounded-[3px] border border-line-strong bg-background px-3 py-2 text-sm outline-none placeholder:text-faint focus:border-electric/60"
+            className="min-h-[86px] w-full flex-1 resize-none rounded-[3px] border border-line-strong bg-background px-3 py-2 text-sm outline-none placeholder:text-faint focus:border-electric/60"
           />
         </div>
       </div>

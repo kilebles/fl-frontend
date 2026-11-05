@@ -315,7 +315,14 @@ export function ScriptStep({ d, up, file, setFile }: StepProps) {
                 options={(voices ?? []).map((v) => ({
                   value: String(v.id),
                   label: v.title,
-                  hint: [v.language.toUpperCase(), `${v.paragraphs} абз.`, v.duration_sec ? clock(v.duration_sec) : "без озвучки"].join(" · "),
+                  hint: [
+                    v.language.toUpperCase(),
+                    `${v.paragraphs} абз.`,
+                    v.duration_sec ? clock(v.duration_sec) : "без озвучки",
+                    v.translating ? "переводы идут" : v.base_ready === false ? "база не сведена" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" · "),
                 }))}
               />
             ) : (

@@ -1545,6 +1545,9 @@ export interface ReelVoiceSource {
   status: string
   created: string
   project_id?: string | null
+  /** The base track is mixed: paragraph lengths are final; translations may still be running («сначала база»). */
+  base_ready?: boolean
+  translating?: boolean
 }
 
 export interface ReelCreate extends Omit<ReelSettings, "format"> {

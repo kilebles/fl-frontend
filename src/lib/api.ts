@@ -599,6 +599,7 @@ export interface Avatar {
   appearance: string
   image_keys: string[]
   image_urls: string[]
+  download_urls?: string[]
   created_at: string
 }
 
@@ -614,6 +615,12 @@ export const avatars = {
   create: (body: { name: string; appearance: string; image_keys: string[] }) => request<Avatar>("/api/avatars", json("POST", body)),
   update: (id: string, patch: Partial<{ name: string; appearance: string; image_keys: string[] }>) => request<Avatar>(`/api/avatars/${id}`, json("PATCH", patch)),
   remove: (id: string) => request<void>(`/api/avatars/${id}`, { method: "DELETE" }),
+  downloadUrl: (key: string, name?: string) => {
+    const qs = new URLSearchParams({ key })
+    if (name?.trim()) qs.set("name", name.trim())
+    if (API_TOKEN) qs.set("token", API_TOKEN)
+    return `${apiBase()}/api/uploads/download?${qs.toString()}`
+  },
 }
 
 // Voice & Translation API (fl-voice_translator + Fish S2.1 / Drama 3)

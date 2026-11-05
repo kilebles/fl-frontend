@@ -18,6 +18,8 @@ export const API_URL = RAW_API_URL
 
 export type Mode = "t2v" | "flash_t2v" | "img" | "i2v" | "flash_i2v" | "i2i2v" | "f2v"
 export type Strategy = "parallel" | "sequential"
+export type VideoDuration = 4 | 6 | 8 | 10
+export type AspectRatio = "16:9" | "9:16" | "1:1"
 export type JobState = "queued" | "running" | "waiting" | "done" | "stopped" | "failed" | "cancelled"
 
 export interface JobRow {
@@ -41,6 +43,8 @@ export interface JobStatus {
   project_id: string | null
   mode: Mode
   strategy: Strategy
+  duration?: number | null
+  aspect_ratio?: AspectRatio | string | null
   state: JobState
   progress: JobProgress
   message: string | null
@@ -75,6 +79,8 @@ export interface JobRequest {
   title?: string | null
   project_id?: string | null
   strategy?: Strategy
+  duration?: VideoDuration | number | null
+  aspect_ratio?: AspectRatio | null
   avatar?: string | null
   avatar_keys?: string[] | null
   static_image?: string | null

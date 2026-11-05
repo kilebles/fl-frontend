@@ -736,6 +736,8 @@ function Scene({ avatar }: { avatar: Avatar }) {
   const [projectId] = useCurrentProject()
   const style = useProjectStyle(projectId)
   const [text, setText] = useState("")
+  const [duration, setDuration] = useState<4 | 6 | 8>(8)
+  const [aspectRatio, setAspectRatio] = useState<"16:9" | "9:16">("16:9")
   const activeRefs = Math.min(avatar.image_keys.length, 4)
 
   const create = useMutation({
@@ -744,6 +746,8 @@ function Scene({ avatar }: { avatar: Avatar }) {
         mode: "i2i2v",
         title: text.trim().slice(0, 200),
         project_id: projectId,
+        duration,
+        aspect_ratio: aspectRatio,
         avatar: avatar.image_keys[0],
         avatar_keys: avatar.image_keys,
         rows: [
@@ -775,9 +779,38 @@ function Scene({ avatar }: { avatar: Avatar }) {
         placeholder={`${avatar.name} стоит на холме и смотрит на лагерь, ветер треплет плащ, закат, камера медленно облетает`}
         className="resize-y rounded-[3px] border border-line-strong bg-background p-3 text-[15px] leading-relaxed outline-none placeholder:text-faint focus:border-electric/60"
       />
-      <div className="flex items-center justify-end gap-3">
-        {activeRefs > 1 && <span className="font-mono text-xs text-muted-foreground">{activeRefs} рак. в Flow</span>}
-        <span className="font-mono text-xs text-muted-foreground">16:9</span>
+      <div className="flex flex-wrap items-center justify-end gap-2.5">
+        {activeRefs > 1 && <span className="mr-auto font-mono text-xs text-muted-foreground">{activeRefs} рак. в Flow</span>}
+        <div className="flex h-9 items-center rounded-[3px] border border-line-strong bg-surface-2 p-[3px]" role="group" aria-label="Длительность">
+          {([4, 6, 8] as const).map((d) => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => setDuration(d)}
+              className={cn(
+                "h-full rounded-[2px] px-2 font-mono text-xs transition-colors",
+                duration === d ? "bg-elev font-medium text-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {d}с
+            </button>
+          ))}
+        </div>
+        <div className="flex h-9 items-center rounded-[3px] border border-line-strong bg-surface-2 p-[3px]" role="group" aria-label="Формат">
+          {(["16:9", "9:16"] as const).map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => setAspectRatio(r)}
+              className={cn(
+                "h-full rounded-[2px] px-2 font-mono text-xs transition-colors",
+                aspectRatio === r ? "bg-elev font-medium text-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
         <button
           type="button"
           disabled={!text.trim() || !avatar.image_keys.length || create.isPending}

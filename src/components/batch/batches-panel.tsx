@@ -9,7 +9,7 @@ import { Lightbox } from "@/components/jobs/lightbox"
 import type { RowResult } from "@/components/jobs/result-card"
 import { isFinished, isSingle, type JobFile, type JobRow, type JobStatus } from "@/lib/api"
 import { timeAgo } from "@/lib/format"
-import { MODE_BY_ID } from "@/lib/modes"
+import { jobFormatBadge, MODE_BY_ID } from "@/lib/modes"
 import { useCurrentProject } from "@/lib/project"
 import { useJob, useJobActions, useJobFiles, useJobs } from "@/lib/queries"
 import { cn } from "@/lib/utils"
@@ -142,7 +142,7 @@ function SegmentBar({ job, className }: { job: JobStatus; className?: string }) 
 
 function meta(job: JobStatus) {
   const m = MODE_BY_ID[job.mode]
-  return `${m.title}${m.flash ? " Flash" : ""} · 16:9 · ${timeAgo(job.created_at)}`
+  return `${m.title}${m.flash ? " Flash" : ""} · ${jobFormatBadge(job)} · ${timeAgo(job.created_at)}`
 }
 
 function BatchDetail({ job }: { job: JobStatus }) {

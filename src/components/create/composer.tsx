@@ -8,24 +8,34 @@ import { toast } from "sonner"
 
 import { usePicture } from "@/components/create/form-parts"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { api, type Avatar } from "@/lib/api"
+import { api, type AspectRatio, type Avatar, type VideoDuration } from "@/lib/api"
 import { setDraft, useDraft } from "@/lib/draft"
-import { MODE_BY_ID, MODES, type ModeMeta } from "@/lib/modes"
+import { MODE_BY_ID, MODES, resolveAspectRatio, resolveDuration, type ModeMeta } from "@/lib/modes"
 import { useCurrentProject, withStyle } from "@/lib/project"
 import { keys, useAvatars, useProjectStyle } from "@/lib/queries"
 import { cn } from "@/lib/utils"
 
 const SINGLE_MODES = MODES.filter((m) => !m.chain)
 
-/** Mode + format chip: "Текст → видео · 16:9", opens the mode list. */
-function ParamsChip({ mode, onMode }: { mode: ModeMeta; onMode: (m: ModeMeta) => void }) {
+/** Mode + format chip: "Текст → видео · 16:9", opens the mode list + format selector. */
+function ParamsChip({
+  mode,
+  aspectRatio,
+  onMode,
+  onAspectRatio,
+}: {
+  mode: ModeMeta
+  aspectRatio: AspectRatio
+  onMode: (m: ModeMeta) => void
+  onAspectRatio: (r: AspectRatio) => void
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="flex h-10 items-center gap-2 rounded-[3px] border border-line-strong bg-surface-2 px-3 text-sm transition-colors hover:border-faint aria-expanded:border-electric/60">
         <span>{mode.title}</span>
         {mode.flash && <span className="font-mono text-xs text-warn">Flash</span>}
         <span className="text-faint">·</span>
-        <span className="font-mono text-[13px]">16:9</span>
+        <span className="font-mono text-[13px]">{aspectRatio}</span>
         <ChevronDown className="size-3.5 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" side="top" sideOffset={8} className="w-72 p-1.5">
@@ -42,8 +52,63 @@ function ParamsChip({ mode, onMode }: { mode: ModeMeta; onMode: (m: ModeMeta) =>
             {m.id === mode.id && <Check className="size-4 text-electric" />}
           </DropdownMenuItem>
         ))}
+        <DropdownMenuSeparator />
+        <div className="px-2 pt-1.5 pb-1">
+          <span className="mb-1.5 block text-[11px] text-muted-foreground">Формат кадра</span>
+          <div className="flex rounded-[3px] bg-surface-2 p-[3px]">
+            {mode.aspectRatios.map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onAspectRatio(r)
+                }}
+                className={cn(
+                  "flex-1 rounded-[2px] px-2 py-1 font-mono text-xs transition-colors",
+                  aspectRatio === r ? "bg-elev font-medium text-foreground" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
+  )
+}
+
+function DurationSwitch({
+  options,
+  value,
+  onChange,
+}: {
+  options: readonly VideoDuration[]
+  value: VideoDuration
+  onChange: (d: VideoDuration) => void
+}) {
+  return (
+    <div
+      className="flex h-10 items-center rounded-[3px] border border-line-strong bg-surface-2 p-[3px]"
+      role="group"
+      aria-label="Длительность видео"
+    >
+      {options.map((d) => (
+        <button
+          key={d}
+          type="button"
+          onClick={() => onChange(d)}
+          title={`${d} сек`}
+          className={cn(
+            "h-full rounded-[2px] px-2.5 font-mono text-xs transition-colors",
+            value === d ? "bg-elev font-medium text-foreground shadow-2xs" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          {d}с
+        </button>
+      ))}
+    </div>
   )
 }
 
@@ -61,6 +126,8 @@ export function Composer({ avatarId, onAvatar }: { avatarId: string | null; onAv
   const { data: avatarList } = useAvatars()
   const picture = usePicture()
   const mode = MODE_BY_ID[draft.mode ?? "t2v"]
+  const duration = resolveDuration(mode, draft.duration)
+  const aspectRatio = resolveAspectRatio(mode, draft.aspectRatio)
   const avatar: Avatar | undefined = avatarList?.find((a) => a.id === avatarId)
 
   const attachable = !!mode.staticImage || !!mode.avatar
@@ -83,6 +150,8 @@ export function Composer({ avatarId, onAvatar }: { avatarId: string | null; onAv
         mode: mode.id,
         title: prompt.slice(0, 200),
         project_id: projectId,
+        duration,
+        aspect_ratio: aspectRatio,
         rows: [
           {
             name: "1",
@@ -218,13 +287,22 @@ export function Composer({ avatarId, onAvatar }: { avatarId: string | null; onAv
             e.target.value = ""
           }}
         />
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {mode.durations.length > 0 && duration !== null && (
+            <DurationSwitch
+              options={mode.durations}
+              value={duration}
+              onChange={(d) => setDraft({ duration: d })}
+            />
+          )}
           <ParamsChip
             mode={mode}
+            aspectRatio={aspectRatio}
             onMode={(m) => {
-              setDraft({ mode: m.id })
+              setDraft({ mode: m.id, duration: null })
               if (!(m.avatar || m.staticImage)) picture.clear()
             }}
+            onAspectRatio={(r) => setDraft({ aspectRatio: r })}
           />
           <button
             type="button"

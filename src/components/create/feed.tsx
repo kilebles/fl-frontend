@@ -8,9 +8,9 @@ import { toast } from "sonner"
 import { JobMenu } from "@/components/jobs/job-menu"
 import { Lightbox } from "@/components/jobs/lightbox"
 import type { RowResult } from "@/components/jobs/result-card"
-import { api, isFinished, isSingle, type JobFile, type JobStatus } from "@/lib/api"
+import { api, isFinished, isSingle, type AspectRatio, type JobFile, type JobStatus, type VideoDuration } from "@/lib/api"
 import { setDraft } from "@/lib/draft"
-import { MODE_BY_ID } from "@/lib/modes"
+import { jobFormatBadge, MODE_BY_ID } from "@/lib/modes"
 import { useCurrentProject } from "@/lib/project"
 import { keys, useJobFiles, useJobs } from "@/lib/queries"
 import { cn } from "@/lib/utils"
@@ -40,12 +40,21 @@ function FeedCard({ job }: { job: JobStatus }) {
   // "Повторить" makes a fresh generation of the same prompt and removes the failed one.
   const again = useMutation({
     mutationFn: async () => {
-      await api.createJob({ mode: job.mode, title: job.title, project_id: job.project_id, rows: [result.row] })
+      await api.createJob({
+        mode: job.mode,
+        title: job.title,
+        project_id: job.project_id,
+        duration: (job.duration as VideoDuration | null) ?? null,
+        aspect_ratio: (job.aspect_ratio as AspectRatio | null) ?? null,
+        rows: [result.row],
+      })
       await api.remove(job.id)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.jobs }),
     onError: (e) => toast.error(e.message),
   })
+
+  const nonLandscape = !!job.aspect_ratio && job.aspect_ratio !== "16:9"
 
   return (
     <div className="group flex flex-col gap-2">
@@ -63,12 +72,25 @@ function FeedCard({ job }: { job: JobStatus }) {
             }}
             className="block size-full"
           >
-            <video ref={video} src={byKind.video.url} poster={byKind.image?.url ?? undefined} muted loop playsInline preload="metadata" className="size-full object-cover" />
+            <video
+              ref={video}
+              src={byKind.video.url}
+              poster={byKind.image?.url ?? undefined}
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              className={cn("size-full", nonLandscape ? "bg-black/30 object-contain" : "object-cover")}
+            />
           </button>
         ) : byKind.image?.url ? (
           <button type="button" onClick={() => final && setOpen(true)} className="block size-full">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={byKind.image.url} alt="" className={cn("size-full object-cover", !final && "opacity-50")} />
+            <img
+              src={byKind.image.url}
+              alt=""
+              className={cn("size-full", nonLandscape ? "bg-black/30 object-contain" : "object-cover", !final && "opacity-50")}
+            />
           </button>
         ) : null}
 
@@ -94,7 +116,14 @@ function FeedCard({ job }: { job: JobStatus }) {
             <div className="mt-1 flex gap-2">
               <button
                 type="button"
-                onClick={() => setDraft({ text: prompt, mode: job.mode })}
+                onClick={() =>
+                  setDraft({
+                    text: prompt,
+                    mode: job.mode,
+                    duration: (job.duration as VideoDuration | null) ?? null,
+                    aspectRatio: (job.aspect_ratio as AspectRatio | null) ?? null,
+                  })
+                }
                 className="rounded-[3px] border border-line-strong bg-surface px-3 py-1.5 text-[13px] hover:border-faint"
               >
                 Изменить промпт
@@ -119,7 +148,7 @@ function FeedCard({ job }: { job: JobStatus }) {
         <p className="min-w-0 flex-1 truncate text-sm">{prompt}</p>
         <p className="shrink-0 font-mono text-[11px] text-muted-foreground">
           {meta.title}
-          {meta.flash && " Flash"} · 16:9
+          {meta.flash && " Flash"} · {jobFormatBadge(job)}
         </p>
       </div>
       <Lightbox results={[result]} index={open ? 0 : null} onIndex={(i) => setOpen(i !== null)} />

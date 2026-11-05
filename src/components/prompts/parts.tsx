@@ -6,10 +6,10 @@ import { Check, ChevronDown, ClipboardCopy, Loader2, Rocket, X } from "lucide-re
 import { useState } from "react"
 import { toast } from "sonner"
 
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { api, promptgen, type Mode, type PgProject, type PgRow, type PgStage, type PgStageKey } from "@/lib/api"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { api, promptgen, type AspectRatio, type Mode, type PgProject, type PgRow, type PgStage, type PgStageKey, type VideoDuration } from "@/lib/api"
 import { plural } from "@/lib/format"
-import { modeLabel } from "@/lib/modes"
+import { MODE_BY_ID, modeLabel, resolveDuration } from "@/lib/modes"
 import { useCurrentProject, withStyle } from "@/lib/project"
 import { keys, useProjectStyle } from "@/lib/queries"
 import { cn } from "@/lib/utils"
@@ -137,6 +137,8 @@ export function ToProduction({ project, className }: { project: PgProject; class
   const [current] = useCurrentProject()
   const projectId = project.project_id ?? current
   const style = useProjectStyle(projectId)
+  const [duration, setDuration] = useState<VideoDuration>(8)
+  const [aspectRatio, setAspectRatio] = useState<AspectRatio>("16:9")
   const send = useMutation({
     mutationFn: async (mode: Mode) => {
       const { rows } = await promptgen.result(project.id)
@@ -144,6 +146,8 @@ export function ToProduction({ project, className }: { project: PgProject; class
         mode,
         title: project.title,
         project_id: projectId,
+        duration: resolveDuration(MODE_BY_ID[mode], duration),
+        aspect_ratio: aspectRatio,
         rows: rows.filter((r) => r.img || r.vid).map((r) => ({ name: r.number, prompt: withStyle(r.vid, style), image_prompt: withStyle(r.img, style) })),
       })
     },
@@ -159,15 +163,67 @@ export function ToProduction({ project, className }: { project: PgProject; class
         {send.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Rocket className="size-3.5" />}В производство
         <ChevronDown className="size-3.5" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" sideOffset={6} className="min-w-56 rounded-[4px] p-1">
+      <DropdownMenuContent align="end" sideOffset={6} className="min-w-64 rounded-[4px] p-1">
+        <div className="flex flex-col gap-1.5 px-2 py-1.5" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] text-muted-foreground">Длительность</span>
+            <div className="inline-flex rounded-[3px] bg-surface-2 p-[2px]">
+              {([4, 6, 8, 10] as VideoDuration[]).map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setDuration(d)}
+                  className={cn(
+                    "h-6 rounded-[2px] px-1.5 font-mono text-[11px] transition-colors",
+                    duration === d ? "bg-elev font-medium text-foreground" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {d}с
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] text-muted-foreground">Формат</span>
+            <div className="inline-flex rounded-[3px] bg-surface-2 p-[2px]">
+              {(["16:9", "9:16"] as AspectRatio[]).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setAspectRatio(r)}
+                  className={cn(
+                    "h-6 rounded-[2px] px-2 font-mono text-[11px] transition-colors",
+                    aspectRatio === r ? "bg-elev font-medium text-foreground" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <DropdownMenuSeparator />
         {project.mode === "avatar" && (
-          <DropdownMenuItem onClick={() => router.push(`/batch?prompts=${project.id}&mode=i2i2v`)} className="rounded-[3px] px-2.5 py-2">
-            {modeLabel("i2i2v")} <span className="ml-auto font-mono text-[11px] text-faint">выбрать аватар</span>
+          <DropdownMenuItem
+            onClick={() =>
+              router.push(
+                `/batch?prompts=${project.id}&mode=i2i2v&duration=${resolveDuration(MODE_BY_ID.i2i2v, duration)}&aspect=${encodeURIComponent(aspectRatio)}`
+              )
+            }
+            className="rounded-[3px] px-2.5 py-2"
+          >
+            {modeLabel("i2i2v")}{" "}
+            <span className="ml-auto font-mono text-[11px] text-faint">
+              {resolveDuration(MODE_BY_ID.i2i2v, duration)}с · выбрать аватар
+            </span>
           </DropdownMenuItem>
         )}
         {DIRECT.map((mode) => (
           <DropdownMenuItem key={mode} onClick={() => send.mutate(mode)} className="rounded-[3px] px-2.5 py-2">
             {modeLabel(mode)}
+            <span className="ml-auto font-mono text-[11px] text-faint">
+              {resolveDuration(MODE_BY_ID[mode], duration)}с · {aspectRatio}
+            </span>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

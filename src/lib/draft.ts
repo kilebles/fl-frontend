@@ -2,15 +2,17 @@
 
 import { useSyncExternalStore } from "react"
 
-import type { Mode } from "@/lib/api"
+import type { AspectRatio, Mode, VideoDuration } from "@/lib/api"
 
-/** The composer's text and mode, shared so a feed card can put a prompt back into it. */
+/** The composer's text, mode, duration, and aspect ratio, shared so a feed card can put a prompt back into it. */
 interface Draft {
   text: string
   mode: Mode | null
+  duration: VideoDuration | null
+  aspectRatio: AspectRatio | null
 }
 
-let draft: Draft = { text: "", mode: null }
+let draft: Draft = { text: "", mode: null, duration: null, aspectRatio: null }
 const listeners = new Set<() => void>()
 
 export function setDraft(next: Partial<Draft>) {

@@ -10,9 +10,9 @@ import { Dropzone } from "@/components/create/dropzone"
 import { lines, usePicture } from "@/components/create/form-parts"
 import { Select } from "@/components/prompts/select"
 import { usePgProjects } from "@/components/prompts/queries"
-import { api, promptgen, type JobRow } from "@/lib/api"
+import { api, promptgen, type AspectRatio, type JobRow, type VideoDuration } from "@/lib/api"
 import { plural } from "@/lib/format"
-import { MODES, type ModeMeta } from "@/lib/modes"
+import { MODES, resolveAspectRatio, resolveDuration, type ModeMeta } from "@/lib/modes"
 import { useCurrentProject, withStyle } from "@/lib/project"
 import { keys, useAvatars, useProjectStyle } from "@/lib/queries"
 import { cn } from "@/lib/utils"
@@ -55,11 +55,15 @@ export function BatchForm() {
   const [runId, setRunId] = useState<string | null>(null)
   const [kind, setKind] = useState<Kind>("video")
   const [modeId, setModeId] = useState<ModeMeta["id"]>("t2v")
+  const [duration, setDuration] = useState<VideoDuration | null>(null)
+  const [aspectRatio, setAspectRatio] = useState<AspectRatio>("16:9")
   const [avatarId, setAvatarId] = useState<string | null>(null)
   const still = usePicture()
 
   const modes = MODES.filter((m) => (kind === "video" ? m.makesVideos : !m.makesVideos))
   const mode = modes.find((m) => m.id === modeId) ?? modes[0]
+  const effectiveDuration = resolveDuration(mode, duration)
+  const effectiveAspect = resolveAspectRatio(mode, aspectRatio)
   const avatar = avatarList?.find((a) => a.id === avatarId)
   const doneRuns = (promptProjects ?? []).filter((r) => r.status === "done")
 
@@ -68,6 +72,8 @@ export function BatchForm() {
     const q = new URLSearchParams(window.location.search)
     const from = q.get("prompts")
     const m = q.get("mode")
+    const durParam = Number(q.get("duration") || 0)
+    const aspectParam = q.get("aspect")
     if (!from) return
     const t = setTimeout(() => {
       setSource("template")
@@ -76,6 +82,12 @@ export function BatchForm() {
       if (meta) {
         setKind(meta.makesVideos ? "video" : "image")
         setModeId(meta.id)
+      }
+      if (durParam === 4 || durParam === 6 || durParam === 8 || durParam === 10) {
+        setDuration(durParam)
+      }
+      if (aspectParam === "16:9" || aspectParam === "9:16" || aspectParam === "1:1") {
+        setAspectRatio(aspectParam)
       }
     }, 0)
     return () => clearTimeout(t)
@@ -120,6 +132,8 @@ export function BatchForm() {
         title: title.trim() || run?.title || mode.title,
         project_id: projectId,
         strategy: mode.chain ? "sequential" : "parallel",
+        duration: effectiveDuration,
+        aspect_ratio: effectiveAspect,
         avatar: mode.avatar ? avatar?.image_keys[0] : null,
         avatar_keys: mode.avatar && avatar?.image_keys.length ? avatar.image_keys : null,
         static_image: useStill ? still.picture!.key : null,
@@ -243,6 +257,27 @@ export function BatchForm() {
             </button>
           ))}
         </div>
+        {mode.durations.length > 0 && effectiveDuration !== null && (
+          <div>
+            <Label>Длительность ролика</Label>
+            <Tabs
+              value={String(effectiveDuration)}
+              onChange={(v) => setDuration(Number(v) as VideoDuration)}
+              options={mode.durations.map((d) => [String(d), `${d} с`] as [string, string])}
+            />
+          </div>
+        )}
+        <div>
+          <Label>Формат кадра</Label>
+          <Tabs
+            value={effectiveAspect}
+            onChange={setAspectRatio}
+            options={mode.aspectRatios.map(
+              (r) =>
+                [r, r === "16:9" ? "16:9 Горизонт." : r === "9:16" ? "9:16 Вертик." : "1:1 Квадрат"] as [AspectRatio, string]
+            )}
+          />
+        </div>
         {mode.avatar && (
           <Select
             label="Аватар"
@@ -305,7 +340,12 @@ export function BatchForm() {
         {submit.isPending && <Loader2 className="size-4 animate-spin" />}
         Запустить пакет{count ? `: ${count}` : ""}
       </button>
-      {count > 0 && <p className="-mt-3 text-center text-xs text-faint">{plural(count, "строка", "строки", "строк")} · 16:9</p>}
+      {count > 0 && (
+        <p className="-mt-3 text-center text-xs text-faint">
+          {plural(count, "строка", "строки", "строк")} · {effectiveDuration ? `${effectiveDuration} с · ` : ""}
+          {effectiveAspect}
+        </p>
+      )}
     </section>
   )
 }

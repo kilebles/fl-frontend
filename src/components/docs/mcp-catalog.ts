@@ -269,7 +269,8 @@ export const MCP_TOOLS: McpToolItem[] = [
     name: "list_generation_modes",
     category: "jobs",
     mode: "read",
-    summary: "Список режимов генерации (t2v, flash_t2v, img, i2v, flash_i2v, i2i2v, f2v) и их входных параметров.",
+    summary:
+      "Список режимов генерации (t2v, flash_t2v, img, i2v, flash_i2v, i2i2v, f2v), доступных длительностей (4 / 6 / 8 / 10 с) и форматов (16:9 / 9:16 / 1:1).",
   },
   {
     name: "list_jobs",
@@ -283,7 +284,7 @@ export const MCP_TOOLS: McpToolItem[] = [
     category: "jobs",
     mode: "read",
     args: "job_id, include_rows?, include_files?",
-    summary: "Детальный прогресс задачи, позиция в очереди, строки промптов и ссылки на готовые файлы.",
+    summary: "Детальный прогресс задачи, длительность/формат, позиция в очереди, строки промптов и ссылки на готовые файлы.",
   },
   {
     name: "upload_input_image",
@@ -296,8 +297,9 @@ export const MCP_TOOLS: McpToolItem[] = [
     name: "submit_generation_job",
     category: "jobs",
     mode: "write",
-    args: "mode, rows? | prompts? | xlsx_path?, title?, project_id?, avatar_id?",
-    summary: "Постановка новой одиночной или пакетной генерации в очередь (с автоподстановкой стиля проекта и аватара).",
+    args: "mode, rows? | prompts? | xlsx_path?, duration?, aspect_ratio?, title?, project_id?, avatar_id?",
+    summary:
+      "Постановка новой одиночной или пакетной генерации в очередь с выбором длительности (4 / 6 / 8 / 10 с), формата (16:9 / 9:16 / 1:1), автоподстановкой стиля проекта и аватара.",
   },
   {
     name: "control_job",
@@ -366,7 +368,35 @@ export const MCP_TOOLS: McpToolItem[] = [
     category: "projects",
     mode: "write",
     args: "name?, description?, image_paths?, image_keys?, avatar_id?",
-    summary: "Создание или обновление персонажа для консистентной генерации i2i2v.",
+    summary: "Создание или обновление персонажа (с канонической 360°-сортировкой ракурсов для i2i2v).",
+  },
+  {
+    name: "analyze_avatar_reference",
+    category: "projects",
+    mode: "read",
+    args: "image_key",
+    summary: "Vision-анализ главного референса аватара: определение типа кадра и списка ракурсов для 360°-паспорта.",
+  },
+  {
+    name: "order_avatar_references",
+    category: "projects",
+    mode: "read",
+    args: "image_keys, primary_key?",
+    summary: "Каноническая расстановка референсов персонажа (главный → крупный портрет → 3/4 → в полный рост).",
+  },
+  {
+    name: "generate_avatar_angles",
+    category: "projects",
+    mode: "write",
+    args: "avatar_id, count?, custom_prompt?",
+    summary: "Запуск фоновой 360°-достройки недостающих ракурсов паспорта персонажа через Google Flow.",
+  },
+  {
+    name: "cancel_avatar_angles",
+    category: "projects",
+    mode: "write",
+    args: "avatar_id",
+    summary: "Остановка активной генерации дополнительных ракурсов аватара.",
   },
   {
     name: "delete_avatar",
@@ -478,8 +508,8 @@ export const MCP_TOOLS: McpToolItem[] = [
     name: "handoff_prompts_to_job",
     category: "prompts",
     mode: "write",
-    args: "prompt_run_id, mode?, project_id?, avatar_id?, max_rows?",
-    summary: "Бесшовная передача готовых промптов напрямую в очередь видеогенерации.",
+    args: "prompt_run_id, mode?, duration?, aspect_ratio?, project_id?, avatar_id?, max_rows?",
+    summary: "Бесшовная передача готовых промптов напрямую в очередь видеогенерации с выбором длительности и формата.",
   },
 
   // Графика / Инфографика (4)
@@ -603,7 +633,8 @@ export const MCP_RESOURCES: McpResourceItem[] = [
   {
     uri: "fl://modes",
     title: "Спецификация режимов генерации",
-    summary: "JSON-таблица всех режимов (t2v, flash_t2v, img, i2v, flash_i2v, i2i2v, f2v) и требований к промптам.",
+    summary:
+      "JSON-таблица всех режимов (t2v, flash_t2v, img, i2v, flash_i2v, i2i2v, f2v), поддерживаемых длительностей (4 / 6 / 8 / 10 с), форматов и требований к промптам.",
   },
   {
     uri: "fl://pipeline",

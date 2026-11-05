@@ -11,7 +11,7 @@ import { ResultCard, type RowResult } from "@/components/jobs/result-card"
 import { StateBadge } from "@/components/jobs/state"
 import { isFinished, type JobFile } from "@/lib/api"
 import { jobTitle, percent, timeAgo } from "@/lib/format"
-import { MODE_BY_ID, modeLabel } from "@/lib/modes"
+import { jobFormatBadge, MODE_BY_ID, modeLabel } from "@/lib/modes"
 import { useJob, useJobActions, useJobFiles } from "@/lib/queries"
 import { cn } from "@/lib/utils"
 
@@ -88,6 +88,9 @@ export function JobView({ id }: { id: string }) {
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <StateBadge state={job.state} />
             <span className="inline-flex h-7 items-center rounded-full border border-line-strong px-3 text-xs text-muted-foreground">{modeLabel(job.mode)}</span>
+            <span className="inline-flex h-7 items-center rounded-full border border-line-strong px-3 font-mono text-xs text-muted-foreground">
+              {jobFormatBadge(job)}
+            </span>
             {job.position !== null && job.position > 0 && <span className="text-xs text-faint">#{job.position} в очереди</span>}
           </div>
           <h1 className="truncate text-2xl font-semibold tracking-tight">{jobTitle(job)}</h1>

@@ -595,7 +595,18 @@ export interface Project {
   created_at: string
 }
 
-export type AvatarAngleId = "front" | "three_quarter" | "profile" | "full_body"
+export type AvatarAngleId = "front" | "three_quarter" | "profile" | "back" | "full_body"
+export type AvatarRefFraming = "close_up" | "medium" | "full_body" | "turnaround_sheet"
+export type AvatarRefAngle = "front" | "three_quarter" | "profile" | "back"
+
+export interface AvatarRefAnalysis {
+  key: string
+  detected: boolean
+  framing: AvatarRefFraming
+  angle: AvatarRefAngle
+  summary_ru: string
+  recommended_angles: AvatarAngleId[]
+}
 
 export interface Avatar {
   id: string
@@ -630,6 +641,8 @@ export const avatars = {
     style?: string
     project_id?: string | null
   }) => request<Avatar>("/api/avatars/generate", json("POST", body)),
+  analyzeReference: (key: string) =>
+    request<AvatarRefAnalysis>("/api/avatars/analyze-reference", json("POST", { key })),
   buildAngles: (
     id: string,
     body?: { angles?: AvatarAngleId[]; style?: string; project_id?: string | null }

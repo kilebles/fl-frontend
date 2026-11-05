@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { ChevronLeft, ChevronRight, Download, Loader2, Maximize2, Orbit, Plus, Square, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
 
@@ -17,16 +17,19 @@ interface Reference {
   url: string
 }
 
-const STUDIO_ANGLES: { id: AvatarAngleId; badge: string; short: string; hint: string }[] = [
+const ALL_STUDIO_ANGLES: { id: AvatarAngleId; badge: string; short: string; hint: string; refOnly?: boolean }[] = [
+  { id: "front", badge: "0°", short: "Крупно", hint: "Крупный портрет анфас (резкие черты лица)", refOnly: true },
   { id: "three_quarter", badge: "45°", short: "Полуоборот", hint: "Портрет 3/4" },
   { id: "profile", badge: "90°", short: "Профиль", hint: "Строгий профиль сбоку" },
-  { id: "full_body", badge: "0°/180°", short: "В рост", hint: "Спереди и со спины" },
+  { id: "back", badge: "180°", short: "Спина", hint: "Вид со спины в полный рост (без дубля анфаса)" },
+  { id: "full_body", badge: "0°/180°", short: "В рост", hint: "В полный рост спереди и со спины" },
 ]
 
 const ANGLE_BADGE: Record<AvatarAngleId, { badge: string; short: string }> = {
   front: { badge: "0°", short: "Анфас" },
   three_quarter: { badge: "45°", short: "3/4" },
   profile: { badge: "90°", short: "Профиль" },
+  back: { badge: "180°", short: "Спина" },
   full_body: { badge: "0°/180°", short: "В рост" },
 }
 
@@ -162,12 +165,53 @@ function Editor({ avatar, onSaved, onDeleted }: { avatar: Avatar | null; onSaved
 
   const uploading = refs.some((r) => !r.key)
   const readyRefs = refs.filter((r) => !!r.key)
+  const primaryKey = readyRefs[0]?.key ?? null
   const packActive = !!avatar?.pack_job_id
   const pendingTiles = packActive ? (avatar?.pack_angles ?? []).slice(0, Math.max(0, 8 - refs.length)) : []
   const baseLabel = name.trim() || avatar?.name || "avatar"
 
+  const [prevPrimaryKey, setPrevPrimaryKey] = useState<string | null>(primaryKey)
+  const [appliedKey, setAppliedKey] = useState<string | null>(null)
+  const [manualKey, setManualKey] = useState<string | null>(null)
+
+  if (primaryKey !== prevPrimaryKey) {
+    setPrevPrimaryKey(primaryKey)
+    if (!primaryKey) {
+      setSelectedAngles((prev) => {
+        const withoutFront = prev.filter((a) => a !== "front")
+        return withoutFront.length > 0 ? withoutFront : ["three_quarter", "profile", "full_body"]
+      })
+    }
+  }
+
+  const analysisQuery = useQuery({
+    queryKey: ["avatar-ref-analysis", primaryKey],
+    queryFn: () => avatars.analyzeReference(primaryKey!),
+    enabled: !!primaryKey && !packActive && readyRefs.length < 4,
+    staleTime: Infinity,
+    gcTime: 30 * 60_000,
+    retry: false,
+  })
+
+  const analysis = primaryKey && analysisQuery.data?.key === primaryKey ? analysisQuery.data : null
+  if (analysis && appliedKey !== analysis.key) {
+    setAppliedKey(analysis.key)
+    if (manualKey !== analysis.key && analysis.recommended_angles.length > 0) {
+      setSelectedAngles(analysis.recommended_angles)
+    }
+  }
+
+  const studioAngles = readyRefs.length > 0 ? ALL_STUDIO_ANGLES : ALL_STUDIO_ANGLES.filter((a) => !a.refOnly)
+
   const toggleAngle = (id: AvatarAngleId) => {
+    if (primaryKey) setManualKey(primaryKey)
     setSelectedAngles((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  }
+
+  const resetAutoAngles = () => {
+    if (!analysis) return
+    setManualKey(null)
+    setSelectedAngles(analysis.recommended_angles)
   }
 
   const handleDownloadAll = async () => {
@@ -280,6 +324,7 @@ function Editor({ avatar, onSaved, onDeleted }: { avatar: Avatar | null; onSaved
 
   const studioDisabled =
     uploading ||
+    analysisQuery.isFetching ||
     runStudio.isPending ||
     (readyRefs.length > 0
       ? selectedAngles.length === 0 || readyRefs.length >= 8
@@ -501,8 +546,35 @@ function Editor({ avatar, onSaved, onDeleted }: { avatar: Avatar | null; onSaved
           </span>
         </div>
 
+        {readyRefs.length > 0 && readyRefs.length < 4 && !packActive && (
+          <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+            {analysisQuery.isFetching ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Loader2 className="size-3 animate-spin text-pick-text" />
+                Определяем план и ракурс фото…
+              </span>
+            ) : analysis?.detected ? (
+              <>
+                <span className="min-w-0 truncate">
+                  Исходник: <span className="text-foreground">{analysis.summary_ru}</span> — без дублей
+                </span>
+                {manualKey === primaryKey && (
+                  <button
+                    type="button"
+                    onClick={resetAutoAngles}
+                    className="shrink-0 font-mono text-[11px] text-electric hover:underline"
+                    title="Вернуть автовыбор ракурсов по главному фото"
+                  >
+                    Авто
+                  </button>
+                )}
+              </>
+            ) : null}
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-1.5">
-          {STUDIO_ANGLES.map((angle) => {
+          {studioAngles.map((angle) => {
             const active = selectedAngles.includes(angle.id)
             return (
               <button

@@ -656,6 +656,18 @@ export const avatars = {
     if (API_TOKEN) qs.set("token", API_TOKEN)
     return `${apiBase()}/api/uploads/download?${qs.toString()}`
   },
+  zipUrl: (opts: { id?: string; keys?: string[]; name?: string }) => {
+    const qs = new URLSearchParams()
+    if (opts.keys?.length) {
+      for (const k of opts.keys) qs.append("key", k)
+      if (opts.name?.trim()) qs.set("name", opts.name.trim())
+      if (API_TOKEN) qs.set("token", API_TOKEN)
+      return `${apiBase()}/api/uploads/zip?${qs.toString()}`
+    }
+    if (API_TOKEN) qs.set("token", API_TOKEN)
+    const suffix = qs.toString()
+    return `${apiBase()}/api/avatars/${encodeURIComponent(opts.id ?? "")}/zip${suffix ? `?${suffix}` : ""}`
+  },
 }
 
 // Voice & Translation API (fl-voice_translator + Fish S2.1 / Drama 3)

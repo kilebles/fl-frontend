@@ -117,7 +117,7 @@ export function BatchForm() {
       return api.createJob({
         mode: mode.id,
         rows: useStill ? jobRows.map((r) => ({ ...r, image_prompt: null })) : jobRows,
-        title: title.trim() || run?.title || null,
+        title: title.trim() || run?.title || mode.title,
         project_id: projectId,
         strategy: mode.chain ? "sequential" : "parallel",
         avatar: mode.avatar ? avatar?.image_keys[0] : null,

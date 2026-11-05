@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ChevronLeft, ChevronRight, Download, Loader2, Maximize2, Orbit, Plus, Square, Trash2, X } from "lucide-react"
+import { Archive, Check, ChevronLeft, ChevronRight, Download, Loader2, Maximize2, Orbit, Plus, Square, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { PageHeader } from "@/components/shell/page-header"
@@ -214,16 +214,10 @@ function Editor({ avatar, onSaved, onDeleted }: { avatar: Avatar | null; onSaved
     setSelectedAngles(analysis.recommended_angles)
   }
 
-  const handleDownloadAll = async () => {
-    for (let i = 0; i < refs.length; i++) {
-      const label = refs.length > 1 ? `${baseLabel} - ${i + 1}` : baseLabel
-      const iframe = document.createElement("iframe")
-      iframe.style.display = "none"
-      iframe.src = refDownloadHref(refs[i], label)
-      document.body.appendChild(iframe)
-      setTimeout(() => iframe.remove(), 30000)
-      if (i < refs.length - 1) await new Promise((r) => setTimeout(r, 350))
-    }
+  const [showExtraAngles, setShowExtraAngles] = useState(false)
+  const passportComplete = readyRefs.length >= 4 && !packActive
+  if (!passportComplete && showExtraAngles) {
+    setShowExtraAngles(false)
   }
 
   const add = async (files: FileList | null) => {
@@ -250,6 +244,7 @@ function Editor({ avatar, onSaved, onDeleted }: { avatar: Avatar | null; onSaved
       return avatar ? avatars.update(avatar.id, body) : avatars.create(body)
     },
     onSuccess: (a) => {
+      setShowExtraAngles(false)
       setPrevServerSig(a.image_keys.join("|"))
       qc.invalidateQueries({ queryKey: keys.avatars })
       toast.success("Аватар сохранён")
@@ -289,6 +284,7 @@ function Editor({ avatar, onSaved, onDeleted }: { avatar: Avatar | null; onSaved
       })
     },
     onSuccess: (a) => {
+      setShowExtraAngles(false)
       setPrevServerSig(a.image_keys.join("|"))
       qc.invalidateQueries({ queryKey: keys.avatars })
       qc.invalidateQueries({ queryKey: keys.jobs })
@@ -388,15 +384,15 @@ function Editor({ avatar, onSaved, onDeleted }: { avatar: Avatar | null; onSaved
                 <Download className="size-3.5" />
                 Скачать аватар
               </a>
-              {refs.length > 1 && (
-                <button
-                  type="button"
-                  onClick={handleDownloadAll}
+              {readyRefs.length > 1 && (
+                <a
+                  href={avatars.zipUrl({ keys: readyRefs.map((r) => r.key!), name: baseLabel })}
                   className="inline-flex h-8 items-center gap-1.5 rounded-[3px] border border-line-strong px-2.5 text-xs text-muted-foreground transition-colors hover:border-faint hover:text-foreground"
-                  title="Скачать все референсы аватара"
+                  title="Скачать все референсы аватара одним .zip архивом"
                 >
-                  Все ({refs.length})
-                </button>
+                  <Archive className="size-3.5" />
+                  Все ({readyRefs.length}) .zip
+                </a>
               )}
             </div>
           )}
@@ -535,107 +531,141 @@ function Editor({ avatar, onSaved, onDeleted }: { avatar: Avatar | null; onSaved
         />
       </label>
 
-      <div className="flex flex-col gap-2.5 rounded-[3px] border border-line-strong bg-surface-2 p-3.5">
-        <div className="flex items-center justify-between gap-2">
-          <span className="flex items-center gap-1.5 text-[13px] font-medium text-foreground">
-            <Orbit className="size-3.5 text-electric" />
-            Паспорт ракурсов 360°
+      {passportComplete && !showExtraAngles ? (
+        <div className="flex items-center justify-between gap-2 rounded-[3px] border border-line bg-surface-2/60 px-3.5 py-2.5">
+          <span className="flex items-center gap-2 text-[13px] text-foreground-2">
+            <Check className="size-3.5 text-ok" />
+            Паспорт 360° готов
           </span>
-          <span className="font-mono text-[11px] text-muted-foreground">
-            {readyRefs.length > 0 ? "по главному фото" : "с нуля по описанию"}
-          </span>
+          <div className="flex items-center gap-2.5">
+            <span className="font-mono text-[11px] text-muted-foreground">4/4 в Flow</span>
+            {readyRefs.length < 8 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedAngles([])
+                  setShowExtraAngles(true)
+                }}
+                className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+              >
+                + ракурс
+              </button>
+            )}
+          </div>
         </div>
-
-        {readyRefs.length > 0 && readyRefs.length < 4 && !packActive && (
-          <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-            {analysisQuery.isFetching ? (
-              <span className="inline-flex items-center gap-1.5">
-                <Loader2 className="size-3 animate-spin text-pick-text" />
-                Определяем план и ракурс фото…
+      ) : (
+        <div className="flex flex-col gap-2.5 rounded-[3px] border border-line-strong bg-surface-2 p-3.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-1.5 text-[13px] font-medium text-foreground">
+              <Orbit className="size-3.5 text-electric" />
+              Паспорт ракурсов 360°
+            </span>
+            {passportComplete ? (
+              <button
+                type="button"
+                onClick={() => setShowExtraAngles(false)}
+                className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Скрыть
+              </button>
+            ) : (
+              <span className="font-mono text-[11px] text-muted-foreground">
+                {readyRefs.length > 0 ? "по главному фото" : "с нуля по описанию"}
               </span>
-            ) : analysis?.detected ? (
-              <>
-                <span className="min-w-0 truncate">
-                  Исходник: <span className="text-foreground">{analysis.summary_ru}</span> — без дублей
+            )}
+          </div>
+
+          {readyRefs.length > 0 && readyRefs.length < 4 && !packActive && (
+            <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+              {analysisQuery.isFetching ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <Loader2 className="size-3 animate-spin text-pick-text" />
+                  Определяем план и ракурс фото…
                 </span>
-                {manualKey === primaryKey && (
-                  <button
-                    type="button"
-                    onClick={resetAutoAngles}
-                    className="shrink-0 font-mono text-[11px] text-electric hover:underline"
-                    title="Вернуть автовыбор ракурсов по главному фото"
-                  >
-                    Авто
-                  </button>
-                )}
-              </>
-            ) : null}
-          </div>
-        )}
+              ) : analysis?.detected ? (
+                <>
+                  <span className="min-w-0 truncate">
+                    Исходник: <span className="text-foreground">{analysis.summary_ru}</span> — без дублей
+                  </span>
+                  {manualKey === primaryKey && (
+                    <button
+                      type="button"
+                      onClick={resetAutoAngles}
+                      className="shrink-0 font-mono text-[11px] text-electric hover:underline"
+                      title="Вернуть автовыбор ракурсов по главному фото"
+                    >
+                      Авто
+                    </button>
+                  )}
+                </>
+              ) : null}
+            </div>
+          )}
 
-        <div className="flex flex-wrap gap-1.5">
-          {studioAngles.map((angle) => {
-            const active = selectedAngles.includes(angle.id)
-            return (
-              <button
-                key={angle.id}
-                type="button"
-                disabled={packActive}
-                onClick={() => toggleAngle(angle.id)}
-                title={angle.hint}
-                className={cn(
-                  "inline-flex h-7 items-center gap-1 rounded-[2px] border px-2 text-xs transition-colors disabled:opacity-60",
-                  active
-                    ? "border-pick/60 bg-pick-soft text-pick-text"
-                    : "border-line-strong bg-surface text-muted-foreground hover:border-faint hover:text-foreground"
-                )}
-              >
-                <span className="font-mono text-[10px] opacity-80">{angle.badge}</span>
-                <span>{angle.short}</span>
-              </button>
-            )
-          })}
+          <div className="flex flex-wrap gap-1.5">
+            {studioAngles.map((angle) => {
+              const active = selectedAngles.includes(angle.id)
+              return (
+                <button
+                  key={angle.id}
+                  type="button"
+                  disabled={packActive}
+                  onClick={() => toggleAngle(angle.id)}
+                  title={angle.hint}
+                  className={cn(
+                    "inline-flex h-7 items-center gap-1 rounded-[2px] border px-2 text-xs transition-colors disabled:opacity-60",
+                    active
+                      ? "border-pick/60 bg-pick-soft text-pick-text"
+                      : "border-line-strong bg-surface text-muted-foreground hover:border-faint hover:text-foreground"
+                  )}
+                >
+                  <span className="font-mono text-[10px] opacity-80">{angle.badge}</span>
+                  <span>{angle.short}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          {packActive ? (
+            <div className="flex flex-col gap-2 pt-0.5">
+              <div className="h-1.5 w-full overflow-hidden rounded-[2px] bg-elev">
+                <div
+                  className="bar-running h-full transition-all duration-300"
+                  style={{ width: `${Math.max(12, packPct)}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {avatar?.pack_stage === "base"
+                    ? "Шаг 1/2: генерируем базовый анфас 0°…"
+                    : `Готово ракурсов: ${packDone} из ${packTotal}`}
+                </span>
+                <button
+                  type="button"
+                  disabled={cancelStudio.isPending}
+                  onClick={() => cancelStudio.mutate()}
+                  className="inline-flex h-7 items-center gap-1 rounded-[2px] border border-line-strong bg-surface px-2 text-xs text-muted-foreground transition-colors hover:border-danger/50 hover:text-danger"
+                >
+                  <Square className="size-2.5 fill-current" />
+                  Стоп
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={studioDisabled}
+              onClick={() => runStudio.mutate()}
+              className="flex h-9 items-center justify-center gap-2 rounded-[3px] border border-electric/45 bg-electric-soft px-3 text-xs font-medium text-electric-text transition-colors hover:border-electric disabled:opacity-40"
+            >
+              {runStudio.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Orbit className="size-3.5" />}
+              {readyRefs.length > 0
+                ? `Достроить ракурсы 360° (+${Math.min(selectedAngles.length, Math.max(0, 8 - readyRefs.length))})`
+                : `Создать по описанию (анфас 0° + ${selectedAngles.length} рак.)`}
+            </button>
+          )}
         </div>
-
-        {packActive ? (
-          <div className="flex flex-col gap-2 pt-0.5">
-            <div className="h-1.5 w-full overflow-hidden rounded-[2px] bg-elev">
-              <div
-                className="bar-running h-full transition-all duration-300"
-                style={{ width: `${Math.max(12, packPct)}%` }}
-              />
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs text-muted-foreground">
-                {avatar?.pack_stage === "base"
-                  ? "Шаг 1/2: генерируем базовый анфас 0°…"
-                  : `Готово ракурсов: ${packDone} из ${packTotal}`}
-              </span>
-              <button
-                type="button"
-                disabled={cancelStudio.isPending}
-                onClick={() => cancelStudio.mutate()}
-                className="inline-flex h-7 items-center gap-1 rounded-[2px] border border-line-strong bg-surface px-2 text-xs text-muted-foreground transition-colors hover:border-danger/50 hover:text-danger"
-              >
-                <Square className="size-2.5 fill-current" />
-                Стоп
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button
-            type="button"
-            disabled={studioDisabled}
-            onClick={() => runStudio.mutate()}
-            className="flex h-9 items-center justify-center gap-2 rounded-[3px] border border-electric/45 bg-electric-soft px-3 text-xs font-medium text-electric-text transition-colors hover:border-electric disabled:opacity-40"
-          >
-            {runStudio.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Orbit className="size-3.5" />}
-            {readyRefs.length > 0
-              ? `Достроить ракурсы 360° (+${Math.min(selectedAngles.length, Math.max(0, 8 - readyRefs.length))})`
-              : `Создать по описанию (анфас 0° + ${selectedAngles.length} рак.)`}
-          </button>
-        )}
-      </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
         {avatar && readyRefs.length > 0 && (
@@ -803,12 +833,16 @@ export function AvatarsView() {
                   )}
                   {a.image_keys[0] && (
                     <a
-                      href={avatars.downloadUrl(a.image_keys[0], a.name)}
+                      href={
+                        a.image_keys.length > 1
+                          ? avatars.zipUrl({ id: a.id, name: a.name })
+                          : avatars.downloadUrl(a.image_keys[0], a.name)
+                      }
                       className="absolute top-2 right-2 grid size-8 place-items-center rounded-[3px] bg-black/65 text-white opacity-0 backdrop-blur-xs transition-opacity group-hover:opacity-100 hover:bg-black/85"
                       aria-label={`Скачать аватар ${a.name}`}
-                      title="Скачать аватар"
+                      title={a.image_keys.length > 1 ? "Скачать все ракурсы (.zip)" : "Скачать аватар"}
                     >
-                      <Download className="size-3.5" />
+                      {a.image_keys.length > 1 ? <Archive className="size-3.5" /> : <Download className="size-3.5" />}
                     </a>
                   )}
                 </div>

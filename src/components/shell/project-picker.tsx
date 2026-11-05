@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { Check, ChevronDown, Plus } from "lucide-react"
+import { Check, ChevronDown, Plus, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -35,6 +35,16 @@ export function ProjectPicker({ className }: { className?: string }) {
     onError: (e) => toast.error(e.message),
   })
 
+  const remove = useMutation({
+    mutationFn: (id: string) => projects.remove(id),
+    onSuccess: (_, id) => {
+      if (current === id) setCurrent(null)
+      qc.invalidateQueries({ queryKey: keys.projects })
+      toast("Проект удалён")
+    },
+    onError: (e) => toast.error(e.message),
+  })
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -55,9 +65,23 @@ export function ProjectPicker({ className }: { className?: string }) {
           {!current && <Check className="size-4 text-electric" />}
         </DropdownMenuItem>
         {list?.map((p) => (
-          <DropdownMenuItem key={p.id} onClick={() => setCurrent(p.id)} className="rounded-[3px] px-2.5 py-2">
+          <DropdownMenuItem key={p.id} onClick={() => setCurrent(p.id)} className="group rounded-[3px] px-2.5 py-2">
             <span className="flex-1 truncate">{p.title}</span>
-            {p.id === current && <Check className="size-4 text-electric" />}
+            {p.id === current && <Check className="size-4 shrink-0 text-electric" />}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                if (confirm(`Удалить проект «${p.title}»? Генерации останутся во «Всех генерациях».`)) {
+                  remove.mutate(p.id)
+                }
+              }}
+              className="grid size-6 shrink-0 place-items-center rounded-[2px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-danger/10 hover:text-danger"
+              aria-label={`Удалить проект ${p.title}`}
+              title="Удалить проект"
+            >
+              <Trash2 className="size-3.5" />
+            </button>
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />

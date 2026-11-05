@@ -2,9 +2,9 @@
 
 import { useMemo, useRef, useState } from "react"
 import Link from "next/link"
-import { AlertTriangle, ExternalLink, Pause, Play } from "lucide-react"
+import { AlertTriangle, ExternalLink, Pause, Play, Trash2 } from "lucide-react"
 
-import { DownloadZipButton } from "@/components/jobs/job-menu"
+import { DownloadZipButton, JobMenu } from "@/components/jobs/job-menu"
 import { Lightbox } from "@/components/jobs/lightbox"
 import type { RowResult } from "@/components/jobs/result-card"
 import { isFinished, isSingle, type JobFile, type JobRow, type JobStatus } from "@/lib/api"
@@ -196,6 +196,16 @@ function BatchDetail({ job }: { job: JobStatus }) {
         <Link href={`/jobs/${job.id}`} className="flex h-9 items-center gap-2 rounded-[3px] border border-line-strong px-3.5 text-sm hover:border-faint">
           <ExternalLink className="size-3.5" /> Результаты
         </Link>
+        <button
+          type="button"
+          disabled={actions.remove.isPending}
+          onClick={() => confirm("Удалить пакет вместе со всеми результатами?") && actions.remove.mutate(job.id)}
+          className="grid size-9 place-items-center rounded-[3px] border border-line-strong text-muted-foreground transition-colors hover:border-danger/50 hover:bg-danger/10 hover:text-danger disabled:opacity-40"
+          aria-label="Удалить пакет"
+          title="Удалить пакет"
+        >
+          <Trash2 className="size-4" />
+        </button>
       </div>
       <SegmentBar job={job} className="h-1.5" />
       <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-foreground-2">
@@ -309,7 +319,7 @@ export function BatchesPanel({ selected, onSelect }: { selected: string | null; 
                   onClick={() => onSelect(job.id)}
                   onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onSelect(job.id)}
                   className={cn(
-                    "grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] items-center gap-4 border-b border-l-2 border-b-line px-4 py-3.5 text-left transition-colors last:border-b-0",
+                    "grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto_auto] items-center gap-3 border-b border-l-2 border-b-line px-4 py-3 text-left transition-colors last:border-b-0",
                     on ? "border-l-electric bg-surface-2" : "border-l-transparent hover:bg-surface-2/60"
                   )}
                 >
@@ -325,6 +335,9 @@ export function BatchesPanel({ selected, onSelect }: { selected: string | null; 
                   </span>
                   <DownloadZipButton job={job} className="h-8 px-2.5 text-xs" />
                   <span className={cn("rounded-[2px] px-2 py-1 text-xs", s.tone)}>{s.label}</span>
+                  <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                    <JobMenu job={job} />
+                  </div>
                 </div>
               )
             })}

@@ -31,9 +31,18 @@ export function jobTitle(job: Pick<JobStatus, "title" | "id">): string {
 }
 
 const rtf = new Intl.RelativeTimeFormat("ru", { numeric: "auto" })
+const HAS_TZ_RE = /(?:Z|[+-]\d{2}:?\d{2})$/i
+
+export function parseUtcMs(iso: string): number {
+  const trimmed = iso.trim()
+  const normalized = HAS_TZ_RE.test(trimmed) ? trimmed : `${trimmed.replace(" ", "T")}Z`
+  return new Date(normalized).getTime()
+}
 
 export function timeAgo(iso: string, now = Date.now()): string {
-  const seconds = Math.round((new Date(iso).getTime() - now) / 1000)
+  const ts = parseUtcMs(iso)
+  if (Number.isNaN(ts)) return ""
+  const seconds = Math.round((ts - now) / 1000)
   const abs = Math.abs(seconds)
   if (abs < 45) return "только что"
   if (abs < 3600) return rtf.format(Math.round(seconds / 60), "minute")

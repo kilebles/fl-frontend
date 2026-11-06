@@ -5,7 +5,7 @@ import { useState } from "react"
 
 import { GROUPS, GROUP_COLOR, GROUP_HINT, GROUP_LABEL } from "@/components/footage/parts"
 import { useFootageOptions } from "@/components/footage/queries"
-import { BASE_CATEGORIES, CATEGORIES, CAT_BG, CAT_LABEL, SharesAside, SharesRows, clock, sharesSum } from "@/components/reels/parts"
+import { BASE_CATEGORIES, CATEGORIES, CAT_BG, CAT_LABEL, SharesAside, SharesRows, clock, savedShares, sharesSum } from "@/components/reels/parts"
 import { useReelOptions } from "@/components/reels/queries"
 import { ALL_GROUPS, EMPTY, EMPTY_FOOTAGE, type Draft, type FootageDraft, type IntroDraft } from "@/components/reels/wizard-draft"
 import { INPUT, Label, ON_BLUE, Pick, Seg } from "@/components/script/ui"
@@ -74,7 +74,7 @@ export function fromPreset(p: Partial<ReelSettings>, x: Draft): Pick<Draft, "foo
       ? {
           on: !!i.on,
           sec: i.sec || 120,
-          shares: { ...x.intro.shares, ...i.shares },
+          shares: savedShares(x.intro.shares, i.shares),
           shot: i.shot?.length === 2 ? [String(i.shot[0]), String(i.shot[1])] : ["", ""],
           minFit: i.min_fit ? String(i.min_fit) : "",
         }

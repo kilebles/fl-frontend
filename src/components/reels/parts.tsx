@@ -130,6 +130,13 @@ export function useSpent(timing: ReelTiming | undefined, updatedAt: number) {
   return { running, total, stage }
 }
 
+/** Saved shares (a draft, a niche preset) over the defaults. A category the saved set does not have (added after it
+ *  was saved, like «Инфографика») gets 0 — otherwise its default share would push the sum over 100%. */
+export const savedShares = (base: ReelShares, saved?: Partial<ReelShares> | null): ReelShares =>
+  saved && Object.keys(saved).length
+    ? { ...(Object.fromEntries(CATEGORIES.map((c) => [c, 0])) as ReelShares), ...saved }
+    : base
+
 export const sharesSum = (s: ReelShares) => CATEGORIES.reduce((a, c) => a + (Number(s[c]) || 0), 0)
 export const sameShares = (a: ReelShares, b: ReelShares) => CATEGORIES.every((c) => Math.round(a[c]) === Math.round(b[c]))
 export const roundShares = (s: ReelShares): ReelShares =>

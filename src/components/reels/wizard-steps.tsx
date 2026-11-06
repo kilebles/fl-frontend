@@ -16,6 +16,7 @@ import {
   SharesRows,
   clock,
   isRealistic,
+  savedShares,
   sharesSum,
   shotsText,
 } from "@/components/reels/parts"
@@ -118,7 +119,7 @@ export function NicheStep({ d, up }: StepProps) {
         }
         next.host = { on: !!preset.avatar?.id, id: preset.avatar?.id ?? "", name: preset.avatar?.name ?? "", voice: preset.avatar?.voice ?? "" }
         next.storyboard = {
-          shares: { ...x.storyboard.shares, ...preset.storyboard.shares },
+          shares: savedShares(x.storyboard.shares, preset.storyboard.shares),
           style: preset.storyboard.style ?? x.storyboard.style,
           notes: preset.storyboard.notes ?? "",
           engine: preset.storyboard.engine ?? "",

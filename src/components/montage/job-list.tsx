@@ -9,6 +9,7 @@ import { mkeys, useInfoJobs } from "@/components/montage/queries"
 import { ConfirmDialog, useNow } from "@/components/script/parts"
 import { montage, type InfoJob, type InfoType } from "@/lib/api"
 import { timeAgo } from "@/lib/format"
+import { useCurrentProject } from "@/lib/project"
 
 function StatusCell({ j }: { j: InfoJob }) {
   if (j.status === "done") {
@@ -114,6 +115,7 @@ function Row({ j, now, onOpen, onDelete }: { j: InfoJob; now: number | null; onO
 export function JobList({ onOpen }: { onOpen: (id: string) => void }) {
   const qc = useQueryClient()
   const { data, isLoading, error } = useInfoJobs()
+  const [projectId] = useCurrentProject()
   const now = useNow()
   const [del, setDel] = useState<InfoJob | null>(null)
   if (isLoading)
@@ -123,11 +125,12 @@ export function JobList({ onOpen }: { onOpen: (id: string) => void }) {
       </div>
     )
   if (error) return <div className="py-10 text-center text-sm text-danger">{error.message}</div>
-  if (!data?.length) return <div className="py-10 text-center text-sm text-faint">Инфографики пока нет</div>
+  const list = (data ?? []).filter((j) => !projectId || j.project_id === projectId)
+  if (!list.length) return <div className="py-10 text-center text-sm text-faint">Инфографики пока нет</div>
   return (
     <>
       <div className="overflow-hidden rounded-[4px] border border-line bg-surface">
-        {data.map((j) => (
+        {list.map((j) => (
           <Row key={j.id} j={j} now={now} onOpen={() => onOpen(j.id)} onDelete={() => setDel(j)} />
         ))}
       </div>

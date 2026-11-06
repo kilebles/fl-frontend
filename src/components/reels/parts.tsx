@@ -7,22 +7,31 @@ import { plural } from "@/lib/format"
 import type { ReelCategory, ReelShares, ReelStep, ReelStepKey, ReelTiming } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
-export const CATEGORIES: ReelCategory[] = ["ai", "video", "history", "graphics", "avatar"]
+export const CATEGORIES: ReelCategory[] = ["ai", "video", "history", "graphics", "infographics", "avatar"]
 /** Categories without the host: the host shows only when the reel has an avatar. */
-export const BASE_CATEGORIES: ReelCategory[] = ["ai", "video", "history", "graphics"]
+export const BASE_CATEGORIES: ReelCategory[] = ["ai", "video", "history", "graphics", "infographics"]
 export const CAT_LABEL: Record<ReelCategory, string> = {
   ai: "ИИ-генерации",
   video: "Подбор видео",
   history: "Исторические кадры",
   graphics: "Графика",
+  infographics: "Инфографика",
   avatar: "Ведущий",
 }
-export const CAT_SHORT: Record<ReelCategory, string> = { ai: "ИИ", video: "видео", history: "история", graphics: "графика", avatar: "ведущий" }
+export const CAT_SHORT: Record<ReelCategory, string> = {
+  ai: "ИИ",
+  video: "видео",
+  history: "история",
+  graphics: "графика",
+  infographics: "инфографика",
+  avatar: "ведущий",
+}
 export const CAT_HINT: Record<ReelCategory, string> = {
   ai: "Промпты → Генерации (Veo)",
   video: "Поиск видео: стоки, YouTube",
   history: "Поиск видео: архивы и музеи",
   graphics: "Графика: карточки",
+  infographics: "Монтаж: таймлайн, древо, таблица, график, карта, факты, схема боя",
   avatar: "говорит в кадре сам, берёт абзацы целиком",
 }
 /** One hue per category, the same in both themes (graphics is not the light theme's terracotta accent). */
@@ -31,6 +40,7 @@ export const CAT_BG: Record<ReelCategory, string> = {
   video: "bg-[#4fb3a9]",
   history: "bg-[#c9a04f]",
   graphics: "bg-[#d9658f]",
+  infographics: "bg-[#4a9be8]",
   avatar: "bg-[#e8804a]",
 }
 export const CAT_TEXT: Record<ReelCategory, string> = {
@@ -38,6 +48,7 @@ export const CAT_TEXT: Record<ReelCategory, string> = {
   video: "text-[#3e9c92]",
   history: "text-[#b08a3c]",
   graphics: "text-[#c9527c]",
+  infographics: "text-[#3a86d1]",
   avatar: "text-[#d06a35]",
 }
 
@@ -51,19 +62,27 @@ export const TYPE_LABEL: Record<string, string> = {
   portrait: "портрет",
   archive: "хроника",
   infographic: "карточка",
+  timeline: "таймлайн",
+  tree: "древо",
+  table: "таблица",
+  chart: "график",
+  map: "карта",
+  facts: "факты",
+  battle: "схема боя",
+  auto: "инфографика",
   avatar: "ведущий",
 }
 
 export const ENGINE_LABEL: Record<string, string> = { agy: "agy (Gemini)", claude: "Claude Code", fake: "тестовый", "": "" }
 
 export const PRESETS: { label: string; shares: ReelShares }[] = [
-  { label: "40 · 30 · 20 · 10", shares: { ai: 40, video: 30, history: 20, graphics: 10, avatar: 0 } },
-  { label: "30 · 30 · 30 · 10", shares: { ai: 30, video: 30, history: 30, graphics: 10, avatar: 0 } },
+  { label: "40 · 30 · 15 · 10 · 5", shares: { ai: 40, video: 30, history: 15, graphics: 10, infographics: 5, avatar: 0 } },
+  { label: "30 · 30 · 25 · 10 · 5", shares: { ai: 30, video: 30, history: 25, graphics: 10, infographics: 5, avatar: 0 } },
 ]
 /** The same mixes with the host taking 10% from AI. */
 export const HOST_PRESETS: { label: string; shares: ReelShares }[] = [
-  { label: "30 · 30 · 20 · 10 · 10", shares: { ai: 30, video: 30, history: 20, graphics: 10, avatar: 10 } },
-  { label: "20 · 30 · 30 · 10 · 10", shares: { ai: 20, video: 30, history: 30, graphics: 10, avatar: 10 } },
+  { label: "30 · 30 · 15 · 10 · 5 · 10", shares: { ai: 30, video: 30, history: 15, graphics: 10, infographics: 5, avatar: 10 } },
+  { label: "20 · 30 · 25 · 10 · 5 · 10", shares: { ai: 20, video: 30, history: 25, graphics: 10, infographics: 5, avatar: 10 } },
 ]
 
 /** Picture styles for the AI scenes; only the first two go with real footage. */
@@ -116,7 +135,7 @@ export const sameShares = (a: ReelShares, b: ReelShares) => CATEGORIES.every((c)
 export const roundShares = (s: ReelShares): ReelShares =>
   Object.fromEntries(CATEGORIES.map((c) => [c, Math.round(Number(s[c]) || 0)])) as ReelShares
 
-/** Four shares in %, step 5 by the buttons or any number typed in; they must add up to 100. */
+/** Shares in %, step 5 by the buttons or any number typed in; they must add up to 100. */
 export function SharesInput({
   value,
   onChange,
@@ -130,7 +149,7 @@ export function SharesInput({
 }) {
   const set = (c: ReelCategory, v: number) => onChange({ ...value, [c]: Math.max(0, Math.min(100, Math.round(v))) })
   return (
-    <div className={cn("grid grid-cols-2 gap-[3px] rounded-[3px] bg-surface-2 p-[3px]", cats.length > 4 ? "sm:grid-cols-5" : "sm:grid-cols-4")}>
+    <div className={cn("grid grid-cols-2 gap-[3px] rounded-[3px] bg-surface-2 p-[3px]", cats.length > 5 ? "sm:grid-cols-3 xl:grid-cols-6" : cats.length > 4 ? "sm:grid-cols-5" : "sm:grid-cols-4")}>
       {cats.map((c) => (
         <div key={c} className="flex min-w-0 flex-col gap-1.5 rounded-[2px] bg-background px-2.5 pt-2 pb-1.5" title={CAT_HINT[c]}>
           <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">

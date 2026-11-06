@@ -103,17 +103,17 @@ function MixCard({ reel, sb }: { reel: Reel; sb: ReelStoryboard }) {
           </div>
           <ul className="divide-y divide-line">
             {cats.map((c) => {
-              const d = mix.actual[c] - mix.target[c]
+              const d = (mix.actual[c] ?? 0) - (mix.target[c] ?? 0)
               return (
                 <li key={c} className="grid grid-cols-[minmax(0,1fr)_52px_52px_64px] items-center gap-2 py-2 text-xs sm:grid-cols-[minmax(0,1fr)_52px_52px_64px_76px]">
                   <span className="flex min-w-0 items-center gap-1.5 text-foreground-2">
                     <span className={cn("size-2 shrink-0 rounded-full", CAT_BG[c])} />
                     <span className="truncate">{CAT_LABEL[c]}</span>
                   </span>
-                  <span className="text-right font-mono text-faint">{mix.target[c]}%</span>
-                  <span className={cn("text-right font-mono font-medium", Math.abs(d) > mix.tolerance && "text-warn")}>{mix.actual[c]}%</span>
-                  <span className="text-right font-mono text-faint">{clock(mix.seconds[c])}</span>
-                  <span className="hidden text-right font-mono text-faint sm:block">{shotsText(mix.shots[c])}</span>
+                  <span className="text-right font-mono text-faint">{mix.target[c] ?? 0}%</span>
+                  <span className={cn("text-right font-mono font-medium", Math.abs(d) > mix.tolerance && "text-warn")}>{mix.actual[c] ?? 0}%</span>
+                  <span className="text-right font-mono text-faint">{clock(mix.seconds[c] ?? 0)}</span>
+                  <span className="hidden text-right font-mono text-faint sm:block">{shotsText(mix.shots[c] ?? 0)}</span>
                 </li>
               )
             })}

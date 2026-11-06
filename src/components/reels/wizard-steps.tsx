@@ -707,10 +707,14 @@ export function StoryboardStep({ d, up }: StepProps) {
                 type="button"
                 className="font-medium text-pick-text hover:underline"
                 onClick={() =>
-                  set({ shares: d.host.on ? { ai: 70, video: 0, history: 0, graphics: 15, avatar: 15 } : { ai: 85, video: 0, history: 0, graphics: 15, avatar: 0 } })
+                  set({
+                    shares: d.host.on
+                      ? { ai: 65, video: 0, history: 0, graphics: 10, infographics: 10, avatar: 15 }
+                      : { ai: 80, video: 0, history: 0, graphics: 10, infographics: 10, avatar: 0 },
+                  })
                 }
               >
-                Оставить {d.host.on ? "ИИ, ведущего и графику" : "ИИ и графику"}
+                Оставить {d.host.on ? "ИИ, ведущего, графику и инфографику" : "ИИ, графику и инфографику"}
               </button>
             </Note>
           )}

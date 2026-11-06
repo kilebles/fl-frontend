@@ -67,7 +67,7 @@ const TOOLS: NavItem[] = [
   { href: "/footage", label: "Поиск видео", icon: ScanSearch },
   { href: "/graphics", label: "Графика", icon: Layers },
   { href: "/music", label: "Музыка", icon: Music, dev: true },
-  { href: "/edit", label: "Монтаж", icon: Scissors, dev: true },
+  { href: "/edit", label: "Монтаж", icon: Scissors },
 ]
 const BOTTOM: NavItem[] = [
   { href: "/docs", label: "Документация", icon: Terminal, badge: "MCP" },

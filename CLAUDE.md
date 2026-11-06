@@ -19,13 +19,15 @@ src/app/            / (Генерации: вручную — feed + composer), 
                     jobs/[id]/ (batch results), avatars/, prompts/ (projects ?p=, niche templates ?tab=templates), graphics/ (+ runs/[id], motion-aign cards),
                     script/ (Сценарий: projects ?p=, niches ?tab=niches), analytics/ (topic picks ?a=), voice/,
                     footage/ (Поиск видео: projects ?p=, sources ?tab=sources), videos/ (Ролики: reels ?p=),
-                    music, edit, library, history — DevStub pages
+                    edit/ (Монтаж: «Инфографика» jobs ?j=, «Монтаж» ?tab=montage — stub for now),
+                    music, library, history — DevStub pages
 src/components/     shell/ (nav sidebar, logo, theme, project-picker, page-header + DevStub), create/ (composer, feed,
                     generations-bar, form-parts, dropzone), batch/ (batch-form, batches-panel), avatars/, prompts/,
                     infographics/, jobs/ (job page, result card, lightbox, state, menu),
                     script/ (fl-scenario: launch panel, project list/view, niches, analytics, queries + SSE, send)
                     footage/ (fl-footage: launch panel, project list/view, sources, queries + SSE)
                     reels/ (fl-reel: «Новый ролик» wizard + draft, reel list/view, storyboard + brief, materials + result, YouTube tracks, queries + SSE)
+                    montage/ (fl-montage: «Инфографика» launch panel, job list/view with previews and «Перерисовать», queries + SSE)
 src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), project.ts (current project, withStyle),
                     draft.ts (composer text shared with the feed), modes.ts, format.ts,
                     handoff.ts (finished script → «Промпты» / «Озвучка»)
@@ -39,6 +41,12 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
 - «Промпты» talk to fl-prompts at `/api/prompts/*` (Caddy → Windows :8040): niche master prompts (обычный / аватар),
   projects brief → prompts → check → done, result rows; SSE `/api/prompts/events` invalidates `["prompts", …]`.
   «Генерации пакетом» take finished prompts from there too (`/batch?prompts=<id>&mode=i2i2v`).
+- «Монтаж» talks to fl-montage at `/api/montage/*` (Caddy → Windows :8060); SSE `/api/montage/events` invalidates
+  `["montage", …]`. «Инфографика»: text or a .docx/.txt/.md file → type (auto / timeline / tree / table / chart / map /
+  facts / battle), animated (mp4) or static (png), 16:9 / 9:16, 720p / 1080p / 4K, duration, visual style (parchment /
+  cinematic / clean / chronicle), optional transparent layer; the job page previews every file (animated ones with the
+  `poster` jpg) and «Перерисовать» re-renders with another style / format / quality without the model. «Ролики» order
+  infographics there too (category `infographics`, shot `info: {type, brief}`, colour in `reels/parts.tsx`).
 - «Ролики» talk to fl-reel (the brain of the full cycle) at `/api/reels/*` (Caddy → Windows :8050); SSE `/api/reels/events`
   invalidates `["reels", …]`. «Новый ролик» (`?new=1`) is a six-step wizard: niche (fl-scenario niches; picking one
   loads the niche preset from fl-reel) → script (by topic — the brain orders it from «Сценарий», then «Озвучка»; or ready

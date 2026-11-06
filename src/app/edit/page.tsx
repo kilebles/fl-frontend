@@ -1,5 +1,5 @@
-import { DevStub } from "@/components/shell/page-header"
+import { MontageView } from "@/components/montage/montage-view"
 
 export default function Page() {
-  return <DevStub title="Монтаж" subtitle="Ролик собирается автоматически. Проверьте и выгрузите." />
+  return <MontageView />
 }

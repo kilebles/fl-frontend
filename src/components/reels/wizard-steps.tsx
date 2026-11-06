@@ -214,7 +214,6 @@ export function NicheStep({ d, up }: StepProps) {
           </div>
         </div>
       )}
-      {d.presetFrom && <Note>Озвучка, ведущий, доли, стиль и монтаж взяты из прошлого ролика в нише «{d.presetFrom}».</Note>}
     </div>
   )
 }
@@ -279,9 +278,6 @@ export function ScriptStep({ d, up, file, setFile }: StepProps) {
               placeholder="Факты, которые обязательно нужны; источники; через чью судьбу рассказать; чего избегать"
               className={TEXTAREA}
             />
-          </div>
-          <div className="md:col-span-2 xl:col-span-12">
-            <Note>Сценарий пишется сразу, без вопросов брифа: правила и голос берутся из паспорта ниши. Дальше мозг сам отдаёт его в озвучку и, как только сведена базовая дорожка, в раскадровку.</Note>
           </div>
         </div>
       ) : (
@@ -357,13 +353,6 @@ export function ScriptStep({ d, up, file, setFile }: StepProps) {
               </div>
             )}
           </div>
-          <div className="self-end">
-            <Note>
-              {s.from === "voice"
-                ? "Абзацы и длительность каждого абзаца берутся из проекта «Озвучки»."
-                : "Файл без озвучки: длительность абзацев считается по тексту, ~960 символов в минуту."}
-            </Note>
-          </div>
         </div>
       )}
     </div>
@@ -421,7 +410,6 @@ export function VoiceStep({ d, up }: StepProps) {
       const has = (c: string) => !!p && Object.keys(p.voices).some((k) => apiLang(k) === c)
       return { ...x, voice: { profile: id, name: title, targets: x.voice.targets.filter(has), voices: {}, model: x.voice.model } }
     })
-  const missing = fromVoice ? targets.filter((t) => !inProject.has(t)) : []
   const { data: models } = useQuery({ queryKey: ["reels", "voice-models"], queryFn: voice.models, staleTime: 5 * 60_000 })
   const tms = models?.translation_models ?? []
   const model = d.voice.model || tms.find((m) => m.id === "gemini-4-argon-medium")?.id || tms[0]?.id || ""
@@ -557,14 +545,6 @@ export function VoiceStep({ d, up }: StepProps) {
           )}
         </div>
       )}
-
-      <Note>
-        {targets.length
-          ? `Переводы сводятся под базовый язык (${base}): у всех языков одна длина каждого абзаца, и дорожки для YouTube собираются на экране ролика ровно по длине видео.`
-          : `Озвучивается только базовый язык (${base}).`}
-        {missing.length > 0 && ` ${missing.join(", ")} в проекте ещё нет — мозг закажет их перевод при запуске, раскадровка их не ждёт.`}
-        {!fromVoice && d.script.mode === "ready" && (d.voice.profile ? " Файл уйдёт в озвучку при запуске." : " Без профиля файл не озвучивается: длительность считается по тексту.")}
-      </Note>
     </div>
   )
 }
@@ -639,7 +619,6 @@ export function HostStep({ d, up }: StepProps) {
               className={INPUT}
             />
           </div>
-          <Note>Ведущий берёт абзацы целиком — вступление, переходы между главами, финал — и произносит их сам; диктор на этих абзацах молчит. Долю ведущего задаёт следующий шаг.</Note>
         </>
       )}
     </div>
@@ -777,7 +756,6 @@ export function MontageStep({ d, up }: StepProps) {
           </div>
         </div>
       </div>
-      <Note>Сейчас стиль задаёт длину кадров в раскадровке, а значит, их число и расход генераций. Переходы, движение, цвет и титры применит сборка.</Note>
     </div>
   )
 }

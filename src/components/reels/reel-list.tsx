@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { Loader2, Mic, Paperclip, Trash2 } from "lucide-react"
 
 import { MixBar, StepBars, clock, shotsText, spentText, useSpent } from "@/components/reels/parts"
-import { rkeys, useReels } from "@/components/reels/queries"
+import { rkeys, useReelQueue, useReels } from "@/components/reels/queries"
 import { ConfirmDialog, useNow } from "@/components/script/parts"
 import { reels, type Reel } from "@/lib/api"
 import { timeAgo } from "@/lib/format"
@@ -14,9 +14,9 @@ import { useCurrentProject } from "@/lib/project"
 const STEP_TEXT: Record<string, string> = { brief: "бриф фильма", shots: "кадры", allocate: "доли" }
 
 /** What the reel does now, one short line. */
-export function statusText(r: Reel): string {
+export function statusText(r: Reel, place?: number): string {
   const pr = r.progress
-  if (r.status === "queued") return "в очереди"
+  if (r.status === "queued") return place ? `в очереди · ${place}-й` : "в очереди"
   if (pr.wait) return pr.wait
   if (pr.stage === "script") return pr.total ? `сценарий пишется · ${pr.done ?? 0} из ${pr.total}` : "сценарий пишется"
   if (pr.stage === "voice")
@@ -31,7 +31,7 @@ export function statusText(r: Reel): string {
   return pr.step === "shots" && pr.total ? `${step} · пачка ${pr.done ?? 0} из ${pr.total}` : step
 }
 
-function StatusCell({ r, updatedAt }: { r: Reel; updatedAt: number }) {
+function StatusCell({ r, updatedAt, place }: { r: Reel; updatedAt: number; place?: number }) {
   const s = r.summary
   const t = useSpent(r.timing, updatedAt)
   if (r.status === "done" && r.result)
@@ -65,13 +65,27 @@ function StatusCell({ r, updatedAt }: { r: Reel; updatedAt: number }) {
   if (r.status === "stopped") return <span className="text-warn">Остановлен</span>
   return (
     <span className="flex min-w-0 flex-col gap-0.5">
-      <span className={r.progress.wait ? "line-clamp-2 text-warn" : r.status === "queued" ? "text-muted-foreground" : "truncate text-pick-text"}>{statusText(r)}</span>
+      <span className={r.progress.wait ? "line-clamp-2 text-warn" : r.status === "queued" ? "text-muted-foreground" : "truncate text-pick-text"}>{statusText(r, place)}</span>
       {t.running && <span className="font-mono text-[11px] text-faint">в работе {clock(t.total)}</span>}
     </span>
   )
 }
 
-function Row({ r, now, updatedAt, onOpen, onDelete }: { r: Reel; now: number | null; updatedAt: number; onOpen: () => void; onDelete: () => void }) {
+function Row({
+  r,
+  now,
+  updatedAt,
+  place,
+  onOpen,
+  onDelete,
+}: {
+  r: Reel
+  now: number | null
+  updatedAt: number
+  place?: number
+  onOpen: () => void
+  onDelete: () => void
+}) {
   const meta = [
     `${r.source.paragraphs} абз.`,
     r.source.timed ? "по озвучке" : "по тексту",
@@ -99,7 +113,7 @@ function Row({ r, now, updatedAt, onOpen, onDelete }: { r: Reel; now: number | n
         <StepBars steps={r.steps} />
       </div>
       <div className="hidden min-w-0 text-xs sm:block">
-        <StatusCell r={r} updatedAt={updatedAt} />
+        <StatusCell r={r} updatedAt={updatedAt} place={place} />
       </div>
       <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
         <button
@@ -119,6 +133,7 @@ export function ReelList({ onOpen }: { onOpen: (id: string) => void }) {
   const qc = useQueryClient()
   const [projectId] = useCurrentProject()
   const { data, isLoading, error, dataUpdatedAt } = useReels()
+  const { data: queue } = useReelQueue()
   const now = useNow()
   const [del, setDel] = useState<Reel | null>(null)
   if (isLoading)
@@ -134,7 +149,15 @@ export function ReelList({ onOpen }: { onOpen: (id: string) => void }) {
     <>
       <div className="overflow-hidden rounded-[4px] border border-line bg-surface">
         {list.map((r) => (
-          <Row key={r.id} r={r} now={now} updatedAt={dataUpdatedAt} onOpen={() => onOpen(r.id)} onDelete={() => setDel(r)} />
+          <Row
+            key={r.id}
+            r={r}
+            now={now}
+            updatedAt={dataUpdatedAt}
+            place={queue?.queued ? queue.queued.indexOf(r.id) + 1 || undefined : undefined}
+            onOpen={() => onOpen(r.id)}
+            onDelete={() => setDel(r)}
+          />
         ))}
       </div>
       <ConfirmDialog

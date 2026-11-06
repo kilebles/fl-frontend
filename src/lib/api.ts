@@ -1447,6 +1447,18 @@ export const footage = {
 
 export type ReelCategory = "ai" | "video" | "history" | "graphics" | "avatar"
 export type ReelStatus = "queued" | "running" | "done" | "error" | "stopped"
+
+/** The brain's queue: up to limits.parallel reels at once; storyboard and assembly have their own places. */
+export interface ReelQueue {
+  worker_online: boolean
+  counts: Partial<Record<ReelStatus, number>>
+  /** Waiting reels in the order they will start (older brains: absent). */
+  queued?: string[]
+  limits?: { parallel: number; storyboard: number; assembly: number }
+  parallel_choices?: number[]
+  /** Who holds a place on a heavy stage now. */
+  slots?: { storyboard?: string[]; assembly?: string[] }
+}
 export type ReelStepKey = "script" | "voice" | "storyboard" | "materials" | "assembly"
 export type ReelStepState = "done" | "active" | "queued" | "todo" | "skipped" | "error" | "stopped"
 export type ReelShares = Record<ReelCategory, number>
@@ -1729,6 +1741,8 @@ const rid = (id: string) => `/api/reels/${encodeURIComponent(id)}`
 
 export const reels = {
   health: () => request<{ status: string; worker_online: boolean }>("/api/reels/health"),
+  queue: () => request<ReelQueue>("/api/reels/queue"),
+  setParallel: (parallel: number) => request<ReelQueue>("/api/reels/queue/limits", json("PUT", { parallel })),
   options: () => request<ReelOptions>("/api/reels/options"),
   voiceSources: () => request<ReelVoiceSource[]>("/api/reels/voice-sources"),
   fonts: () => request<ReelFont[]>("/api/reels/fonts"),

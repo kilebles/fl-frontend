@@ -771,6 +771,8 @@ export interface VoiceJobSummary {
   duration_sec: number | null
   languages: Record<string, VoiceJobSummaryLang>
   norm_suggestions: Record<string, [number, number]>
+  /** length ranges measured after mixing: applied to the profile by auto-tune, or suggested */
+  norm_changes?: { lang: string; old: [number, number]; new: [number, number]; applied: boolean }[]
   skipped: Record<string, { code: string; voice_id: string }>
 }
 

@@ -1372,38 +1372,65 @@ export function VoiceView() {
             </div>
           )}
 
-          {/* Norm Suggestion Banner from Job Summary */}
-          {selectedJob.summary &&
-            Object.entries(selectedJob.summary.norm_suggestions).length > 0 && (
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-[4px] border border-warn/40 bg-warn-soft/50 px-3.5 py-2.5 text-xs">
-                <div className="flex items-center gap-2 text-foreground-2">
-                  <Wand2 className="size-3.5 text-warn" />
-                  <span>
-                    Подсказка по длине перевода:{" "}
-                    {Object.entries(selectedJob.summary.norm_suggestions).map(([lang, bounds], i) => (
-                      <span key={lang}>
-                        {i > 0 && " · "}для <strong>{lang}</strong> много ускоренных абзацев — рекомендуем убавить норму до{" "}
-                        <strong className="font-mono">
-                          {bounds[0]}–{bounds[1]}%
-                        </strong>
+          {/* Length ranges measured after mixing: applied by auto-tune, or suggested */}
+          {(() => {
+            const changes = selectedJob.summary?.norm_changes ?? []
+            const applied = changes.filter((c) => c.applied)
+            const pending = changes.filter((c) => !c.applied)
+            const range = (r: [number, number]) => `${r[0]}–${r[1]}`
+            return (
+              <>
+                {applied.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2 rounded-[4px] border border-line bg-surface px-3.5 py-2 text-xs text-foreground-2">
+                    <Wand2 className="size-3.5 text-ok" />
+                    <span>
+                      Нормы длины в профиле «{selectedJob.profile_name}» подстроены по озвучке:{" "}
+                      {applied.map((c, i) => (
+                        <span key={c.lang}>
+                          {i > 0 && " · "}
+                          <strong>{c.lang}</strong>{" "}
+                          <span className="font-mono">
+                            {range(c.old)} → {range(c.new)}%
+                          </span>
+                        </span>
+                      ))}
+                    </span>
+                  </div>
+                )}
+                {pending.length > 0 && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-[4px] border border-warn/40 bg-warn-soft/50 px-3.5 py-2.5 text-xs">
+                    <div className="flex items-center gap-2 text-foreground-2">
+                      <Wand2 className="size-3.5 text-warn" />
+                      <span>
+                        По озвучке нормы длины стоит поменять:{" "}
+                        {pending.map((c, i) => (
+                          <span key={c.lang}>
+                            {i > 0 && " · "}
+                            <strong>{c.lang}</strong>{" "}
+                            <span className="font-mono">
+                              {range(c.old)} → {range(c.new)}%
+                            </span>
+                          </span>
+                        ))}
                       </span>
-                    ))}
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {Object.entries(selectedJob.summary.norm_suggestions).map(([lang, bounds]) => (
-                    <button
-                      key={lang}
-                      type="button"
-                      onClick={() => handleApplyNormSuggestion(lang, bounds as [number, number])}
-                      className="rounded-[3px] border border-warn/50 bg-surface px-2 py-1 text-[11px] font-medium text-warn hover:bg-elev"
-                    >
-                      Применить {lang} ({bounds[0]}–{bounds[1]}%)
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {pending.map((c) => (
+                        <button
+                          key={c.lang}
+                          type="button"
+                          onClick={() => handleApplyNormSuggestion(c.lang, c.new)}
+                          className="rounded-[3px] border border-warn/50 bg-surface px-2 py-1 text-[11px] font-medium text-warn hover:bg-elev"
+                        >
+                          Применить {c.lang}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )
+          })()}
 
           {/* Languages */}
           <div className="overflow-hidden rounded-[4px] border border-line bg-surface">

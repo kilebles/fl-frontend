@@ -110,6 +110,7 @@ export function NicheStep({ d, up }: StepProps) {
           name: preset.voice?.name ?? "",
           targets: preset.voice?.targets ?? [],
           voices: preset.voice?.voices ?? {},
+          model: preset.voice?.model ?? "",
         }
         next.host = { on: !!preset.avatar?.id, id: preset.avatar?.id ?? "", name: preset.avatar?.name ?? "", voice: preset.avatar?.voice ?? "" }
         next.storyboard = {
@@ -417,9 +418,13 @@ export function VoiceStep({ d, up }: StepProps) {
     up((x) => {
       const p = profiles?.find((q) => q.id === id)
       const has = (c: string) => !!p && Object.keys(p.voices).some((k) => apiLang(k) === c)
-      return { ...x, voice: { profile: id, name: title, targets: x.voice.targets.filter(has), voices: {} } }
+      return { ...x, voice: { profile: id, name: title, targets: x.voice.targets.filter(has), voices: {}, model: x.voice.model } }
     })
   const missing = fromVoice ? targets.filter((t) => !inProject.has(t)) : []
+  const { data: models } = useQuery({ queryKey: ["reels", "voice-models"], queryFn: voice.models, staleTime: 5 * 60_000 })
+  const tms = models?.translation_models ?? []
+  const model = d.voice.model || tms.find((m) => m.id === "gemini-4-argon-medium")?.id || tms[0]?.id || ""
+  const tm = tms.find((m) => m.id === model)
 
   return (
     <div className="space-y-5">
@@ -527,6 +532,17 @@ export function VoiceStep({ d, up }: StepProps) {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {profile && targets.length > 0 && tms.length > 0 && (
+        <div className="max-w-xl">
+          <Label aside={tm ? <span className="font-mono text-[11px] text-faint">~{tm.est_minutes_per_lang} мин / язык</span> : null}>Модель перевода</Label>
+          <Seg
+            value={model}
+            onChange={(v) => setVoice({ model: v })}
+            options={tms.map((m) => [m.id, m.label.replace(/^Gemini [\d.]+ /, ""), `${m.label}: ${m.description}`] as const)}
+          />
         </div>
       )}
 
@@ -774,7 +790,10 @@ export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & {
           ? `из «Озвучки»: ${v?.title ?? "проект"}`
           : `файл ${file?.name ?? "—"}`,
     ],
-    ["Озвучка", `${s.mode === "ready" && s.from === "voice" ? "уже озвучено" : d.voice.name || "профиль не выбран"}${d.voice.targets.length ? ` · переводы: ${d.voice.targets.join(", ")}` : ""}`],
+    [
+      "Озвучка",
+      `${s.mode === "ready" && s.from === "voice" ? "уже озвучено" : d.voice.name || "профиль не выбран"}${d.voice.targets.length ? ` · переводы: ${d.voice.targets.join(", ")}` : ""}${d.voice.targets.length && d.voice.model ? ` · ${d.voice.model}` : ""}`,
+    ],
     ["Ведущий", d.host.on ? `${d.host.name || "аватар не выбран"}${d.host.voice ? ` · ${d.host.voice}` : ""}` : "без ведущего"],
     [
       "Раскадровка",

@@ -44,8 +44,9 @@ export type Draft = {
     from: "voice" | "file"
     voiceJob: string
   }
-  /** targets — languages of translation (voice-module codes), voices — a voice per language over the profile default. */
-  voice: { profile: string; name: string; targets: string[]; voices: Record<string, string> }
+  /** targets — languages of translation (voice-module codes), voices — a voice per language over the profile default;
+   *  model — the translation model of «Озвучка» (empty: its default). */
+  voice: { profile: string; name: string; targets: string[]; voices: Record<string, string>; model: string }
   host: { on: boolean; id: string; name: string; voice: string }
   storyboard: { shares: ReelShares; style: string; notes: string; engine: string }
   montage: { style: string; music: string }
@@ -61,7 +62,7 @@ export const EMPTY: Draft = {
   presetFrom: "",
   title: "",
   script: { mode: "topic", topic: "", minutes: "20", language: "en", tone: "", model: "", notes: "", from: "voice", voiceJob: "" },
-  voice: { profile: "", name: "", targets: [], voices: {} },
+  voice: { profile: "", name: "", targets: [], voices: {}, model: "" },
   host: { on: false, id: "", name: "", voice: "" },
   storyboard: { shares: PRESETS[0].shares, style: STYLES[0].value, notes: "", engine: "" },
   montage: { style: "classic", music: "chapters" },

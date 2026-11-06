@@ -1615,7 +1615,7 @@ export interface ReelSettings {
   niche_name?: string
   script: { mode: "topic" | "ready"; topic?: string; minutes?: number | null; language?: string; tone?: string; model?: string; notes?: string }
   /** targets — languages of translation; voices — a voice per language (empty: the profile's default). */
-  voice: { profile?: string; name?: string; targets?: string[]; voices?: Record<string, string> }
+  voice: { profile?: string; name?: string; targets?: string[]; voices?: Record<string, string>; model?: string }
   avatar: { id: string; name?: string; voice?: string }
   storyboard: { shares: ReelShares; engine: string; model: string; style: string; notes: string }
   montage: { style: string; music: string }

@@ -1,9 +1,11 @@
 "use client"
 
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { ArrowLeft, Loader2, Plus, RotateCcw } from "lucide-react"
+import { toast } from "sonner"
 
 import { clock, spentText, useSpent } from "@/components/reels/parts"
-import { useReel, useReelEvents, useReelsHealth } from "@/components/reels/queries"
+import { rkeys, useReel, useReelEvents, useReelQueue, useReelsHealth } from "@/components/reels/queries"
 import { ReelList } from "@/components/reels/reel-list"
 import { ReelView } from "@/components/reels/reel-view"
 import { ReelWizard } from "@/components/reels/wizard"
@@ -11,7 +13,7 @@ import { clearDraft } from "@/components/reels/wizard-draft"
 import { setUrlParams, useUrlParam } from "@/components/script/queries"
 import { BTN_PRIMARY, BTN_SMALL } from "@/components/script/ui"
 import { PageHeader } from "@/components/shell/page-header"
-import type { Reel } from "@/lib/api"
+import { reels, type Reel } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
 /** Shown only when something is wrong: the API is down or nobody runs the queue. */
@@ -23,6 +25,48 @@ function WorkerBadge() {
       <span className="size-1.5 rounded-full bg-warn" />
       {error ? "Ролики недоступны" : "Исполнитель не запущен"}
     </span>
+  )
+}
+
+/** How many reels the brain runs at once (1 / 2 / 3 / 5) and how many are running and waiting. */
+function QueueControl() {
+  const qc = useQueryClient()
+  const { data } = useReelQueue()
+  const set = useMutation({
+    mutationFn: (n: number) => reels.setParallel(n),
+    onSuccess: (q) => qc.setQueryData(rkeys.queue, q),
+    onError: (e) => toast.error(e.message),
+  })
+  if (!data?.limits) return null
+  const running = data.counts.running ?? 0
+  const queued = data.counts.queued ?? 0
+  return (
+    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      {(running > 0 || queued > 0) && (
+        <span className="font-mono text-[11px] text-faint">
+          {[running ? `в работе ${running}` : "", queued ? `в очереди ${queued}` : ""].filter(Boolean).join(" · ")}
+        </span>
+      )}
+      <span title="Сколько роликов идёт одновременно. Раскадровка и сборка всё равно идут по своим местам: сборка — по одному ролику">
+        одновременно
+      </span>
+      <div className="flex rounded-[3px] bg-surface-2 p-[2px]">
+        {(data.parallel_choices ?? [1, 2, 3, 5]).map((n) => (
+          <button
+            key={n}
+            type="button"
+            disabled={set.isPending}
+            onClick={() => n !== data.limits!.parallel && set.mutate(n)}
+            className={cn(
+              "h-7 min-w-7 rounded-[2px] px-2 font-mono text-[12px] transition-colors",
+              n === data.limits!.parallel ? "bg-pick-soft font-medium text-pick-text" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -76,6 +120,7 @@ export function ReelsView() {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <WorkerBadge />
+            {!wizard && !id && <QueueControl />}
             {wizard ? (
               <button
                 type="button"

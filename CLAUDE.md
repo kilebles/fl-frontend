@@ -70,6 +70,8 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
   (`reels/audio.tsx`): tracks by chapter, ambience by paragraphs, spot sounds by shot and the chapter transition, each with
   the Epidemic preview in one shared player.
 
+- «Ролики» list header: brain queue (`QueueControl`) — running / waiting, «одновременно» 1/2/3/5 (`PUT /api/reels/queue/limits`);
+  waiting reels show their place (`queue.queued`).
 - Projects (ролики): the current project lives in localStorage; screens filter by it and new jobs/runs carry `project_id`.
   The project's style line is appended to every prompt (composer, batch, «В производство», avatar scene).
 - Credits/balance are a UI stub (`— кр.`) — no billing yet.

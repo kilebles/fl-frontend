@@ -867,6 +867,8 @@ export interface TranslationModelInfo {
   badge: string | null
   description: string
   est_minutes_per_lang: number
+  /** agy thinking levels: the id becomes <family>-<level> (older voice API: absent). */
+  levels?: string[]
 }
 
 export interface VoiceModelInfo {

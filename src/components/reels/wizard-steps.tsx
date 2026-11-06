@@ -21,6 +21,7 @@ import {
 } from "@/components/reels/parts"
 import { useReelOptions, useReelVoiceSources } from "@/components/reels/queries"
 import { FootageSettings, IntroSettings, footageText, fromPreset } from "@/components/reels/wizard-advanced"
+import { LEVEL_LABEL, familyOf, levelOf, withLevel } from "@/lib/voice-models"
 import type { Draft } from "@/components/reels/wizard-draft"
 import { skeys, useNiches, useScenarioOptions } from "@/components/script/queries"
 import { BTN_PRIMARY, BTN_SECONDARY, INPUT, Label, ON_BLUE, Pick, Seg } from "@/components/script/ui"
@@ -424,7 +425,8 @@ export function VoiceStep({ d, up }: StepProps) {
   const { data: models } = useQuery({ queryKey: ["reels", "voice-models"], queryFn: voice.models, staleTime: 5 * 60_000 })
   const tms = models?.translation_models ?? []
   const model = d.voice.model || tms.find((m) => m.id === "gemini-4-argon-medium")?.id || tms[0]?.id || ""
-  const tm = tms.find((m) => m.id === model)
+  const tm = familyOf(model, tms)
+  const level = levelOf(model, tms)
 
   return (
     <div className="space-y-5">
@@ -539,10 +541,20 @@ export function VoiceStep({ d, up }: StepProps) {
         <div className="max-w-xl">
           <Label aside={tm ? <span className="font-mono text-[11px] text-faint">~{tm.est_minutes_per_lang} мин / язык</span> : null}>Модель перевода</Label>
           <Seg
-            value={model}
-            onChange={(v) => setVoice({ model: v })}
+            value={tm?.id ?? model}
+            onChange={(v) => setVoice({ model: withLevel(v, level, tms) })}
             options={tms.map((m) => [m.id, m.label.replace(/^Gemini [\d.]+ /, ""), `${m.label}: ${m.description}`] as const)}
           />
+          {!!tm?.levels?.length && (
+            <div className="mt-1.5">
+              <Seg
+                value={level}
+                onChange={(l) => setVoice({ model: withLevel(tm.id, l, tms) })}
+                mono
+                options={tm.levels.map((l) => [l, LEVEL_LABEL[l] ?? l] as const)}
+              />
+            </div>
+          )}
         </div>
       )}
 

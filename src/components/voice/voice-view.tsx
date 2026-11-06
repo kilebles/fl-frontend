@@ -59,6 +59,7 @@ import {
   voiceMediaUrl,
 } from "@/lib/api"
 import { clearHandoff, peekHandoff } from "@/lib/handoff"
+import { LEVEL_LABEL, familyOf, levelOf, withLevel } from "@/lib/voice-models"
 import { cn } from "@/lib/utils"
 
 type ScreenTab = "workspace" | "profiles"
@@ -1109,14 +1110,23 @@ export function VoiceView() {
               <Label>Перевод</Label>
               <div className={cn((launchMode === "voice" || launchMode === "mix") && "pointer-events-none opacity-50")}>
                 <Tabs
-                  value={launchModel}
-                  onChange={setLaunchModel}
+                  value={familyOf(launchModel, translationModels)?.id ?? launchModel}
+                  onChange={(id) => setLaunchModel(withLevel(id, levelOf(launchModel, translationModels), translationModels))}
                   options={translationModels.map((tm) => [
                     tm.id,
                     tm.label.replace(/^Gemini [\d.]+ /, ""),
                     `${tm.label}: ${tm.description} · ~${tm.est_minutes_per_lang} мин / язык`,
                   ])}
                 />
+                {!!familyOf(launchModel, translationModels)?.levels?.length && (
+                  <div className="mt-1.5">
+                    <Tabs
+                      value={levelOf(launchModel, translationModels)}
+                      onChange={(l) => setLaunchModel(withLevel(familyOf(launchModel, translationModels)!.id, l, translationModels))}
+                      options={familyOf(launchModel, translationModels)!.levels!.map((l) => [l, LEVEL_LABEL[l] ?? l] as const)}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1231,9 +1241,12 @@ export function VoiceView() {
       {screen === "workspace" && !selectedJob && (
         <ProjectList
           jobs={jobs}
-          modelLabel={(id) =>
-            (translationModels.find((tm) => tm.id === id)?.label ?? id).replace(/^Gemini [\d.]+ /, "")
-          }
+          modelLabel={(id) => {
+            const f = familyOf(id, translationModels)
+            const lvl = levelOf(id, translationModels)
+            const label = (f?.label ?? id).replace(/^Gemini [\d.]+ /, "")
+            return f && lvl && lvl !== "medium" ? `${label} ${LEVEL_LABEL[lvl] ?? lvl}` : label
+          }}
           onOpen={(id) => setSelectedJobId(id)}
           onDelete={(j) => setDeleteTarget(j)}
         />

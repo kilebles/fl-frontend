@@ -20,6 +20,7 @@ import {
   shotsText,
 } from "@/components/reels/parts"
 import { useReelOptions, useReelVoiceSources } from "@/components/reels/queries"
+import { FootageSettings, IntroSettings, footageText, fromPreset } from "@/components/reels/wizard-advanced"
 import type { Draft } from "@/components/reels/wizard-draft"
 import { skeys, useNiches, useScenarioOptions } from "@/components/script/queries"
 import { BTN_PRIMARY, BTN_SECONDARY, INPUT, Label, ON_BLUE, Pick, Seg } from "@/components/script/ui"
@@ -118,6 +119,7 @@ export function NicheStep({ d, up }: StepProps) {
           engine: preset.storyboard.engine ?? "",
         }
         next.montage = { style: preset.montage?.style || "classic", music: preset.montage?.music || "chapters" }
+        Object.assign(next, fromPreset(preset, x))
         next.format = preset.format === "9:16" ? "9:16" : "16:9"
       }
       return next
@@ -628,67 +630,73 @@ export function StoryboardStep({ d, up }: StepProps) {
   const preset = STYLES.findIndex((s) => s.value === sb.style.trim())
   const cats = d.host.on ? CATEGORIES : BASE_CATEGORIES
   return (
-    <div className="grid grid-cols-1 gap-x-6 gap-y-5 xl:grid-cols-12">
-      <div className="xl:col-span-7">
-        <Label aside={<SharesAside value={sb.shares} onChange={(s) => set({ shares: s })} host={d.host.on} />}>Доли материала, % экранного времени</Label>
-        <SharesRows value={sb.shares} onChange={(s) => set({ shares: s })} seconds={sec} cats={cats} />
-        {sharesSum(sb.shares) !== 100 && <p className="mt-2 text-xs text-danger">Доли должны давать 100% — сейчас {sharesSum(sb.shares)}%.</p>}
-      </div>
-      <div className="space-y-5 xl:col-span-5">
-        <div>
-          <Label>Стиль картинки</Label>
-          <div className="mb-2 flex flex-wrap gap-1.5">
-            {STYLES.map((s, i) => (
-              <button
-                key={s.value}
-                type="button"
-                onClick={() => set({ style: s.value })}
-                className={cn(
-                  "h-7 rounded-[3px] border px-2.5 text-xs transition-colors",
-                  preset === i ? "border-pick/40 bg-pick-soft font-medium text-pick-text" : "border-line-strong text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {STYLE_LABEL[i]}
-              </button>
-            ))}
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 gap-x-6 gap-y-5 xl:grid-cols-12">
+        <div className="xl:col-span-7">
+          <Label aside={<SharesAside value={sb.shares} onChange={(s) => set({ shares: s })} host={d.host.on} />}>Доли материала, % экранного времени</Label>
+          <SharesRows value={sb.shares} onChange={(s) => set({ shares: s })} seconds={sec} cats={cats} />
+          {sharesSum(sb.shares) !== 100 && <p className="mt-2 text-xs text-danger">Доли должны давать 100% — сейчас {sharesSum(sb.shares)}%.</p>}
+        </div>
+        <div className="space-y-5 xl:col-span-5">
+          <div>
+            <Label>Стиль картинки</Label>
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              {STYLES.map((s, i) => (
+                <button
+                  key={s.value}
+                  type="button"
+                  onClick={() => set({ style: s.value })}
+                  className={cn(
+                    "h-7 rounded-[3px] border px-2.5 text-xs transition-colors",
+                    preset === i ? "border-pick/40 bg-pick-soft font-medium text-pick-text" : "border-line-strong text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {STYLE_LABEL[i]}
+                </button>
+              ))}
+            </div>
+            <input value={sb.style} onChange={(e) => set({ style: e.target.value })} placeholder="Или свой стиль" className={INPUT} />
           </div>
-          <input value={sb.style} onChange={(e) => set({ style: e.target.value })} placeholder="Или свой стиль" className={INPUT} />
+          {clash && (
+            <Note tone="warn">
+              Реальные футажи и исторические кадры будут выбиваться из стиля «{sb.style}».{" "}
+              <button
+                type="button"
+                className="font-medium text-pick-text hover:underline"
+                onClick={() =>
+                  set({ shares: d.host.on ? { ai: 70, video: 0, history: 0, graphics: 15, avatar: 15 } : { ai: 85, video: 0, history: 0, graphics: 15, avatar: 0 } })
+                }
+              >
+                Оставить {d.host.on ? "ИИ, ведущего и графику" : "ИИ и графику"}
+              </button>
+            </Note>
+          )}
+          <div>
+            <Label aside={<span className="font-mono text-[11px] text-faint">для модели раскадровки</span>}>Важные детали</Label>
+            <textarea
+              value={sb.notes}
+              onChange={(e) => set({ notes: e.target.value })}
+              rows={3}
+              placeholder="Например: без детей и крови, бои только издалека, больше карт в главе о походе"
+              className={TEXTAREA}
+            />
+          </div>
+          <div>
+            <Label>Модель раскадровки</Label>
+            <Pick
+              value={sb.engine}
+              onChange={(v) => set({ engine: v })}
+              options={[
+                { value: "", label: "Из настроек", hint: options?.defaults.engine ?? "" },
+                ...(options?.engines ?? []).map((e) => ({ value: e.value, label: e.label, hint: e.model })),
+              ]}
+            />
+          </div>
         </div>
-        {clash && (
-          <Note tone="warn">
-            Реальные футажи и исторические кадры будут выбиваться из стиля «{sb.style}».{" "}
-            <button
-              type="button"
-              className="font-medium text-pick-text hover:underline"
-              onClick={() =>
-                set({ shares: d.host.on ? { ai: 70, video: 0, history: 0, graphics: 15, avatar: 15 } : { ai: 85, video: 0, history: 0, graphics: 15, avatar: 0 } })
-              }
-            >
-              Оставить {d.host.on ? "ИИ, ведущего и графику" : "ИИ и графику"}
-            </button>
-          </Note>
-        )}
-        <div>
-          <Label aside={<span className="font-mono text-[11px] text-faint">для модели раскадровки</span>}>Важные детали</Label>
-          <textarea
-            value={sb.notes}
-            onChange={(e) => set({ notes: e.target.value })}
-            rows={3}
-            placeholder="Например: без детей и крови, бои только издалека, больше карт в главе о походе"
-            className={TEXTAREA}
-          />
-        </div>
-        <div>
-          <Label>Модель раскадровки</Label>
-          <Pick
-            value={sb.engine}
-            onChange={(v) => set({ engine: v })}
-            options={[
-              { value: "", label: "Из настроек", hint: options?.defaults.engine ?? "" },
-              ...(options?.engines ?? []).map((e) => ({ value: e.value, label: e.label, hint: e.model })),
-            ]}
-          />
-        </div>
+      </div>
+      <div className="space-y-3">
+        <IntroSettings d={d} up={up} />
+        <FootageSettings d={d} up={up} />
       </div>
     </div>
   )
@@ -776,6 +784,20 @@ export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & {
           {d.storyboard.notes ? ` · детали: ${d.storyboard.notes}` : ""}
         </span>
         <MixBar shares={d.storyboard.shares} className="max-w-xs" />
+        {d.intro.on && (
+          <span className="text-foreground-2">
+            первые {Math.round(d.intro.sec / 60)} мин: {shareText(d.intro.shares, d.host.on)}
+            {d.intro.shot[0] && d.intro.shot[1] ? ` · кадр ${d.intro.shot[0]}–${d.intro.shot[1]} с` : " · кадры чаще"}
+            {d.intro.minFit ? ` · оценка ≥ ${d.intro.minFit}` : ""}
+            {d.intro.scoreVideo ? ` · порог видео ${d.intro.scoreVideo}` : ""}
+            {d.intro.scoreHistory ? ` · порог истории ${d.intro.scoreHistory}` : ""}
+          </span>
+        )}
+        {(d.storyboard.shares.video > 0 || d.storyboard.shares.history > 0) && (
+          <span className="text-muted-foreground">
+            видео: {footageText(d.footage.video)} · история: {footageText(d.footage.history)}
+          </span>
+        )}
       </span>,
     ],
     ["Монтаж", `${montageLabel} · 16:9`],

@@ -1,7 +1,32 @@
 "use client"
 
-import type { ReelShares } from "@/lib/api"
+import type { FootageGroup, ReelShares } from "@/lib/api"
 import { PRESETS, STYLES } from "@/components/reels/parts"
+
+/** «Поиск видео» settings of one real category; empty strings — as set on the module's server. */
+export type FootageDraft = {
+  score: string
+  groups: FootageGroup[]
+  engine: string
+  model: string
+  ytFirst: boolean
+  ytAny: boolean
+  filmRisky: boolean
+}
+
+/** The first minutes apart; empty strings — the defaults (shot length from the montage style, scores as in the rest). */
+export type IntroDraft = {
+  on: boolean
+  sec: number
+  shares: ReelShares
+  shot: [string, string]
+  minFit: string
+  scoreVideo: string
+  scoreHistory: string
+}
+
+export const ALL_GROUPS: FootageGroup[] = ["archive", "youtube", "films", "stock"]
+export const EMPTY_FOOTAGE: FootageDraft = { score: "", groups: ALL_GROUPS, engine: "", model: "", ytFirst: false, ytAny: false, filmRisky: false }
 
 /** Everything the six steps of «Новый ролик» collect; kept in the browser so the menu survives a trip to «Аватар». */
 export type Draft = {
@@ -26,6 +51,8 @@ export type Draft = {
   host: { on: boolean; id: string; name: string; voice: string }
   storyboard: { shares: ReelShares; style: string; notes: string; engine: string }
   montage: { style: string; music: string }
+  footage: { video: FootageDraft; history: FootageDraft }
+  intro: IntroDraft
   format: "16:9" | "9:16"
 }
 
@@ -40,6 +67,8 @@ export const EMPTY: Draft = {
   host: { on: false, id: "", name: "", voice: "" },
   storyboard: { shares: PRESETS[0].shares, style: STYLES[0].value, notes: "", engine: "" },
   montage: { style: "classic", music: "chapters" },
+  footage: { video: EMPTY_FOOTAGE, history: EMPTY_FOOTAGE },
+  intro: { on: false, sec: 120, shares: PRESETS[0].shares, shot: ["", ""], minFit: "", scoreVideo: "", scoreHistory: "" },
   format: "16:9",
 }
 
@@ -57,6 +86,11 @@ export function loadDraft(): Draft {
       host: { ...EMPTY.host, ...raw.host },
       storyboard: { ...EMPTY.storyboard, ...raw.storyboard, shares: { ...EMPTY.storyboard.shares, ...raw.storyboard?.shares } },
       montage: { ...EMPTY.montage, ...raw.montage },
+      footage: {
+        video: { ...EMPTY_FOOTAGE, ...raw.footage?.video },
+        history: { ...EMPTY_FOOTAGE, ...raw.footage?.history },
+      },
+      intro: { ...EMPTY.intro, ...raw.intro, shares: { ...EMPTY.intro.shares, ...raw.intro?.shares } },
     }
   } catch {
     return EMPTY

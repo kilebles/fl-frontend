@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Loader2, Mic, Paperclip, Trash2 } from "lucide-react"
 
-import { MixBar, StepBars, clock, shotsText } from "@/components/reels/parts"
+import { MixBar, StepBars, clock, shotsText, spentText, useSpent } from "@/components/reels/parts"
 import { rkeys, useReels } from "@/components/reels/queries"
 import { ConfirmDialog, useNow } from "@/components/script/parts"
 import { reels, type Reel } from "@/lib/api"
@@ -31,8 +31,23 @@ export function statusText(r: Reel): string {
   return pr.step === "shots" && pr.total ? `${step} · пачка ${pr.done ?? 0} из ${pr.total}` : step
 }
 
-function StatusCell({ r }: { r: Reel }) {
+function StatusCell({ r, updatedAt }: { r: Reel; updatedAt: number }) {
   const s = r.summary
+  const t = useSpent(r.timing, updatedAt)
+  if (r.status === "done" && r.result)
+    return (
+      <span className="flex flex-col gap-1.5">
+        <span>
+          <span className="font-medium text-ok">Готов</span>
+          <span className="text-faint">
+            {" "}
+            · {clock(r.result.sec)}
+            {t.total ? ` · за ${spentText(t.total)}` : ""}
+          </span>
+        </span>
+        {s && <MixBar shares={s.mix.actual} />}
+      </span>
+    )
   if (r.status === "done" && s)
     return (
       <span className="flex flex-col gap-1.5">
@@ -48,10 +63,15 @@ function StatusCell({ r }: { r: Reel }) {
     )
   if (r.status === "error") return <span className="line-clamp-2 text-danger">{r.error || "Ошибка"}</span>
   if (r.status === "stopped") return <span className="text-warn">Остановлен</span>
-  return <span className={r.progress.wait ? "line-clamp-2 text-warn" : r.status === "queued" ? "text-muted-foreground" : "truncate text-pick-text"}>{statusText(r)}</span>
+  return (
+    <span className="flex min-w-0 flex-col gap-0.5">
+      <span className={r.progress.wait ? "line-clamp-2 text-warn" : r.status === "queued" ? "text-muted-foreground" : "truncate text-pick-text"}>{statusText(r)}</span>
+      {t.running && <span className="font-mono text-[11px] text-faint">в работе {clock(t.total)}</span>}
+    </span>
+  )
 }
 
-function Row({ r, now, onOpen, onDelete }: { r: Reel; now: number | null; onOpen: () => void; onDelete: () => void }) {
+function Row({ r, now, updatedAt, onOpen, onDelete }: { r: Reel; now: number | null; updatedAt: number; onOpen: () => void; onDelete: () => void }) {
   const meta = [
     `${r.source.paragraphs} абз.`,
     r.source.timed ? "по озвучке" : "по тексту",
@@ -79,7 +99,7 @@ function Row({ r, now, onOpen, onDelete }: { r: Reel; now: number | null; onOpen
         <StepBars steps={r.steps} />
       </div>
       <div className="hidden min-w-0 text-xs sm:block">
-        <StatusCell r={r} />
+        <StatusCell r={r} updatedAt={updatedAt} />
       </div>
       <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
         <button
@@ -98,7 +118,7 @@ function Row({ r, now, onOpen, onDelete }: { r: Reel; now: number | null; onOpen
 export function ReelList({ onOpen }: { onOpen: (id: string) => void }) {
   const qc = useQueryClient()
   const [projectId] = useCurrentProject()
-  const { data, isLoading, error } = useReels()
+  const { data, isLoading, error, dataUpdatedAt } = useReels()
   const now = useNow()
   const [del, setDel] = useState<Reel | null>(null)
   if (isLoading)
@@ -114,7 +134,7 @@ export function ReelList({ onOpen }: { onOpen: (id: string) => void }) {
     <>
       <div className="overflow-hidden rounded-[4px] border border-line bg-surface">
         {list.map((r) => (
-          <Row key={r.id} r={r} now={now} onOpen={() => onOpen(r.id)} onDelete={() => setDel(r)} />
+          <Row key={r.id} r={r} now={now} updatedAt={dataUpdatedAt} onOpen={() => onOpen(r.id)} onDelete={() => setDel(r)} />
         ))}
       </div>
       <ConfirmDialog

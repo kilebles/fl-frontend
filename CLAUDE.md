@@ -49,6 +49,10 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
   mp3 per language mixed in «Озвучка», each exactly as long as the reel (`/api/reels/{id}/tracks`). After the
   storyboard the brain orders materials from the modules (`reels/result.tsx` → «Материалы» by category) and assembles
   the reel: «Готовый ролик» — player, mp4 and the DaVinci montage project (`/api/reels/{id}/result/mp4|montage`).
+  Step 5 also holds «Первые N минуты отдельно» (intro: own shares, shorter shots, a category score floor and stricter
+  search thresholds) and «Видео и исторические кадры» (threshold, sources, engine and model of picking per category —
+  `reels/wizard-advanced.tsx`). Work time: `reel.timing` (reel and each stage, queue/idle not counted), ticked live by
+  `useSpent` from the query's `dataUpdatedAt`.
 
 - Projects (ролики): the current project lives in localStorage; screens filter by it and new jobs/runs carry `project_id`.
   The project's style line is appended to every prompt (composer, batch, «В производство», avatar scene).

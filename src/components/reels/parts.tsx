@@ -1,9 +1,10 @@
 "use client"
 
-import { Check, Minus, Plus, X } from "lucide-react"
+import { Check, Minus, Plus, Timer, X } from "lucide-react"
 
+import { useNow } from "@/components/script/parts"
 import { plural } from "@/lib/format"
-import type { ReelCategory, ReelShares, ReelStep } from "@/lib/api"
+import type { ReelCategory, ReelShares, ReelStep, ReelStepKey, ReelTiming } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
 export const CATEGORIES: ReelCategory[] = ["ai", "video", "history", "graphics", "avatar"]
@@ -86,6 +87,28 @@ export function clock(sec: number) {
   const m = Math.floor((s % 3600) / 60)
   const r = String(s % 60).padStart(2, "0")
   return h ? `${h}:${String(m).padStart(2, "0")}:${r}` : `${m}:${r}`
+}
+
+/** Work time in words: «40 с», «12 мин», «2 ч 08 мин». */
+export function spentText(sec: number) {
+  const s = Math.max(0, Math.round(sec))
+  if (s < 60) return `${s} с`
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  return h ? `${h} ч ${String(m).padStart(2, "0")} мин` : `${m} мин`
+}
+
+/** Work time of the reel and its stages; a running one is ticked on from the moment the data came (updatedAt). */
+export function useSpent(timing: ReelTiming | undefined, updatedAt: number) {
+  const running = !!timing?.running
+  const now = useNow(running ? 1000 : 60_000)
+  const live = running && now !== null ? Math.max(0, (now - updatedAt) / 1000) : 0
+  const total = timing ? timing.sec + live : 0
+  const stage = (key: ReelStepKey) => {
+    const st = timing?.stages[key]
+    return st ? st.sec + (st.running ? live : 0) : null
+  }
+  return { running, total, stage }
 }
 
 export const sharesSum = (s: ReelShares) => CATEGORIES.reduce((a, c) => a + (Number(s[c]) || 0), 0)
@@ -302,7 +325,16 @@ export function StepBars({ steps }: { steps: ReelStep[] }) {
 }
 
 /** Large line for the open reel. */
-export function StepSteps({ steps, captions }: { steps: ReelStep[]; captions: Partial<Record<string, string>> }) {
+export function StepSteps({
+  steps,
+  captions,
+  times = {},
+}: {
+  steps: ReelStep[]
+  captions: Partial<Record<string, string>>
+  /** Work time of each stage («12 мин», live for the running one). */
+  times?: Partial<Record<string, string>>
+}) {
   return (
     <ol className="grid grid-cols-2 gap-3 sm:grid-cols-5">
       {steps.map((s, i) => (
@@ -332,6 +364,12 @@ export function StepSteps({ steps, captions }: { steps: ReelStep[]; captions: Pa
             </span>
             {(captions[s.key] || stepCaption(s)) && (
               <span className="block truncate font-mono text-[11px] text-faint">{captions[s.key] || stepCaption(s)}</span>
+            )}
+            {times[s.key] && (
+              <span className={cn("mt-0.5 flex items-center gap-1 font-mono text-[11px]", s.state === "active" ? "text-pick-text" : "text-faint")}>
+                <Timer className="size-3" />
+                {times[s.key]}
+              </span>
             )}
           </span>
         </li>

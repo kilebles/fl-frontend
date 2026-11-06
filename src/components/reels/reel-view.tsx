@@ -29,6 +29,8 @@ import { rkeys, useReelOptions, useStoryboard } from "@/components/reels/queries
 import { BriefCard, StoryboardCard } from "@/components/reels/storyboard"
 import { MaterialsCard, ResultCard } from "@/components/reels/result"
 import { fontLabel, useFontList } from "@/components/reels/fonts"
+import { pausesFrom } from "@/components/reels/wizard-draft"
+import { pausesText } from "@/components/reels/wizard-steps"
 import { TracksCard } from "@/components/reels/tracks"
 import { ConfirmDialog } from "@/components/script/parts"
 import { setUrlParams } from "@/components/script/queries"
@@ -248,8 +250,8 @@ export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number
                     .join("·")}${s?.intro ? `, кадр ${s.intro.shot_sec.join("–")} с` : ""}`
                 : "",
               footageLine(r),
-              r.settings.storyboard.pauses && r.settings.storyboard.pauses.mode !== "off"
-                ? `паузы: ${{ chapters: "в конце глав", every: `~раз в ${r.settings.storyboard.pauses.every_sec} с`, auto: "по смыслу" }[r.settings.storyboard.pauses.mode]}${s?.pauses ? ` (${s.pauses.count})` : ""}`
+              r.settings.storyboard.pauses && pausesFrom(r.settings.storyboard.pauses).modes.length
+                ? `${pausesText(pausesFrom(r.settings.storyboard.pauses))}${s?.pauses ? ` (${s.pauses.count})` : ""}`
                 : "",
               r.settings.storyboard.notes ? `детали: ${r.settings.storyboard.notes}` : "",
             ]

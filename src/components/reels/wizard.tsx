@@ -103,8 +103,8 @@ export function ReelWizard({ onCreated }: { onCreated: (id: string) => void }) {
           avatar: d.host.on ? { id: d.host.id, name: d.host.name, voice: d.host.voice } : { id: "" },
           storyboard: {
             ...d.storyboard,
-            model: "",
-            pauses: { mode: d.storyboard.pauses.mode, sec: d.storyboard.pauses.sec, every_sec: d.storyboard.pauses.everySec },
+            model: d.storyboard.engine ? d.storyboard.model : "",
+            pauses: { modes: d.storyboard.pauses.modes, sec: d.storyboard.pauses.sec, every_sec: d.storyboard.pauses.everySec },
           },
           montage: d.montage,
           footage: { video: footageBody(d.footage.video), history: footageBody(d.footage.history) },

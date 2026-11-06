@@ -14,15 +14,13 @@ export type FootageDraft = {
   filmRisky: boolean
 }
 
-/** The first minutes apart; empty strings — the defaults (shot length from the montage style, scores as in the rest). */
+/** The first minutes apart; empty strings — the defaults (shot length from the montage style, any category score). */
 export type IntroDraft = {
   on: boolean
   sec: number
   shares: ReelShares
   shot: [string, string]
   minFit: string
-  scoreVideo: string
-  scoreHistory: string
 }
 
 export const ALL_GROUPS: FootageGroup[] = ["archive", "youtube", "films", "stock"]
@@ -68,7 +66,7 @@ export const EMPTY: Draft = {
   storyboard: { shares: PRESETS[0].shares, style: STYLES[0].value, notes: "", engine: "" },
   montage: { style: "classic", music: "chapters" },
   footage: { video: EMPTY_FOOTAGE, history: EMPTY_FOOTAGE },
-  intro: { on: false, sec: 120, shares: PRESETS[0].shares, shot: ["", ""], minFit: "", scoreVideo: "", scoreHistory: "" },
+  intro: { on: false, sec: 120, shares: PRESETS[0].shares, shot: ["", ""], minFit: "" },
   format: "16:9",
 }
 

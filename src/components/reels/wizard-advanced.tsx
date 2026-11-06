@@ -50,7 +50,6 @@ export function introBody(i: IntroDraft): ReelIntroSettings {
     shares: i.shares,
     shot: lo !== null && hi !== null ? [lo, hi] : [],
     min_fit: num(i.minFit) ?? 0,
-    min_score: { video: num(i.scoreVideo), history: num(i.scoreHistory) },
   }
 }
 
@@ -78,8 +77,6 @@ export function fromPreset(p: Partial<ReelSettings>, x: Draft): Pick<Draft, "foo
           shares: { ...x.intro.shares, ...i.shares },
           shot: i.shot?.length === 2 ? [String(i.shot[0]), String(i.shot[1])] : ["", ""],
           minFit: i.min_fit ? String(i.min_fit) : "",
-          scoreVideo: str(i.min_score?.video),
-          scoreHistory: str(i.min_score?.history),
         }
       : EMPTY.intro,
   }
@@ -357,7 +354,7 @@ export function IntroSettings({ d, up }: { d: Draft; up: Up }) {
       }
     >
       {!i.on ? (
-        <p className="text-[13px] text-muted-foreground">Включите, чтобы задать вступлению свои доли, более частую смену кадров и строже отбирать кадры.</p>
+        <p className="text-[13px] text-muted-foreground">Включите, чтобы задать вступлению свои доли, более частую смену кадров и строже отбирать категории.</p>
       ) : (
         <div className="grid grid-cols-1 gap-x-6 gap-y-5 xl:grid-cols-12">
           <div className="xl:col-span-7">
@@ -423,16 +420,6 @@ export function IntroSettings({ d, up }: { d: Draft; up: Up }) {
             <div>
               <Label aside={<span className="font-mono text-[11px] text-faint">ниже — категория не берётся</span>}>Оценка категории кадра</Label>
               <Score value={i.minFit} onChange={(v) => set({ minFit: v })} presets={["5", "6", "7"]} auto="любая" />
-            </div>
-            <div className="grid grid-cols-1 gap-3">
-              <div>
-                <Label aside={<span className="font-mono text-[11px] text-faint">ниже — в ИИ</span>}>Порог видео во вступлении</Label>
-                <Score value={i.scoreVideo} onChange={(v) => set({ scoreVideo: v })} presets={["7", "8", "9"]} auto="как дальше" />
-              </div>
-              <div>
-                <Label aside={<span className="font-mono text-[11px] text-faint">ниже — в ИИ</span>}>Порог истории во вступлении</Label>
-                <Score value={i.scoreHistory} onChange={(v) => set({ scoreHistory: v })} presets={["7", "8", "9"]} auto="как дальше" />
-              </div>
             </div>
           </div>
         </div>

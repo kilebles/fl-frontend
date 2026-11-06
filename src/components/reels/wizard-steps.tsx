@@ -789,8 +789,6 @@ export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & {
             первые {Math.round(d.intro.sec / 60)} мин: {shareText(d.intro.shares, d.host.on)}
             {d.intro.shot[0] && d.intro.shot[1] ? ` · кадр ${d.intro.shot[0]}–${d.intro.shot[1]} с` : " · кадры чаще"}
             {d.intro.minFit ? ` · оценка ≥ ${d.intro.minFit}` : ""}
-            {d.intro.scoreVideo ? ` · порог видео ${d.intro.scoreVideo}` : ""}
-            {d.intro.scoreHistory ? ` · порог истории ${d.intro.scoreHistory}` : ""}
           </span>
         )}
         {(d.storyboard.shares.video > 0 || d.storyboard.shares.history > 0) && (

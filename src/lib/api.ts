@@ -1621,7 +1621,7 @@ export interface ReelSettings {
   montage: { style: string; music: string }
   /** «Поиск видео» for each real category; null / "" — as set on the module's server. */
   footage?: { video: ReelFootageSettings; history: ReelFootageSettings }
-  /** The first minutes apart: own shares, shot length, category score floor and search threshold. */
+  /** The first minutes apart: own shares, shot length and category score floor. */
   intro?: ReelIntroSettings
   format: "16:9" | "9:16"
 }
@@ -1644,7 +1644,6 @@ export interface ReelIntroSettings {
   shot: number[]
   /** A category with a lower score is not used for an intro shot. */
   min_fit: number
-  min_score: { video: number | null; history: number | null }
 }
 
 export interface ReelMontageStyle {

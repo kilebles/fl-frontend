@@ -1,7 +1,7 @@
 "use client"
 
 import type { FootageGroup, ReelShares } from "@/lib/api"
-import { PRESETS, STYLES } from "@/components/reels/parts"
+import { PRESETS, STYLES, savedShares } from "@/components/reels/parts"
 
 /** «Поиск видео» settings of one real category; empty strings — as set on the module's server. */
 export type FootageDraft = {
@@ -108,7 +108,7 @@ export function loadDraft(): Draft {
       storyboard: {
         ...EMPTY.storyboard,
         ...raw.storyboard,
-        shares: { ...EMPTY.storyboard.shares, ...raw.storyboard?.shares },
+        shares: savedShares(EMPTY.storyboard.shares, raw.storyboard?.shares),
         model: raw.storyboard?.model ?? "",
         pauses: pausesFrom(raw.storyboard?.pauses),
       },
@@ -117,7 +117,7 @@ export function loadDraft(): Draft {
         video: { ...EMPTY_FOOTAGE, ...raw.footage?.video },
         history: { ...EMPTY_FOOTAGE, ...raw.footage?.history },
       },
-      intro: { ...EMPTY.intro, ...raw.intro, shares: { ...EMPTY.intro.shares, ...raw.intro?.shares } },
+      intro: { ...EMPTY.intro, ...raw.intro, shares: savedShares(EMPTY.intro.shares, raw.intro?.shares) },
     }
   } catch {
     return EMPTY

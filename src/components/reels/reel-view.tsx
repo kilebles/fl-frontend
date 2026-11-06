@@ -30,12 +30,14 @@ import { BriefCard, StoryboardCard } from "@/components/reels/storyboard"
 import { MaterialsCard, ResultCard } from "@/components/reels/result"
 import { fontLabel, useFontList } from "@/components/reels/fonts"
 import { pausesFrom } from "@/components/reels/wizard-draft"
-import { pausesText, qualityLabel } from "@/components/reels/wizard-steps"
+import { pausesText, qualityLabel, soundsText } from "@/components/reels/wizard-steps"
+import { AudioCard } from "@/components/reels/audio"
 import { TracksCard } from "@/components/reels/tracks"
 import { ConfirmDialog } from "@/components/script/parts"
 import { setUrlParams } from "@/components/script/queries"
 import { BTN_PRIMARY, BTN_SECONDARY, Card } from "@/components/script/ui"
 import { reels, type Reel, type ReelFootageSettings, type ReelShares, type ReelStoryboard } from "@/lib/api"
+import { plural } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
 /** Search settings of the real categories that differ from the module's own, one short line. */
@@ -171,6 +173,24 @@ export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number
     voice: now("voice") ? statusText(r) : r.source.timed ? `${r.source.language.toUpperCase()} · ${r.source.timed} дорожек` : "",
     storyboard: done && s ? shotsText(s.shots) : now("storyboard") ? statusText(r) : "",
     materials: now("materials") ? statusText(r) : r.materials?.total ? `${r.materials.done} из ${r.materials.total} кадров` : "",
+    music: now("music")
+      ? statusText(r)
+      : r.music?.status === "done"
+        ? `${r.music.tracks ?? 0} ${plural(r.music.tracks ?? 0, "трек", "трека", "треков")}`
+        : r.music?.status === "error"
+          ? "не подобрана"
+          : r.music?.status === "off"
+            ? "без музыки"
+            : "",
+    sounds: now("sounds")
+      ? statusText(r)
+      : r.sounds?.status === "done"
+        ? `фон ${r.sounds.ambience?.length ?? 0} · звуков ${r.sounds.spots?.length ?? 0}`
+        : r.sounds?.status === "error"
+          ? "не подобраны"
+          : r.sounds?.status === "off"
+            ? "без звуков"
+            : "",
     assembly: now("assembly") ? statusText(r) : r.result ? clock(r.result.sec) : "",
   }
   const spent = useSpent(r.timing, updatedAt)
@@ -240,7 +260,9 @@ export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number
         <div className="mt-4 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-4">
           <span className="min-w-0 flex-1 truncate text-xs text-faint">
             {[
-              montage ? `Монтаж: ${montage} · шрифт: ${fontLabel(fonts, r.settings.montage?.font)} · ${qualityLabel(r.settings.montage?.quality)}` : "",
+              montage
+                ? `Монтаж: ${montage} · шрифт: ${fontLabel(fonts, r.settings.montage?.font)} · ${qualityLabel(r.settings.montage?.quality)} · ${soundsText(r.settings.montage?.sounds)}`
+                : "",
               r.settings.storyboard.style ? `стиль: ${r.settings.storyboard.style}` : "",
               r.settings.avatar?.id ? `ведущий: ${r.settings.avatar.name || "аватар"}` : "",
               r.settings.voice?.targets?.length ? `переводы: ${r.settings.voice.targets.join(", ")}` : "",
@@ -305,6 +327,7 @@ export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number
 
       <ResultCard reel={r} />
       <MaterialsCard reel={r} />
+      <AudioCard reel={r} />
       <TracksCard reel={r} />
 
       {done && sbError && <div className="py-6 text-center text-sm text-danger">{sbError.message}</div>}

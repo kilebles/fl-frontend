@@ -65,6 +65,10 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
   `useSpent` from the query's `dataUpdatedAt`. Step 6 «Шрифт титров» (`reels/fonts.tsx`): Constantia (default), Constantine, oSerif, SatyrSP or
   the style's font; previews of «Your vision. Our production.» load the file from `/api/reels/fonts/{value}` (else a local font).
   «Качество» there: 1080p as before / 1080p + sharpening / 4K + sharpening (`montage.quality`: "" | sharp | 4k).
+  «Звуки» there too (`montage.sounds = {on, density: low|normal|high, veo: mute|keep}`, `SoundsPick`); music and sounds come
+  from Epidemic Sound through fl-reel (stages `music` and `sounds` after materials). The reel screen shows «Музыка и звуки»
+  (`reels/audio.tsx`): tracks by chapter, ambience by paragraphs, spot sounds by shot and the chapter transition, each with
+  the Epidemic preview in one shared player.
 
 - Projects (ролики): the current project lives in localStorage; screens filter by it and new jobs/runs carry `project_id`.
   The project's style line is appended to every prompt (composer, batch, «В производство», avatar scene).

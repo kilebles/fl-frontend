@@ -24,7 +24,7 @@ import { useReelOptions, useReelVoiceSources } from "@/components/reels/queries"
 import { FootageSettings, IntroSettings, footageText, fromPreset } from "@/components/reels/wizard-advanced"
 import { flatModels, modelLabel } from "@/lib/voice-models"
 import { VoiceProfileDialog } from "@/components/reels/voice-profile-dialog"
-import { DEFAULT_FONT, EMPTY_PAUSES, pausesFrom, type Draft, type PauseMode } from "@/components/reels/wizard-draft"
+import { DEFAULT_FONT, DEFAULT_SOUNDS, EMPTY_PAUSES, pausesFrom, type Draft, type PauseMode } from "@/components/reels/wizard-draft"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { FontPick, fontLabel, useFontList } from "@/components/reels/fonts"
 import { skeys, useNiches, useScenarioOptions } from "@/components/script/queries"
@@ -131,6 +131,7 @@ export function NicheStep({ d, up }: StepProps) {
           music: preset.montage?.music || "chapters",
           font: preset.montage?.font ?? DEFAULT_FONT,
           quality: preset.montage?.quality ?? "",
+          sounds: { ...DEFAULT_SOUNDS, ...(preset.montage?.sounds ?? {}) },
         }
         Object.assign(next, fromPreset(preset, x))
         next.format = preset.format === "9:16" ? "9:16" : "16:9"
@@ -907,7 +908,7 @@ export function MontageStep({ d, up }: StepProps) {
       </div>
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-12">
         <div className="xl:col-span-4">
-          <Label aside={<span className="font-mono text-[11px] text-faint">заработает с музыкой</span>}>Стиль музыки</Label>
+          <Label aside={<span className="font-mono text-[11px] text-faint">Epidemic · по главам</span>}>Стиль музыки</Label>
           <Pick
             value={d.montage.music}
             onChange={(v) => up((x) => ({ ...x, montage: { ...x.montage, music: v } }))}
@@ -936,8 +937,76 @@ export function MontageStep({ d, up }: StepProps) {
           />
         </div>
       </div>
+      <SoundsPick d={d} up={up} />
     </div>
   )
+}
+
+const DENSITY_HINT: Record<string, string> = {
+  low: "Вдвое реже обычного — только самые заметные моменты",
+  normal: "Сколько обычно для этого стиля монтажа",
+  high: "В 1,6 раза чаще — плотный звуковой ряд",
+}
+const VEO_HINT: Record<string, string> = {
+  mute: "Звук клипов Veo убирается: в нём бывает речь. Звуки сцены — из Epidemic",
+  keep: "Звук клипов Veo идёт тихо под фоном; Veo просят звук сцены без речи и музыки. Речь всё же может проскочить",
+}
+
+/** Sounds from Epidemic: background per place, short sounds of shots (density by the montage style), Veo clips' sound. */
+function SoundsPick({ d, up }: Pick<StepProps, "d" | "up">) {
+  const { data: options } = useReelOptions()
+  const snd = d.montage.sounds
+  const set = (patch: Partial<typeof snd>) => up((x) => ({ ...x, montage: { ...x.montage, sounds: { ...x.montage.sounds, ...patch } } }))
+  const mult = { low: 0.5, normal: 1, high: 1.6 }[snd.density] ?? 1
+  const perMin = (options?.sounds?.per_min[d.montage.style] ?? 3) * mult
+  const trans = options?.sounds?.transitions[d.montage.style]
+  const density = options?.sounds?.density ?? [
+    { value: "low", label: "Реже" },
+    { value: "normal", label: "Обычно" },
+    { value: "high", label: "Чаще" },
+  ]
+  const veo = options?.sounds?.veo ?? [
+    { value: "mute", label: "Глушить" },
+    { value: "keep", label: "Оставлять" },
+  ]
+  return (
+    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-12">
+      <div className="xl:col-span-4">
+        <Label
+          aside={
+            snd.on ? (
+              <span className="font-mono text-[11px] text-faint">
+                ≈ {String(Math.round(perMin * 10) / 10).replace(".", ",")} в минуту{trans ? " · переход на главе" : ""}
+              </span>
+            ) : undefined
+          }
+        >
+          Звуки
+        </Label>
+        <Seg
+          value={snd.on ? "on" : "off"}
+          onChange={(v) => set({ on: v === "on" })}
+          options={[
+            ["on", "Фон и звуки кадров", "Фон места под абзацами и короткие звуки к кадрам — из Epidemic, по эпохе фильма"],
+            ["off", "Без звуков"],
+          ]}
+        />
+      </div>
+      <div className={cn("xl:col-span-4", !snd.on && "pointer-events-none opacity-40")}>
+        <Label>Плотность</Label>
+        <Seg value={snd.density} onChange={(v) => set({ density: v as typeof snd.density })} options={density.map((o) => [o.value, o.label, DENSITY_HINT[o.value]] as const)} />
+      </div>
+      <div className={cn("md:col-span-2 xl:col-span-4", !snd.on && "pointer-events-none opacity-40")}>
+        <Label>Звук Veo</Label>
+        <Seg value={snd.veo} onChange={(v) => set({ veo: v as typeof snd.veo })} options={veo.map((o) => [o.value, o.label, VEO_HINT[o.value]] as const)} />
+      </div>
+    </div>
+  )
+}
+
+export function soundsText(s: { on?: boolean; density?: string; veo?: string } | undefined) {
+  if (!s || s.on === false) return "без звуков"
+  return `звуки: ${{ low: "реже", normal: "обычно", high: "чаще" }[s.density ?? "normal"] ?? "обычно"}${s.veo === "keep" ? ", звук Veo" : ""}`
 }
 
 /* ------------------------------------------------------------------ сводка */
@@ -994,7 +1063,12 @@ export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & {
         )}
       </span>,
     ],
-    ["Монтаж", `${montageLabel} · шрифт: ${fontLabel(fonts, d.montage.font)} · 16:9 · ${qualityLabel(d.montage.quality)}`],
+    [
+      "Монтаж",
+      `${montageLabel} · шрифт: ${fontLabel(fonts, d.montage.font)} · 16:9 · ${qualityLabel(d.montage.quality)} · музыка: ${
+        options?.music.find((m) => m.value === d.montage.music)?.label.toLowerCase() ?? d.montage.music
+      } · ${soundsText(d.montage.sounds)}`,
+    ],
   ]
   return (
     <div className="space-y-5">

@@ -22,8 +22,23 @@ export function statusText(r: Reel): string {
   if (pr.stage === "voice")
     return pr.step === "mix" ? "сводится базовая дорожка" : pr.total ? `озвучка базы · ${pr.done ?? 0} из ${pr.total}` : "озвучка базы"
   if (pr.stage === "materials") return pr.total ? `материалы · ${pr.done ?? 0} из ${pr.total} кадров` : "заказы модулям"
+  if (pr.stage === "music")
+    return pr.step === "fit" ? `музыка · подгонка ${pr.done ?? 0} из ${pr.total ?? 0}` : pr.total ? `музыка · подбор ${pr.done ?? 0} из ${pr.total}` : "музыка · подбор"
+  if (pr.stage === "sounds")
+    return pr.step === "search"
+      ? `звуки · поиск ${pr.done ?? 0} из ${pr.total ?? 0}`
+      : pr.total
+        ? `звуки · план ${pr.done ?? 0} из ${pr.total}`
+        : "звуки · план"
   if (pr.stage === "assembly") {
-    const what: Record<string, string> = { host: "голос ведущего", clips: "клипы", voice: "дорожки языков", render: "рендер", package: "монтажный проект" }
+    const what: Record<string, string> = {
+      host: "голос ведущего",
+      clips: "клипы",
+      voice: "дорожки языков",
+      music: "музыка и звуки",
+      render: "рендер",
+      package: "монтажный проект",
+    }
     const part = what[pr.step ?? ""] ?? "сборка"
     return pr.step === "render" ? `${part} · ${pr.done ?? 0}%` : pr.total && pr.step === "clips" ? `${part} · ${pr.done ?? 0} из ${pr.total}` : part
   }

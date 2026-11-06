@@ -23,3 +23,29 @@ export function withLevel(familyId: string, level: string, models: TranslationMo
   const f = models.find((m) => m.id === familyId)
   return f?.levels?.includes(level) ? `${base(f.id)}-${level}` : familyId
 }
+
+const LEVEL_ORDER = ["high", "medium", "low"]
+
+/** One list for a picker: every family × level («Gemini 4 Argon · High», …), models without levels as they are. */
+export function flatModels(models: TranslationModelInfo[]): { value: string; label: string; hint: string; minutes: number }[] {
+  return models.flatMap((m) => {
+    const levels = [...(m.levels ?? [])].sort((a, b) => LEVEL_ORDER.indexOf(a) - LEVEL_ORDER.indexOf(b))
+    const engine = m.engine === "claude" ? "Claude Code" : "Antigravity"
+    if (!levels.length) return [{ value: m.id, label: m.label, hint: engine, minutes: m.est_minutes_per_lang }]
+    return levels.map((l) => ({
+      value: `${base(m.id)}-${l}`,
+      label: `${m.label} · ${LEVEL_LABEL[l] ?? l}`,
+      hint: engine,
+      minutes: Math.max(1, Math.round(m.est_minutes_per_lang * ({ low: 0.7, medium: 1, high: 1.5 }[l] ?? 1) / ({ low: 0.7, medium: 1, high: 1.5 }[m.id.slice(base(m.id).length + 1)] ?? 1))),
+    }))
+  })
+}
+
+/** A short name for lists: «Argon · High», «Claude Opus · Low». */
+export function modelLabel(id: string, models: TranslationModelInfo[]): string {
+  const f = familyOf(id, models)
+  if (!f) return id
+  const lvl = levelOf(id, models)
+  const name = f.label.replace(/^Gemini [\d.]+ /, "")
+  return lvl ? `${name} · ${LEVEL_LABEL[lvl] ?? lvl}` : name
+}

@@ -1505,7 +1505,7 @@ export interface Reel {
     fallback_paragraphs: number[]
     errors: string[]
     usage: ReelUsage
-    pauses?: { count: number; sec: number }
+    pauses?: { count: number; sec: number; fades?: number }
     /** The first minutes with their own shares and shot length (when switched on). */
     intro?: { sec: number; seconds: number; shot_sec: [number, number]; mix: ReelMix; main_mix: ReelMix }
   } | null
@@ -1629,7 +1629,8 @@ export interface ReelSettings {
     style: string
     notes: string
     /** Silence after a paragraph while the picture goes on: off | chapters | every (~every_sec) | auto; sec — its length. */
-    pauses?: { mode: "off" | "chapters" | "every" | "auto"; sec: number; every_sec: number }
+    /** Several variants at once (fade — with a fade to black); older reels: {mode}. */
+    pauses?: { modes?: { mode: "chapters" | "every" | "auto"; fade: boolean }[]; mode?: string; sec: number; every_sec: number }
   }
   /** font — the title font (`ReelFont.value`); "" — the montage style's font. */
   montage: { style: string; music: string; font?: string }
@@ -1678,6 +1679,8 @@ export interface ReelOptions {
   shares: ReelShares
   tolerance: number
   engines: { value: string; label: string; model: string }[]
+  /** Storyboard models in one list: value «engine:model», label «Gemini 4 Argon · High». */
+  models?: { value: string; engine: string; model: string; label: string; group: string }[]
   defaults: { engine: string }
   shot_sec: [number, number]
   montage: ReelMontageStyle[]
@@ -1687,6 +1690,8 @@ export interface ReelOptions {
   /** Intro defaults: its length and the shot length per montage style. */
   intro?: { sec: number; shot_sec: Record<string, [number, number]> }
   font_default?: string
+  pauses?: { value: "chapters" | "every" | "auto"; label: string; hint?: string }[]
+  pause_fade_hint?: string
 }
 
 /** A title font of the reel; `available` — its file is on the server (preview and render use it). */

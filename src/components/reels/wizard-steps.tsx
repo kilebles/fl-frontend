@@ -3,7 +3,7 @@
 import { useRef, useState } from "react"
 import Link from "next/link"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { AlertTriangle, Check, FileText, Loader2, Mic, Paperclip, Plus, UserRound, UserRoundX, X } from "lucide-react"
+import { AlertTriangle, Check, FileText, Loader2, Mic, Paperclip, Pencil, Plus, UserRound, UserRoundX, X } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -21,8 +21,10 @@ import {
 } from "@/components/reels/parts"
 import { useReelOptions, useReelVoiceSources } from "@/components/reels/queries"
 import { FootageSettings, IntroSettings, footageText, fromPreset } from "@/components/reels/wizard-advanced"
-import { LEVEL_LABEL, familyOf, levelOf, withLevel } from "@/lib/voice-models"
-import { DEFAULT_FONT, EMPTY_PAUSES, type Draft } from "@/components/reels/wizard-draft"
+import { flatModels, modelLabel } from "@/lib/voice-models"
+import { VoiceProfileDialog } from "@/components/reels/voice-profile-dialog"
+import { DEFAULT_FONT, EMPTY_PAUSES, pausesFrom, type Draft, type PauseMode } from "@/components/reels/wizard-draft"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { FontPick, fontLabel, useFontList } from "@/components/reels/fonts"
 import { skeys, useNiches, useScenarioOptions } from "@/components/script/queries"
 import { BTN_PRIMARY, BTN_SECONDARY, INPUT, Label, ON_BLUE, Pick, Seg } from "@/components/script/ui"
@@ -120,9 +122,8 @@ export function NicheStep({ d, up }: StepProps) {
           style: preset.storyboard.style ?? x.storyboard.style,
           notes: preset.storyboard.notes ?? "",
           engine: preset.storyboard.engine ?? "",
-          pauses: preset.storyboard.pauses
-            ? { mode: preset.storyboard.pauses.mode, sec: preset.storyboard.pauses.sec, everySec: preset.storyboard.pauses.every_sec }
-            : EMPTY_PAUSES,
+          model: preset.storyboard.model ?? "",
+          pauses: preset.storyboard.pauses ? pausesFrom(preset.storyboard.pauses) : EMPTY_PAUSES,
         }
         next.montage = {
           style: preset.montage?.style || "classic",
@@ -421,11 +422,51 @@ export function VoiceStep({ d, up }: StepProps) {
   const { data: models } = useQuery({ queryKey: ["reels", "voice-models"], queryFn: voice.models, staleTime: 5 * 60_000 })
   const tms = models?.translation_models ?? []
   const model = d.voice.model || tms.find((m) => m.id === "gemini-4-argon-medium")?.id || tms[0]?.id || ""
-  const tm = familyOf(model, tms)
-  const level = levelOf(model, tms)
+  const [dialog, setDialog] = useState<"new" | "edit" | null>(null)
+  const flat = flatModels(tms)
+  const current = flat.find((m) => m.value === model)
 
   return (
     <div className="space-y-5">
+      {tms.length > 0 && (
+        <div className="max-w-xl">
+          <Label aside={current ? <span className="font-mono text-[11px] text-faint">~{current.minutes} мин / язык</span> : null}>Модель перевода</Label>
+          <Pick value={model} onChange={(v) => setVoice({ model: v })} options={flat.map((m) => ({ value: m.value, label: m.label, hint: m.hint }))} />
+        </div>
+      )}
+      <div>
+      <Label
+        aside={
+          !isLoading &&
+          !error && (
+            <span className="flex gap-3 text-xs">
+              {profile && (
+                <button type="button" onClick={() => setDialog("edit")} className="flex items-center gap-1 text-muted-foreground hover:text-foreground">
+                  <Pencil className="size-3" />
+                  изменить «{profile.name}»
+                </button>
+              )}
+              {!fromVoice && (
+                <button type="button" onClick={() => setDialog("new")} className="flex items-center gap-1 text-muted-foreground hover:text-foreground">
+                  <Plus className="size-3" />
+                  новый профиль
+                </button>
+              )}
+            </span>
+          )
+        }
+      >
+        Профиль озвучки
+      </Label>
+      <VoiceProfileDialog
+        open={dialog !== null}
+        profile={dialog === "edit" ? (profile ?? null) : null}
+        base={profile ?? profiles?.[0] ?? null}
+        onClose={() => setDialog(null)}
+        onSaved={(p) => {
+          if (dialog === "new") pickProfile(p.id, p.name)
+        }}
+      />
       {fromVoice ? (
         <Note>
           Базовый язык уже озвучен: проект «{job?.title ?? "из «Озвучки»"}»
@@ -452,6 +493,8 @@ export function VoiceStep({ d, up }: StepProps) {
           })}
         </div>
       )}
+
+      </div>
 
       {profile && (
         <div>
@@ -533,26 +576,6 @@ export function VoiceStep({ d, up }: StepProps) {
         </div>
       )}
 
-      {profile && targets.length > 0 && tms.length > 0 && (
-        <div className="max-w-xl">
-          <Label aside={tm ? <span className="font-mono text-[11px] text-faint">~{tm.est_minutes_per_lang} мин / язык</span> : null}>Модель перевода</Label>
-          <Seg
-            value={tm?.id ?? model}
-            onChange={(v) => setVoice({ model: withLevel(v, level, tms) })}
-            options={tms.map((m) => [m.id, m.label.replace(/^Gemini [\d.]+ /, ""), `${m.label}: ${m.description}`] as const)}
-          />
-          {!!tm?.levels?.length && (
-            <div className="mt-1.5">
-              <Seg
-                value={level}
-                onChange={(l) => setVoice({ model: withLevel(tm.id, l, tms) })}
-                mono
-                options={tm.levels.map((l) => [l, LEVEL_LABEL[l] ?? l] as const)}
-              />
-            </div>
-          )}
-        </div>
-      )}
     </div>
   )
 }
@@ -644,6 +667,8 @@ export function StoryboardStep({ d, up }: StepProps) {
   const clash = !realistic && (sb.shares.video > 0 || sb.shares.history > 0)
   const preset = STYLES.findIndex((s) => s.value === sb.style.trim())
   const cats = d.host.on ? CATEGORIES : BASE_CATEGORIES
+  const defEngine = options?.engines.find((e) => e.value === options?.defaults.engine)
+  const defaultModel = defEngine ? (options?.models?.find((m) => m.engine === defEngine.value && m.model === defEngine.model)?.label ?? defEngine.model) : ""
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-1 gap-x-6 gap-y-5 xl:grid-cols-12">
@@ -651,6 +676,9 @@ export function StoryboardStep({ d, up }: StepProps) {
           <Label aside={<SharesAside value={sb.shares} onChange={(s) => set({ shares: s })} host={d.host.on} />}>Доли материала, % экранного времени</Label>
           <SharesRows value={sb.shares} onChange={(s) => set({ shares: s })} seconds={sec} cats={cats} />
           {sharesSum(sb.shares) !== 100 && <p className="mt-2 text-xs text-danger">Доли должны давать 100% — сейчас {sharesSum(sb.shares)}%.</p>}
+          <div className="mt-6">
+            <PausesPick d={d} up={up} />
+          </div>
         </div>
         <div className="space-y-5 xl:col-span-5">
           <div>
@@ -699,15 +727,18 @@ export function StoryboardStep({ d, up }: StepProps) {
           <div>
             <Label>Модель раскадровки</Label>
             <Pick
-              value={sb.engine}
-              onChange={(v) => set({ engine: v })}
+              value={sb.engine ? `${sb.engine}:${sb.model}` : ""}
+              onChange={(v) => {
+                const [engine, ...rest] = v.split(":")
+                set({ engine: v ? engine : "", model: v ? rest.join(":") : "" })
+              }}
+              placeholder={sb.engine ? (options?.engines.find((e) => e.value === sb.engine)?.label ?? sb.engine) : "Из настроек"}
               options={[
-                { value: "", label: "Из настроек", hint: options?.defaults.engine ?? "" },
-                ...(options?.engines ?? []).map((e) => ({ value: e.value, label: e.label, hint: e.model })),
+                { value: "", label: "Из настроек", hint: defaultModel },
+                ...(options?.models ?? []).map((m) => ({ value: m.value, label: m.label, hint: m.group })),
               ]}
             />
           </div>
-          <PausesPick d={d} up={up} />
         </div>
       </div>
       <div className="space-y-3">
@@ -718,44 +749,90 @@ export function StoryboardStep({ d, up }: StepProps) {
   )
 }
 
-const PAUSE_MODES = [
-  ["off", "Выкл", "Без пауз"],
-  ["chapters", "Главы", "Пауза в конце каждой главы"],
-  ["every", "Раз в N с", "Примерно раз в N секунд — там рядом, где пауза уместна по смыслу"],
-  ["auto", "Авто", "Где пауза уместна по смыслу — решает модель, плюс концы глав"],
-] as const
+const PAUSE_MODES: { value: PauseMode; label: string; hint: string }[] = [
+  { value: "chapters", label: "Главы", hint: "Пауза после последнего абзаца каждой главы — зритель переводит дух перед новой частью." },
+  { value: "every", label: "Раз в N секунд", hint: "Примерно раз в N секунд: мозг ищет рядом место, где пауза уместна по смыслу, и ставит её туда." },
+  { value: "auto", label: "Авто", hint: "Модель сама отмечает места для пауз по смыслу фильма — поворот, сильная фраза, смена темы; плюс концы глав." },
+]
+const FADE_HINT = "Затухание: в паузе картинка уходит в чёрное и возвращается — сильнее отделяет части фильма."
 
 export function pausesText(p: Draft["storyboard"]["pauses"]) {
-  if (p.mode === "off") return "без пауз"
-  const len = `${String(p.sec).replace(".", ",")} с`
-  return p.mode === "chapters" ? `паузы в конце глав · ${len}` : p.mode === "every" ? `паузы ~раз в ${p.everySec} с · ${len}` : `паузы по смыслу · ${len}`
+  if (!p.modes.length) return "без пауз"
+  const parts = p.modes.map((m) => {
+    const what = m.mode === "chapters" ? "в конце глав" : m.mode === "every" ? `~раз в ${p.everySec} с` : "по смыслу"
+    return m.fade ? `${what} с затуханием` : what
+  })
+  return `паузы ${parts.join(" + ")} · ${String(p.sec).replace(".", ",")} с`
 }
 
-/** «Паузы»: silence after a paragraph while the picture goes on; it shifts the video and every language at once. */
+function Hint({ text }: { text: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<span />} className="inline-grid size-4 cursor-help place-items-center rounded-full border border-line-strong font-mono text-[10px] text-faint hover:text-foreground">
+        ?
+      </TooltipTrigger>
+      <TooltipContent className="max-w-72 leading-snug">{text}</TooltipContent>
+    </Tooltip>
+  )
+}
+
+/** «Паузы»: silence after a paragraph while the picture goes on; several variants at once, each with or without a fade. */
 function PausesPick({ d, up }: { d: Draft; up: Up }) {
+  const { data: options } = useReelOptions()
   const p = d.storyboard.pauses
   const set = (patch: Partial<Draft["storyboard"]["pauses"]>) =>
     up((x) => ({ ...x, storyboard: { ...x.storyboard, pauses: { ...x.storyboard.pauses, ...patch } } }))
+  const of = (mode: PauseMode) => p.modes.find((m) => m.mode === mode)
+  const toggle = (mode: PauseMode) =>
+    set({
+      modes: of(mode)
+        ? p.modes.filter((m) => m.mode !== mode)
+        : PAUSE_MODES.filter((m) => m.value === mode || of(m.value)).map((m) => of(m.value) ?? { mode, fade: false }),
+    })
+  const fade = (mode: PauseMode, on: boolean) => set({ modes: p.modes.map((m) => (m.mode === mode ? { ...m, fade: on } : m)) })
+  const hint = (mode: PauseMode) => options?.pauses?.find((x) => x.value === mode)?.hint ?? PAUSE_MODES.find((m) => m.value === mode)!.hint
   return (
-    <div className="space-y-2">
-      <Label>Паузы</Label>
-      <Seg value={p.mode} onChange={(v) => set({ mode: v as typeof p.mode })} options={[...PAUSE_MODES]} />
-      {p.mode === "every" && (
-        <Seg
-          value={String(p.everySec)}
-          onChange={(v) => set({ everySec: Number(v) })}
-          mono
-          options={[
-            ["30", "~30 с"],
-            ["45", "~45 с"],
-            ["60", "~1 мин"],
-            ["90", "~1,5 мин"],
-            ["120", "~2 мин"],
-          ]}
-        />
-      )}
-      {p.mode !== "off" && (
-        <div className="flex items-center gap-3">
+    <div>
+      <Label aside={<span className="font-mono text-[11px] text-faint">{p.modes.length ? "можно несколько" : "выкл"}</span>}>Паузы</Label>
+      <div className="overflow-hidden rounded-[3px] border border-line-strong bg-background">
+        {PAUSE_MODES.map((m) => {
+          const cur = of(m.value)
+          return (
+            <div key={m.value} className="flex min-h-11 flex-wrap items-center gap-x-4 gap-y-2 border-b border-line px-3 py-2 last:border-b-0">
+              <label className="flex min-w-36 cursor-pointer items-center gap-2.5 text-sm">
+                <input type="checkbox" checked={!!cur} onChange={() => toggle(m.value)} className="size-4 accent-[var(--pick)]" />
+                <span className={cur ? "font-medium text-foreground" : "text-muted-foreground"}>{m.label}</span>
+                <Hint text={hint(m.value)} />
+              </label>
+              {cur && m.value === "every" && (
+                <div className="min-w-0">
+                  <Seg
+                    value={String(p.everySec)}
+                    onChange={(v) => set({ everySec: Number(v) })}
+                    mono
+                    options={[
+                      ["30", "~30 с"],
+                      ["45", "~45 с"],
+                      ["60", "~1 мин"],
+                      ["90", "~1,5 мин"],
+                      ["120", "~2 мин"],
+                    ]}
+                  />
+                </div>
+              )}
+              {cur && (
+                <label className="ml-auto flex cursor-pointer items-center gap-2 text-[13px] text-muted-foreground">
+                  <input type="checkbox" checked={cur.fade} onChange={(e) => fade(m.value, e.target.checked)} className="size-3.5 accent-[var(--pick)]" />
+                  <span className={cur.fade ? "text-foreground" : ""}>Затухание</span>
+                  <Hint text={options?.pause_fade_hint ?? FADE_HINT} />
+                </label>
+              )}
+            </div>
+          )
+        })}
+      </div>
+      {p.modes.length > 0 && (
+        <div className="mt-2 flex items-center gap-3">
           <span className="shrink-0 text-[13px] text-muted-foreground">Длина паузы</span>
           <div className="min-w-0 flex-1">
             <Seg
@@ -850,6 +927,10 @@ export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & {
   const { data: voices } = useReelVoiceSources(d.script.mode === "ready" && d.script.from === "voice")
   const v = voices?.find((x) => String(x.id) === d.script.voiceJob)
   const s = d.script
+  const { data: options } = useReelOptions()
+  const { data: vm } = useQuery({ queryKey: ["reels", "voice-models"], queryFn: voice.models, staleTime: 5 * 60_000 })
+  const tms = vm?.translation_models ?? []
+  const sbModel = options?.models?.find((m) => m.engine === d.storyboard.engine && m.model === d.storyboard.model)?.label ?? d.storyboard.engine
   const rows: [string, React.ReactNode][] = [
     ["Ниша", d.nicheName],
     [
@@ -862,7 +943,7 @@ export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & {
     ],
     [
       "Озвучка",
-      `${s.mode === "ready" && s.from === "voice" ? "уже озвучено" : d.voice.name || "профиль не выбран"}${d.voice.targets.length ? ` · переводы: ${d.voice.targets.join(", ")}` : ""}${d.voice.targets.length && d.voice.model ? ` · ${d.voice.model}` : ""}`,
+      `${s.mode === "ready" && s.from === "voice" ? "уже озвучено" : d.voice.name || "профиль не выбран"}${d.voice.targets.length ? ` · переводы: ${d.voice.targets.join(", ")}` : ""}${d.voice.targets.length && d.voice.model ? ` · ${modelLabel(d.voice.model, tms)}` : ""}`,
     ],
     ["Ведущий", d.host.on ? `${d.host.name || "аватар не выбран"}${d.host.voice ? ` · ${d.host.voice}` : ""}` : "без ведущего"],
     [
@@ -871,9 +952,10 @@ export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & {
         <span>
           {shareText(d.storyboard.shares, d.host.on)} · {d.storyboard.style}
           {d.storyboard.notes ? ` · детали: ${d.storyboard.notes}` : ""}
+          {d.storyboard.engine ? ` · ${sbModel}` : ""}
         </span>
         <MixBar shares={d.storyboard.shares} className="max-w-xs" />
-        {d.storyboard.pauses.mode !== "off" && <span className="text-foreground-2">{pausesText(d.storyboard.pauses)}</span>}
+        {d.storyboard.pauses.modes.length > 0 && <span className="text-foreground-2">{pausesText(d.storyboard.pauses)}</span>}
         {d.intro.on && (
           <span className="text-foreground-2">
             первые {Math.round(d.intro.sec / 60)} мин: {shareText(d.intro.shares, d.host.on)}

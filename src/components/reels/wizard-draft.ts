@@ -23,11 +23,24 @@ export type IntroDraft = {
   minFit: string
 }
 
-export type PausesDraft = { mode: "off" | "chapters" | "every" | "auto"; sec: number; everySec: number }
+export type PauseMode = "chapters" | "every" | "auto"
+/** Several variants at once; fade — that variant's pauses go to black and back. Empty — no pauses. */
+export type PausesDraft = { modes: { mode: PauseMode; fade: boolean }[]; sec: number; everySec: number }
 /** The title font of a new reel. */
 export const DEFAULT_FONT = "constantia"
 
-export const EMPTY_PAUSES: PausesDraft = { mode: "off", sec: 1.5, everySec: 60 }
+export const EMPTY_PAUSES: PausesDraft = { modes: [], sec: 1.5, everySec: 60 }
+
+/** Pauses from the API or an older draft ({mode: off|chapters|every|auto}). */
+export function pausesFrom(raw: unknown): PausesDraft {
+  const r = (raw ?? {}) as { modes?: { mode: PauseMode; fade?: boolean }[]; mode?: string; sec?: number; everySec?: number; every_sec?: number }
+  const modes = Array.isArray(r.modes)
+    ? r.modes.filter((m) => m && ["chapters", "every", "auto"].includes(m.mode)).map((m) => ({ mode: m.mode, fade: !!m.fade }))
+    : r.mode && r.mode !== "off"
+      ? [{ mode: r.mode as PauseMode, fade: false }]
+      : []
+  return { modes, sec: r.sec ?? EMPTY_PAUSES.sec, everySec: r.everySec ?? r.every_sec ?? EMPTY_PAUSES.everySec }
+}
 
 export const ALL_GROUPS: FootageGroup[] = ["archive", "youtube", "films", "stock"]
 export const EMPTY_FOOTAGE: FootageDraft = { score: "", groups: ALL_GROUPS, engine: "", model: "", ytFirst: false, ytAny: false, filmRisky: false }
@@ -54,8 +67,9 @@ export type Draft = {
    *  model — the translation model of «Озвучка» (empty: its default). */
   voice: { profile: string; name: string; targets: string[]; voices: Record<string, string>; model: string }
   host: { on: boolean; id: string; name: string; voice: string }
-  /** pauses: off | chapters (end of each chapter) | every (~every N s, at a fitting place) | auto (the model decides). */
-  storyboard: { shares: ReelShares; style: string; notes: string; engine: string; pauses: PausesDraft }
+  /** engine + model: the storyboard model («agy» + «gemini-4-argon-high»); "" — from the brain's settings.
+   *  pauses: chapters (end of each chapter) / every (~every N s, at a fitting place) / auto (the model decides), with or without fade. */
+  storyboard: { shares: ReelShares; style: string; notes: string; engine: string; model: string; pauses: PausesDraft }
   /** font — the title font; "" — the montage style's font. */
   montage: { style: string; music: string; font: string }
   footage: { video: FootageDraft; history: FootageDraft }
@@ -72,7 +86,7 @@ export const EMPTY: Draft = {
   script: { mode: "topic", topic: "", minutes: "20", language: "en", tone: "", model: "", notes: "", from: "voice", voiceJob: "" },
   voice: { profile: "", name: "", targets: [], voices: {}, model: "" },
   host: { on: false, id: "", name: "", voice: "" },
-  storyboard: { shares: PRESETS[0].shares, style: STYLES[0].value, notes: "", engine: "", pauses: EMPTY_PAUSES },
+  storyboard: { shares: PRESETS[0].shares, style: STYLES[0].value, notes: "", engine: "", model: "", pauses: EMPTY_PAUSES },
   montage: { style: "classic", music: "chapters", font: DEFAULT_FONT },
   footage: { video: EMPTY_FOOTAGE, history: EMPTY_FOOTAGE },
   intro: { on: false, sec: 120, shares: PRESETS[0].shares, shot: ["", ""], minFit: "" },
@@ -95,7 +109,8 @@ export function loadDraft(): Draft {
         ...EMPTY.storyboard,
         ...raw.storyboard,
         shares: { ...EMPTY.storyboard.shares, ...raw.storyboard?.shares },
-        pauses: { ...EMPTY_PAUSES, ...raw.storyboard?.pauses },
+        model: raw.storyboard?.model ?? "",
+        pauses: pausesFrom(raw.storyboard?.pauses),
       },
       montage: { ...EMPTY.montage, ...raw.montage },
       footage: {

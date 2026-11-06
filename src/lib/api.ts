@@ -867,6 +867,8 @@ export interface TranslationModelInfo {
   badge: string | null
   description: string
   est_minutes_per_lang: number
+  /** agy thinking levels: the id becomes <family>-<level> (older voice API: absent). */
+  levels?: string[]
 }
 
 export interface VoiceModelInfo {
@@ -1368,7 +1370,17 @@ export interface FootageProject {
 export interface FootageOptions {
   engines: { value: string; label: string; hint: string }[]
   groups: { value: FootageGroup; enabled: boolean }[]
-  defaults: { engine: string; min_score: number | null; accept_score: number | null; format: "16:9" | "9:16"; batch: number | null }
+  /** Models offered for picking shots, per engine (older fl-footage: absent). */
+  vision_models?: Record<string, string[]>
+  defaults: {
+    engine: string
+    min_score: number | null
+    accept_score: number | null
+    format: "16:9" | "9:16"
+    batch: number | null
+    vision_engine?: string
+    vision_model?: string
+  }
   routing: Record<string, FootageGroup[]>
   voice_api: boolean
 }
@@ -1484,7 +1496,19 @@ export interface Reel {
   steps: ReelStep[]
   /** step: storyboard brief | shots | allocate; script — the stage of «Сценарий» (outline, chapter, polish…); voice — voice | mix */
   progress: { stage?: string; step?: string; done?: number; total?: number; wait?: string }
-  summary: { shots: number; total_sec: number; mix: ReelMix; fallback_paragraphs: number[]; errors: string[]; usage: ReelUsage } | null
+  summary: {
+    shots: number
+    total_sec: number
+    mix: ReelMix
+    fallback_paragraphs: number[]
+    errors: string[]
+    usage: ReelUsage
+    pauses?: { count: number; sec: number }
+    /** The first minutes with their own shares and shot length (when switched on). */
+    intro?: { sec: number; seconds: number; shot_sec: [number, number]; mix: ReelMix; main_mix: ReelMix }
+  } | null
+  /** Work time: the reel and each stage; queue and idle time are not counted. The site ticks a running one itself. */
+  timing?: ReelTiming
   error: string | null
   /** Only on GET /api/reels/{id}: the last build of the language tracks. */
   tracks?: ReelTracksStatus
@@ -1500,6 +1524,12 @@ export interface Reel {
     fallbacks: number
     failed: number
   } | null
+}
+
+export interface ReelTiming {
+  sec: number
+  running: boolean
+  stages: Partial<Record<ReelStepKey, { sec: number; running: boolean }>>
 }
 
 export interface ReelTracksStatus {
@@ -1544,6 +1574,8 @@ export interface ReelShot {
   avoid: string[]
   fallback: boolean
   executor: string
+  /** A shot of the intro (the first minutes with their own settings). */
+  intro?: boolean
 }
 
 export interface ReelParagraph {
@@ -1586,11 +1618,44 @@ export interface ReelSettings {
   niche_name?: string
   script: { mode: "topic" | "ready"; topic?: string; minutes?: number | null; language?: string; tone?: string; model?: string; notes?: string }
   /** targets — languages of translation; voices — a voice per language (empty: the profile's default). */
-  voice: { profile?: string; name?: string; targets?: string[]; voices?: Record<string, string> }
+  voice: { profile?: string; name?: string; targets?: string[]; voices?: Record<string, string>; model?: string }
   avatar: { id: string; name?: string; voice?: string }
-  storyboard: { shares: ReelShares; engine: string; model: string; style: string; notes: string }
-  montage: { style: string; music: string }
+  storyboard: {
+    shares: ReelShares
+    engine: string
+    model: string
+    style: string
+    notes: string
+    /** Silence after a paragraph while the picture goes on: off | chapters | every (~every_sec) | auto; sec — its length. */
+    pauses?: { mode: "off" | "chapters" | "every" | "auto"; sec: number; every_sec: number }
+  }
+  /** font — the title font (`ReelFont.value`); "" — the montage style's font. */
+  montage: { style: string; music: string; font?: string }
+  /** «Поиск видео» for each real category; null / "" — as set on the module's server. */
+  footage?: { video: ReelFootageSettings; history: ReelFootageSettings }
+  /** The first minutes apart: own shares, shot length and category score floor. */
+  intro?: ReelIntroSettings
   format: "16:9" | "9:16"
+}
+
+export interface ReelFootageSettings {
+  min_score: number | null
+  groups: FootageGroup[] | null
+  vision_engine: string
+  vision_model: string
+  yt_first: boolean
+  yt_any: boolean
+  film_risky: boolean
+}
+
+export interface ReelIntroSettings {
+  on: boolean
+  sec: number
+  shares: Partial<ReelShares>
+  /** Shot length [from, to], seconds; empty — the montage style's length × 0.6. */
+  shot: number[]
+  /** A category with a lower score is not used for an intro shot. */
+  min_fit: number
 }
 
 export interface ReelMontageStyle {
@@ -1601,6 +1666,9 @@ export interface ReelMontageStyle {
   look: string
   text: string
   shot_sec: [number, number]
+  /** The style shows chapter titles; font — its own title font (serif | sans | mono). */
+  titles?: boolean
+  font?: "serif" | "sans" | "mono"
 }
 
 export interface ReelOptions {
@@ -1613,6 +1681,19 @@ export interface ReelOptions {
   montage: ReelMontageStyle[]
   montage_default: string
   music: { value: string; label: string }[]
+  footage_groups?: { value: FootageGroup; label: string }[]
+  /** Intro defaults: its length and the shot length per montage style. */
+  intro?: { sec: number; shot_sec: Record<string, [number, number]> }
+  font_default?: string
+}
+
+/** A title font of the reel; `available` — its file is on the server (preview and render use it). */
+export interface ReelFont {
+  value: string
+  label: string
+  family: string
+  available: boolean
+  format: string
 }
 
 export interface ReelVoiceSource {
@@ -1643,6 +1724,8 @@ export const reels = {
   health: () => request<{ status: string; worker_online: boolean }>("/api/reels/health"),
   options: () => request<ReelOptions>("/api/reels/options"),
   voiceSources: () => request<ReelVoiceSource[]>("/api/reels/voice-sources"),
+  fonts: () => request<ReelFont[]>("/api/reels/fonts"),
+  fontUrl: (value: string) => withToken(`/api/reels/fonts/${encodeURIComponent(value)}`),
   list: () => request<Reel[]>("/api/reels"),
   get: (id: string) => request<Reel>(rid(id)),
   storyboard: (id: string) => request<ReelStoryboard>(`${rid(id)}/storyboard`),
@@ -1653,7 +1736,8 @@ export const reels = {
     return request<Reel>("/api/reels", { method: "POST", body: form })
   },
   preset: (niche: string) => request<Partial<ReelSettings>>(`/api/reels/presets/${encodeURIComponent(niche)}`),
-  shares: (id: string, shares: ReelShares) => request<Reel>(`${rid(id)}/shares`, json("PUT", { shares })),
+  shares: (id: string, shares: ReelShares, introShares?: ReelShares) =>
+    request<Reel>(`${rid(id)}/shares`, json("PUT", introShares ? { shares, intro_shares: introShares } : { shares })),
   rename: (id: string, title: string) => request<Reel>(rid(id), json("PATCH", { title })),
   stop: (id: string) => request<Reel>(`${rid(id)}/stop`, json("POST")),
   resume: (id: string, again = false) => request<Reel>(`${rid(id)}/resume`, json("POST", { again })),

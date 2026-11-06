@@ -21,17 +21,31 @@ import {
   sameShares,
   sharesSum,
   shotsText,
+  spentText,
+  useSpent,
 } from "@/components/reels/parts"
 import { statusText } from "@/components/reels/reel-list"
 import { rkeys, useReelOptions, useStoryboard } from "@/components/reels/queries"
 import { BriefCard, StoryboardCard } from "@/components/reels/storyboard"
 import { MaterialsCard, ResultCard } from "@/components/reels/result"
+import { fontLabel, useFontList } from "@/components/reels/fonts"
 import { TracksCard } from "@/components/reels/tracks"
 import { ConfirmDialog } from "@/components/script/parts"
 import { setUrlParams } from "@/components/script/queries"
 import { BTN_PRIMARY, BTN_SECONDARY, Card } from "@/components/script/ui"
-import { reels, type Reel, type ReelShares, type ReelStoryboard } from "@/lib/api"
+import { reels, type Reel, type ReelFootageSettings, type ReelShares, type ReelStoryboard } from "@/lib/api"
 import { cn } from "@/lib/utils"
+
+/** Search settings of the real categories that differ from the module's own, one short line. */
+function footageLine(r: Reel) {
+  const f = r.settings.footage
+  if (!f) return ""
+  const one = (label: string, x: ReelFootageSettings) => {
+    const parts = [x.min_score !== null ? `порог ${x.min_score}` : "", x.vision_model, x.groups ? `${x.groups.length} ист.` : ""].filter(Boolean)
+    return parts.length ? `${label}: ${parts.join(", ")}` : ""
+  }
+  return [one("видео", f.video), one("история", f.history)].filter(Boolean).join(" · ")
+}
 
 function Tile({ label, value, sub, tone }: { label: string; value: React.ReactNode; sub?: React.ReactNode; tone?: "warn" }) {
   return (
@@ -127,7 +141,7 @@ function MixCard({ reel, sb }: { reel: Reel; sb: ReelStoryboard }) {
   )
 }
 
-export function ReelView({ reel: r }: { reel: Reel }) {
+export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number }) {
   const qc = useQueryClient()
   const [del, setDel] = useState(false)
   const done = r.steps.find((s) => s.key === "storyboard")?.state === "done"
@@ -144,6 +158,7 @@ export function ReelView({ reel: r }: { reel: Reel }) {
 
   const { data: options } = useReelOptions()
   const montage = options?.montage.find((m) => m.value === r.settings.montage?.style)?.label ?? ""
+  const fonts = useFontList()
   const s = r.summary
   const pr = r.progress
   const active = r.status === "running" || r.status === "queued"
@@ -156,13 +171,20 @@ export function ReelView({ reel: r }: { reel: Reel }) {
     materials: now("materials") ? statusText(r) : r.materials?.total ? `${r.materials.done} из ${r.materials.total} кадров` : "",
     assembly: now("assembly") ? statusText(r) : r.result ? clock(r.result.sec) : "",
   }
+  const spent = useSpent(r.timing, updatedAt)
+  const times = Object.fromEntries(
+    r.steps.map((x) => {
+      const sec = spent.stage(x.key)
+      return [x.key, sec === null || (!sec && x.state !== "active") ? "" : x.state === "active" ? clock(sec) : spentText(sec)]
+    }),
+  )
   const more = !active && r.steps.some((x) => x.key === "materials" && x.state === "todo") && done
   const total = s?.total_sec ?? 0
 
   return (
     <div className="space-y-5">
       <div className="rounded-[4px] border border-line bg-surface px-5 py-4">
-        <StepSteps steps={r.steps} captions={captions} />
+        <StepSteps steps={r.steps} captions={captions} times={times} />
       </div>
 
       {r.status === "error" && r.error && (
@@ -216,10 +238,19 @@ export function ReelView({ reel: r }: { reel: Reel }) {
         <div className="mt-4 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-4">
           <span className="min-w-0 flex-1 truncate text-xs text-faint">
             {[
-              montage ? `Монтаж: ${montage}` : "",
+              montage ? `Монтаж: ${montage} · шрифт: ${fontLabel(fonts, r.settings.montage?.font)}` : "",
               r.settings.storyboard.style ? `стиль: ${r.settings.storyboard.style}` : "",
               r.settings.avatar?.id ? `ведущий: ${r.settings.avatar.name || "аватар"}` : "",
               r.settings.voice?.targets?.length ? `переводы: ${r.settings.voice.targets.join(", ")}` : "",
+              r.settings.intro?.on
+                ? `первые ${Math.round(r.settings.intro.sec / 60)} мин: ${(r.settings.avatar?.id ? CATEGORIES : BASE_CATEGORIES)
+                    .map((c) => Math.round(r.settings.intro?.shares[c] ?? 0))
+                    .join("·")}${s?.intro ? `, кадр ${s.intro.shot_sec.join("–")} с` : ""}`
+                : "",
+              footageLine(r),
+              r.settings.storyboard.pauses && r.settings.storyboard.pauses.mode !== "off"
+                ? `паузы: ${{ chapters: "в конце глав", every: `~раз в ${r.settings.storyboard.pauses.every_sec} с`, auto: "по смыслу" }[r.settings.storyboard.pauses.mode]}${s?.pauses ? ` (${s.pauses.count})` : ""}`
+                : "",
               r.settings.storyboard.notes ? `детали: ${r.settings.storyboard.notes}` : "",
             ]
               .filter(Boolean)

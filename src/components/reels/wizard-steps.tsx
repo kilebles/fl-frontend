@@ -20,7 +20,10 @@ import {
   shotsText,
 } from "@/components/reels/parts"
 import { useReelOptions, useReelVoiceSources } from "@/components/reels/queries"
-import type { Draft } from "@/components/reels/wizard-draft"
+import { FootageSettings, IntroSettings, footageText, fromPreset } from "@/components/reels/wizard-advanced"
+import { LEVEL_LABEL, familyOf, levelOf, withLevel } from "@/lib/voice-models"
+import { DEFAULT_FONT, EMPTY_PAUSES, type Draft } from "@/components/reels/wizard-draft"
+import { FontPick, fontLabel, useFontList } from "@/components/reels/fonts"
 import { skeys, useNiches, useScenarioOptions } from "@/components/script/queries"
 import { BTN_PRIMARY, BTN_SECONDARY, INPUT, Label, ON_BLUE, Pick, Seg } from "@/components/script/ui"
 import { reels, scenario, voice, type ReelSettings, type ReelShares, type ScenarioNiche } from "@/lib/api"
@@ -109,6 +112,7 @@ export function NicheStep({ d, up }: StepProps) {
           name: preset.voice?.name ?? "",
           targets: preset.voice?.targets ?? [],
           voices: preset.voice?.voices ?? {},
+          model: preset.voice?.model ?? "",
         }
         next.host = { on: !!preset.avatar?.id, id: preset.avatar?.id ?? "", name: preset.avatar?.name ?? "", voice: preset.avatar?.voice ?? "" }
         next.storyboard = {
@@ -116,8 +120,16 @@ export function NicheStep({ d, up }: StepProps) {
           style: preset.storyboard.style ?? x.storyboard.style,
           notes: preset.storyboard.notes ?? "",
           engine: preset.storyboard.engine ?? "",
+          pauses: preset.storyboard.pauses
+            ? { mode: preset.storyboard.pauses.mode, sec: preset.storyboard.pauses.sec, everySec: preset.storyboard.pauses.every_sec }
+            : EMPTY_PAUSES,
         }
-        next.montage = { style: preset.montage?.style || "classic", music: preset.montage?.music || "chapters" }
+        next.montage = {
+          style: preset.montage?.style || "classic",
+          music: preset.montage?.music || "chapters",
+          font: preset.montage?.font ?? DEFAULT_FONT,
+        }
+        Object.assign(next, fromPreset(preset, x))
         next.format = preset.format === "9:16" ? "9:16" : "16:9"
       }
       return next
@@ -210,7 +222,6 @@ export function NicheStep({ d, up }: StepProps) {
           </div>
         </div>
       )}
-      {d.presetFrom && <Note>Озвучка, ведущий, доли, стиль и монтаж взяты из прошлого ролика в нише «{d.presetFrom}».</Note>}
     </div>
   )
 }
@@ -275,9 +286,6 @@ export function ScriptStep({ d, up, file, setFile }: StepProps) {
               placeholder="Факты, которые обязательно нужны; источники; через чью судьбу рассказать; чего избегать"
               className={TEXTAREA}
             />
-          </div>
-          <div className="md:col-span-2 xl:col-span-12">
-            <Note>Сценарий пишется сразу, без вопросов брифа: правила и голос берутся из паспорта ниши. Дальше мозг сам отдаёт его в озвучку и, как только сведена базовая дорожка, в раскадровку.</Note>
           </div>
         </div>
       ) : (
@@ -353,13 +361,6 @@ export function ScriptStep({ d, up, file, setFile }: StepProps) {
               </div>
             )}
           </div>
-          <div className="self-end">
-            <Note>
-              {s.from === "voice"
-                ? "Абзацы и длительность каждого абзаца берутся из проекта «Озвучки»."
-                : "Файл без озвучки: длительность абзацев считается по тексту, ~960 символов в минуту."}
-            </Note>
-          </div>
         </div>
       )}
     </div>
@@ -415,9 +416,13 @@ export function VoiceStep({ d, up }: StepProps) {
     up((x) => {
       const p = profiles?.find((q) => q.id === id)
       const has = (c: string) => !!p && Object.keys(p.voices).some((k) => apiLang(k) === c)
-      return { ...x, voice: { profile: id, name: title, targets: x.voice.targets.filter(has), voices: {} } }
+      return { ...x, voice: { profile: id, name: title, targets: x.voice.targets.filter(has), voices: {}, model: x.voice.model } }
     })
-  const missing = fromVoice ? targets.filter((t) => !inProject.has(t)) : []
+  const { data: models } = useQuery({ queryKey: ["reels", "voice-models"], queryFn: voice.models, staleTime: 5 * 60_000 })
+  const tms = models?.translation_models ?? []
+  const model = d.voice.model || tms.find((m) => m.id === "gemini-4-argon-medium")?.id || tms[0]?.id || ""
+  const tm = familyOf(model, tms)
+  const level = levelOf(model, tms)
 
   return (
     <div className="space-y-5">
@@ -528,13 +533,26 @@ export function VoiceStep({ d, up }: StepProps) {
         </div>
       )}
 
-      <Note>
-        {targets.length
-          ? `Переводы сводятся под базовый язык (${base}): у всех языков одна длина каждого абзаца, и дорожки для YouTube собираются на экране ролика ровно по длине видео.`
-          : `Озвучивается только базовый язык (${base}).`}
-        {missing.length > 0 && ` ${missing.join(", ")} в проекте ещё нет — мозг закажет их перевод при запуске, раскадровка их не ждёт.`}
-        {!fromVoice && d.script.mode === "ready" && (d.voice.profile ? " Файл уйдёт в озвучку при запуске." : " Без профиля файл не озвучивается: длительность считается по тексту.")}
-      </Note>
+      {profile && targets.length > 0 && tms.length > 0 && (
+        <div className="max-w-xl">
+          <Label aside={tm ? <span className="font-mono text-[11px] text-faint">~{tm.est_minutes_per_lang} мин / язык</span> : null}>Модель перевода</Label>
+          <Seg
+            value={tm?.id ?? model}
+            onChange={(v) => setVoice({ model: withLevel(v, level, tms) })}
+            options={tms.map((m) => [m.id, m.label.replace(/^Gemini [\d.]+ /, ""), `${m.label}: ${m.description}`] as const)}
+          />
+          {!!tm?.levels?.length && (
+            <div className="mt-1.5">
+              <Seg
+                value={level}
+                onChange={(l) => setVoice({ model: withLevel(tm.id, l, tms) })}
+                mono
+                options={tm.levels.map((l) => [l, LEVEL_LABEL[l] ?? l] as const)}
+              />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -609,7 +627,6 @@ export function HostStep({ d, up }: StepProps) {
               className={INPUT}
             />
           </div>
-          <Note>Ведущий берёт абзацы целиком — вступление, переходы между главами, финал — и произносит их сам; диктор на этих абзацах молчит. Долю ведущего задаёт следующий шаг.</Note>
         </>
       )}
     </div>
@@ -628,68 +645,133 @@ export function StoryboardStep({ d, up }: StepProps) {
   const preset = STYLES.findIndex((s) => s.value === sb.style.trim())
   const cats = d.host.on ? CATEGORIES : BASE_CATEGORIES
   return (
-    <div className="grid grid-cols-1 gap-x-6 gap-y-5 xl:grid-cols-12">
-      <div className="xl:col-span-7">
-        <Label aside={<SharesAside value={sb.shares} onChange={(s) => set({ shares: s })} host={d.host.on} />}>Доли материала, % экранного времени</Label>
-        <SharesRows value={sb.shares} onChange={(s) => set({ shares: s })} seconds={sec} cats={cats} />
-        {sharesSum(sb.shares) !== 100 && <p className="mt-2 text-xs text-danger">Доли должны давать 100% — сейчас {sharesSum(sb.shares)}%.</p>}
-      </div>
-      <div className="space-y-5 xl:col-span-5">
-        <div>
-          <Label>Стиль картинки</Label>
-          <div className="mb-2 flex flex-wrap gap-1.5">
-            {STYLES.map((s, i) => (
-              <button
-                key={s.value}
-                type="button"
-                onClick={() => set({ style: s.value })}
-                className={cn(
-                  "h-7 rounded-[3px] border px-2.5 text-xs transition-colors",
-                  preset === i ? "border-pick/40 bg-pick-soft font-medium text-pick-text" : "border-line-strong text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {STYLE_LABEL[i]}
-              </button>
-            ))}
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 gap-x-6 gap-y-5 xl:grid-cols-12">
+        <div className="xl:col-span-7">
+          <Label aside={<SharesAside value={sb.shares} onChange={(s) => set({ shares: s })} host={d.host.on} />}>Доли материала, % экранного времени</Label>
+          <SharesRows value={sb.shares} onChange={(s) => set({ shares: s })} seconds={sec} cats={cats} />
+          {sharesSum(sb.shares) !== 100 && <p className="mt-2 text-xs text-danger">Доли должны давать 100% — сейчас {sharesSum(sb.shares)}%.</p>}
+        </div>
+        <div className="space-y-5 xl:col-span-5">
+          <div>
+            <Label>Стиль картинки</Label>
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              {STYLES.map((s, i) => (
+                <button
+                  key={s.value}
+                  type="button"
+                  onClick={() => set({ style: s.value })}
+                  className={cn(
+                    "h-7 rounded-[3px] border px-2.5 text-xs transition-colors",
+                    preset === i ? "border-pick/40 bg-pick-soft font-medium text-pick-text" : "border-line-strong text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {STYLE_LABEL[i]}
+                </button>
+              ))}
+            </div>
+            <input value={sb.style} onChange={(e) => set({ style: e.target.value })} placeholder="Или свой стиль" className={INPUT} />
           </div>
-          <input value={sb.style} onChange={(e) => set({ style: e.target.value })} placeholder="Или свой стиль" className={INPUT} />
-        </div>
-        {clash && (
-          <Note tone="warn">
-            Реальные футажи и исторические кадры будут выбиваться из стиля «{sb.style}».{" "}
-            <button
-              type="button"
-              className="font-medium text-pick-text hover:underline"
-              onClick={() =>
-                set({ shares: d.host.on ? { ai: 70, video: 0, history: 0, graphics: 15, avatar: 15 } : { ai: 85, video: 0, history: 0, graphics: 15, avatar: 0 } })
-              }
-            >
-              Оставить {d.host.on ? "ИИ, ведущего и графику" : "ИИ и графику"}
-            </button>
-          </Note>
-        )}
-        <div>
-          <Label aside={<span className="font-mono text-[11px] text-faint">для модели раскадровки</span>}>Важные детали</Label>
-          <textarea
-            value={sb.notes}
-            onChange={(e) => set({ notes: e.target.value })}
-            rows={3}
-            placeholder="Например: без детей и крови, бои только издалека, больше карт в главе о походе"
-            className={TEXTAREA}
-          />
-        </div>
-        <div>
-          <Label>Модель раскадровки</Label>
-          <Pick
-            value={sb.engine}
-            onChange={(v) => set({ engine: v })}
-            options={[
-              { value: "", label: "Из настроек", hint: options?.defaults.engine ?? "" },
-              ...(options?.engines ?? []).map((e) => ({ value: e.value, label: e.label, hint: e.model })),
-            ]}
-          />
+          {clash && (
+            <Note tone="warn">
+              Реальные футажи и исторические кадры будут выбиваться из стиля «{sb.style}».{" "}
+              <button
+                type="button"
+                className="font-medium text-pick-text hover:underline"
+                onClick={() =>
+                  set({ shares: d.host.on ? { ai: 70, video: 0, history: 0, graphics: 15, avatar: 15 } : { ai: 85, video: 0, history: 0, graphics: 15, avatar: 0 } })
+                }
+              >
+                Оставить {d.host.on ? "ИИ, ведущего и графику" : "ИИ и графику"}
+              </button>
+            </Note>
+          )}
+          <div>
+            <Label aside={<span className="font-mono text-[11px] text-faint">для модели раскадровки</span>}>Важные детали</Label>
+            <textarea
+              value={sb.notes}
+              onChange={(e) => set({ notes: e.target.value })}
+              rows={3}
+              placeholder="Например: без детей и крови, бои только издалека, больше карт в главе о походе"
+              className={TEXTAREA}
+            />
+          </div>
+          <div>
+            <Label>Модель раскадровки</Label>
+            <Pick
+              value={sb.engine}
+              onChange={(v) => set({ engine: v })}
+              options={[
+                { value: "", label: "Из настроек", hint: options?.defaults.engine ?? "" },
+                ...(options?.engines ?? []).map((e) => ({ value: e.value, label: e.label, hint: e.model })),
+              ]}
+            />
+          </div>
+          <PausesPick d={d} up={up} />
         </div>
       </div>
+      <div className="space-y-3">
+        <IntroSettings d={d} up={up} />
+        <FootageSettings d={d} up={up} />
+      </div>
+    </div>
+  )
+}
+
+const PAUSE_MODES = [
+  ["off", "Выкл", "Без пауз"],
+  ["chapters", "Главы", "Пауза в конце каждой главы"],
+  ["every", "Раз в N с", "Примерно раз в N секунд — там рядом, где пауза уместна по смыслу"],
+  ["auto", "Авто", "Где пауза уместна по смыслу — решает модель, плюс концы глав"],
+] as const
+
+export function pausesText(p: Draft["storyboard"]["pauses"]) {
+  if (p.mode === "off") return "без пауз"
+  const len = `${String(p.sec).replace(".", ",")} с`
+  return p.mode === "chapters" ? `паузы в конце глав · ${len}` : p.mode === "every" ? `паузы ~раз в ${p.everySec} с · ${len}` : `паузы по смыслу · ${len}`
+}
+
+/** «Паузы»: silence after a paragraph while the picture goes on; it shifts the video and every language at once. */
+function PausesPick({ d, up }: { d: Draft; up: Up }) {
+  const p = d.storyboard.pauses
+  const set = (patch: Partial<Draft["storyboard"]["pauses"]>) =>
+    up((x) => ({ ...x, storyboard: { ...x.storyboard, pauses: { ...x.storyboard.pauses, ...patch } } }))
+  return (
+    <div className="space-y-2">
+      <Label>Паузы</Label>
+      <Seg value={p.mode} onChange={(v) => set({ mode: v as typeof p.mode })} options={[...PAUSE_MODES]} />
+      {p.mode === "every" && (
+        <Seg
+          value={String(p.everySec)}
+          onChange={(v) => set({ everySec: Number(v) })}
+          mono
+          options={[
+            ["30", "~30 с"],
+            ["45", "~45 с"],
+            ["60", "~1 мин"],
+            ["90", "~1,5 мин"],
+            ["120", "~2 мин"],
+          ]}
+        />
+      )}
+      {p.mode !== "off" && (
+        <div className="flex items-center gap-3">
+          <span className="shrink-0 text-[13px] text-muted-foreground">Длина паузы</span>
+          <div className="min-w-0 flex-1">
+            <Seg
+              value={String(p.sec)}
+              onChange={(v) => set({ sec: Number(v) })}
+              mono
+              options={[
+                ["1", "1 с"],
+                ["1.5", "1,5 с"],
+                ["2", "2 с"],
+                ["3", "3 с"],
+              ]}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -699,6 +781,7 @@ export function StoryboardStep({ d, up }: StepProps) {
 export function MontageStep({ d, up }: StepProps) {
   const { data: options } = useReelOptions()
   const sec = useReelSeconds(d)
+  const style = options?.montage.find((m) => m.value === d.montage.style)
   return (
     <div className="space-y-5">
       <div>
@@ -719,6 +802,17 @@ export function MontageStep({ d, up }: StepProps) {
             )
           })}
         </div>
+      </div>
+      <div>
+        <Label aside={style && style.titles === false ? <span className="font-mono text-[11px] text-warn">в стиле «{style.label}» титров нет</span> : undefined}>
+          Шрифт титров
+        </Label>
+        <FontPick
+          value={d.montage.font}
+          onChange={(v) => up((x) => ({ ...x, montage: { ...x.montage, font: v } }))}
+          styleLabel={style?.label ?? ""}
+          styleFont={style?.font ?? "serif"}
+        />
       </div>
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-12">
         <div className="xl:col-span-5">
@@ -741,7 +835,6 @@ export function MontageStep({ d, up }: StepProps) {
           </div>
         </div>
       </div>
-      <Note>Сейчас стиль задаёт длину кадров в раскадровке, а значит, их число и расход генераций. Переходы, движение, цвет и титры применит сборка.</Note>
     </div>
   )
 }
@@ -753,6 +846,7 @@ export function shareText(s: ReelShares, host: boolean) {
 }
 
 export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & { onJump: (i: number) => void; montageLabel: string }) {
+  const fonts = useFontList()
   const { data: voices } = useReelVoiceSources(d.script.mode === "ready" && d.script.from === "voice")
   const v = voices?.find((x) => String(x.id) === d.script.voiceJob)
   const s = d.script
@@ -766,7 +860,10 @@ export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & {
           ? `из «Озвучки»: ${v?.title ?? "проект"}`
           : `файл ${file?.name ?? "—"}`,
     ],
-    ["Озвучка", `${s.mode === "ready" && s.from === "voice" ? "уже озвучено" : d.voice.name || "профиль не выбран"}${d.voice.targets.length ? ` · переводы: ${d.voice.targets.join(", ")}` : ""}`],
+    [
+      "Озвучка",
+      `${s.mode === "ready" && s.from === "voice" ? "уже озвучено" : d.voice.name || "профиль не выбран"}${d.voice.targets.length ? ` · переводы: ${d.voice.targets.join(", ")}` : ""}${d.voice.targets.length && d.voice.model ? ` · ${d.voice.model}` : ""}`,
+    ],
     ["Ведущий", d.host.on ? `${d.host.name || "аватар не выбран"}${d.host.voice ? ` · ${d.host.voice}` : ""}` : "без ведущего"],
     [
       "Раскадровка",
@@ -776,9 +873,22 @@ export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & {
           {d.storyboard.notes ? ` · детали: ${d.storyboard.notes}` : ""}
         </span>
         <MixBar shares={d.storyboard.shares} className="max-w-xs" />
+        {d.storyboard.pauses.mode !== "off" && <span className="text-foreground-2">{pausesText(d.storyboard.pauses)}</span>}
+        {d.intro.on && (
+          <span className="text-foreground-2">
+            первые {Math.round(d.intro.sec / 60)} мин: {shareText(d.intro.shares, d.host.on)}
+            {d.intro.shot[0] && d.intro.shot[1] ? ` · кадр ${d.intro.shot[0]}–${d.intro.shot[1]} с` : " · кадры чаще"}
+            {d.intro.minFit ? ` · оценка ≥ ${d.intro.minFit}` : ""}
+          </span>
+        )}
+        {(d.storyboard.shares.video > 0 || d.storyboard.shares.history > 0) && (
+          <span className="text-muted-foreground">
+            видео: {footageText(d.footage.video)} · история: {footageText(d.footage.history)}
+          </span>
+        )}
       </span>,
     ],
-    ["Монтаж", `${montageLabel} · 16:9`],
+    ["Монтаж", `${montageLabel} · шрифт: ${fontLabel(fonts, d.montage.font)} · 16:9`],
   ]
   return (
     <div className="space-y-5">

@@ -8,6 +8,7 @@ import { toast } from "sonner"
 import { sharesSum } from "@/components/reels/parts"
 import { rkeys, useReelOptions, useReelVoiceSources } from "@/components/reels/queries"
 import { EMPTY, clearDraft, loadDraft, saveDraft, type Draft } from "@/components/reels/wizard-draft"
+import { footageBody, introBody, introOk } from "@/components/reels/wizard-advanced"
 import {
   HostStep,
   MontageStep,
@@ -71,7 +72,7 @@ export function ReelWizard({ onCreated }: { onCreated: (id: string) => void }) {
     s.mode === "topic" ? !!s.topic.trim() && Number(s.minutes) > 0 : s.from === "voice" ? !!s.voiceJob : !!file,
     s.mode === "topic" ? !!d.voice.profile : true,
     !d.host.on || !!d.host.id,
-    sharesSum(d.storyboard.shares) === 100,
+    sharesSum(d.storyboard.shares) === 100 && introOk(d),
     !!d.montage.style,
   ]
   const reachable = (i: number) => ok.slice(0, i).every(Boolean)
@@ -82,7 +83,7 @@ export function ReelWizard({ onCreated }: { onCreated: (id: string) => void }) {
     s.mode === "topic" ? (s.topic ? `${s.minutes} мин · ${s.language.toUpperCase()}` : "по теме") : fromVoice ? (v?.title ?? "из «Озвучки»") : (file?.name ?? "файл"),
     `${fromVoice ? "уже озвучено" : d.voice.name || "не выбран"}${d.voice.targets.length ? ` + ${d.voice.targets.length} яз.` : ""}`,
     d.host.on ? d.host.name || "не выбран" : "без ведущего",
-    shareText(d.storyboard.shares, d.host.on),
+    shareText(d.storyboard.shares, d.host.on) + (d.intro.on ? ` · вступление ${Math.round(d.intro.sec / 60)} мин` : ""),
     montageLabel,
   ]
 
@@ -100,8 +101,14 @@ export function ReelWizard({ onCreated }: { onCreated: (id: string) => void }) {
           script: { mode: s.mode, topic: s.topic, minutes: Number(s.minutes) || null, language: s.language, tone: s.tone, model: s.model, notes: s.notes },
           voice: d.voice,
           avatar: d.host.on ? { id: d.host.id, name: d.host.name, voice: d.host.voice } : { id: "" },
-          storyboard: { ...d.storyboard, model: "" },
+          storyboard: {
+            ...d.storyboard,
+            model: "",
+            pauses: { mode: d.storyboard.pauses.mode, sec: d.storyboard.pauses.sec, every_sec: d.storyboard.pauses.everySec },
+          },
           montage: d.montage,
+          footage: { video: footageBody(d.footage.video), history: footageBody(d.footage.history) },
+          intro: introBody(d.intro),
           format: d.format,
         },
         s.mode === "ready" && s.from === "file" ? file : null,

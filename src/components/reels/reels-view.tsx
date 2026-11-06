@@ -2,7 +2,7 @@
 
 import { ArrowLeft, Loader2, Plus, RotateCcw } from "lucide-react"
 
-import { clock } from "@/components/reels/parts"
+import { clock, spentText, useSpent } from "@/components/reels/parts"
 import { useReel, useReelEvents, useReelsHealth } from "@/components/reels/queries"
 import { ReelList } from "@/components/reels/reel-list"
 import { ReelView } from "@/components/reels/reel-view"
@@ -11,6 +11,8 @@ import { clearDraft } from "@/components/reels/wizard-draft"
 import { setUrlParams, useUrlParam } from "@/components/script/queries"
 import { BTN_PRIMARY, BTN_SMALL } from "@/components/script/ui"
 import { PageHeader } from "@/components/shell/page-header"
+import type { Reel } from "@/lib/api"
+import { cn } from "@/lib/utils"
 
 /** Shown only when something is wrong: the API is down or nobody runs the queue. */
 function WorkerBadge() {
@@ -24,11 +26,19 @@ function WorkerBadge() {
   )
 }
 
+/** «в работе 12:05» while the reel runs, «готов за 2 ч 08 мин» when it is done. */
+function SpentBadge({ reel, updatedAt }: { reel: Reel; updatedAt: number }) {
+  const t = useSpent(reel.timing, updatedAt)
+  if (!t.total) return null
+  const text = t.running ? `в работе ${clock(t.total)}` : reel.status === "done" ? `готов за ${spentText(t.total)}` : `в работе было ${spentText(t.total)}`
+  return <span className={cn("ml-2 rounded-[3px] px-1.5 py-0.5 text-[12px]", t.running ? "bg-pick-soft text-pick-text" : reel.status === "done" ? "bg-ok/15 text-ok" : "bg-elev text-muted-foreground")}>{text}</span>
+}
+
 export function ReelsView() {
   useReelEvents()
   const id = useUrlParam("p")
   const wizard = useUrlParam("new") === "1" && !id
-  const { data: reel, isLoading, error } = useReel(id)
+  const { data: reel, isLoading, error, dataUpdatedAt } = useReel(id)
 
   return (
     <div className="px-4 pt-6 pb-24 sm:px-7">
@@ -59,6 +69,7 @@ export function ReelsView() {
               ]
                 .filter(Boolean)
                 .join(" · ")}
+              <SpentBadge reel={reel} updatedAt={dataUpdatedAt} />
             </span>
           ) : undefined
         }
@@ -99,7 +110,7 @@ export function ReelsView() {
         ) : error || !reel ? (
           <div className="py-16 text-center text-sm text-faint">{error?.message ?? "Ролик не найден"}</div>
         ) : (
-          <ReelView key={reel.id} reel={reel} />
+          <ReelView key={reel.id} reel={reel} updatedAt={dataUpdatedAt} />
         )
       ) : (
         <ReelList onOpen={(rid) => setUrlParams({ p: rid })} />

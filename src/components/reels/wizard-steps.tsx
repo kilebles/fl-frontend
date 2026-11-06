@@ -22,7 +22,7 @@ import {
 import { useReelOptions, useReelVoiceSources } from "@/components/reels/queries"
 import { FootageSettings, IntroSettings, footageText, fromPreset } from "@/components/reels/wizard-advanced"
 import { LEVEL_LABEL, familyOf, levelOf, withLevel } from "@/lib/voice-models"
-import type { Draft } from "@/components/reels/wizard-draft"
+import { EMPTY_PAUSES, type Draft } from "@/components/reels/wizard-draft"
 import { skeys, useNiches, useScenarioOptions } from "@/components/script/queries"
 import { BTN_PRIMARY, BTN_SECONDARY, INPUT, Label, ON_BLUE, Pick, Seg } from "@/components/script/ui"
 import { reels, scenario, voice, type ReelSettings, type ReelShares, type ScenarioNiche } from "@/lib/api"
@@ -119,6 +119,9 @@ export function NicheStep({ d, up }: StepProps) {
           style: preset.storyboard.style ?? x.storyboard.style,
           notes: preset.storyboard.notes ?? "",
           engine: preset.storyboard.engine ?? "",
+          pauses: preset.storyboard.pauses
+            ? { mode: preset.storyboard.pauses.mode, sec: preset.storyboard.pauses.sec, everySec: preset.storyboard.pauses.every_sec }
+            : EMPTY_PAUSES,
         }
         next.montage = { style: preset.montage?.style || "classic", music: preset.montage?.music || "chapters" }
         Object.assign(next, fromPreset(preset, x))
@@ -699,12 +702,71 @@ export function StoryboardStep({ d, up }: StepProps) {
               ]}
             />
           </div>
+          <PausesPick d={d} up={up} />
         </div>
       </div>
       <div className="space-y-3">
         <IntroSettings d={d} up={up} />
         <FootageSettings d={d} up={up} />
       </div>
+    </div>
+  )
+}
+
+const PAUSE_MODES = [
+  ["off", "Выкл", "Без пауз"],
+  ["chapters", "Главы", "Пауза в конце каждой главы"],
+  ["every", "Раз в N с", "Примерно раз в N секунд — там рядом, где пауза уместна по смыслу"],
+  ["auto", "Авто", "Где пауза уместна по смыслу — решает модель, плюс концы глав"],
+] as const
+
+export function pausesText(p: Draft["storyboard"]["pauses"]) {
+  if (p.mode === "off") return "без пауз"
+  const len = `${String(p.sec).replace(".", ",")} с`
+  return p.mode === "chapters" ? `паузы в конце глав · ${len}` : p.mode === "every" ? `паузы ~раз в ${p.everySec} с · ${len}` : `паузы по смыслу · ${len}`
+}
+
+/** «Паузы»: silence after a paragraph while the picture goes on; it shifts the video and every language at once. */
+function PausesPick({ d, up }: { d: Draft; up: Up }) {
+  const p = d.storyboard.pauses
+  const set = (patch: Partial<Draft["storyboard"]["pauses"]>) =>
+    up((x) => ({ ...x, storyboard: { ...x.storyboard, pauses: { ...x.storyboard.pauses, ...patch } } }))
+  return (
+    <div className="space-y-2">
+      <Label>Паузы</Label>
+      <Seg value={p.mode} onChange={(v) => set({ mode: v as typeof p.mode })} options={[...PAUSE_MODES]} />
+      {p.mode === "every" && (
+        <Seg
+          value={String(p.everySec)}
+          onChange={(v) => set({ everySec: Number(v) })}
+          mono
+          options={[
+            ["30", "~30 с"],
+            ["45", "~45 с"],
+            ["60", "~1 мин"],
+            ["90", "~1,5 мин"],
+            ["120", "~2 мин"],
+          ]}
+        />
+      )}
+      {p.mode !== "off" && (
+        <div className="flex items-center gap-3">
+          <span className="shrink-0 text-[13px] text-muted-foreground">Длина паузы</span>
+          <div className="min-w-0 flex-1">
+            <Seg
+              value={String(p.sec)}
+              onChange={(v) => set({ sec: Number(v) })}
+              mono
+              options={[
+                ["1", "1 с"],
+                ["1.5", "1,5 с"],
+                ["2", "2 с"],
+                ["3", "3 с"],
+              ]}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -793,6 +855,7 @@ export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & {
           {d.storyboard.notes ? ` · детали: ${d.storyboard.notes}` : ""}
         </span>
         <MixBar shares={d.storyboard.shares} className="max-w-xs" />
+        {d.storyboard.pauses.mode !== "off" && <span className="text-foreground-2">{pausesText(d.storyboard.pauses)}</span>}
         {d.intro.on && (
           <span className="text-foreground-2">
             первые {Math.round(d.intro.sec / 60)} мин: {shareText(d.intro.shares, d.host.on)}

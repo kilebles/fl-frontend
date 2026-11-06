@@ -23,6 +23,9 @@ export type IntroDraft = {
   minFit: string
 }
 
+export type PausesDraft = { mode: "off" | "chapters" | "every" | "auto"; sec: number; everySec: number }
+export const EMPTY_PAUSES: PausesDraft = { mode: "off", sec: 1.5, everySec: 60 }
+
 export const ALL_GROUPS: FootageGroup[] = ["archive", "youtube", "films", "stock"]
 export const EMPTY_FOOTAGE: FootageDraft = { score: "", groups: ALL_GROUPS, engine: "", model: "", ytFirst: false, ytAny: false, filmRisky: false }
 
@@ -48,7 +51,8 @@ export type Draft = {
    *  model — the translation model of «Озвучка» (empty: its default). */
   voice: { profile: string; name: string; targets: string[]; voices: Record<string, string>; model: string }
   host: { on: boolean; id: string; name: string; voice: string }
-  storyboard: { shares: ReelShares; style: string; notes: string; engine: string }
+  /** pauses: off | chapters (end of each chapter) | every (~every N s, at a fitting place) | auto (the model decides). */
+  storyboard: { shares: ReelShares; style: string; notes: string; engine: string; pauses: PausesDraft }
   montage: { style: string; music: string }
   footage: { video: FootageDraft; history: FootageDraft }
   intro: IntroDraft
@@ -64,7 +68,7 @@ export const EMPTY: Draft = {
   script: { mode: "topic", topic: "", minutes: "20", language: "en", tone: "", model: "", notes: "", from: "voice", voiceJob: "" },
   voice: { profile: "", name: "", targets: [], voices: {}, model: "" },
   host: { on: false, id: "", name: "", voice: "" },
-  storyboard: { shares: PRESETS[0].shares, style: STYLES[0].value, notes: "", engine: "" },
+  storyboard: { shares: PRESETS[0].shares, style: STYLES[0].value, notes: "", engine: "", pauses: EMPTY_PAUSES },
   montage: { style: "classic", music: "chapters" },
   footage: { video: EMPTY_FOOTAGE, history: EMPTY_FOOTAGE },
   intro: { on: false, sec: 120, shares: PRESETS[0].shares, shot: ["", ""], minFit: "" },
@@ -83,7 +87,12 @@ export function loadDraft(): Draft {
       script: { ...EMPTY.script, ...raw.script },
       voice: { ...EMPTY.voice, ...raw.voice },
       host: { ...EMPTY.host, ...raw.host },
-      storyboard: { ...EMPTY.storyboard, ...raw.storyboard, shares: { ...EMPTY.storyboard.shares, ...raw.storyboard?.shares } },
+      storyboard: {
+        ...EMPTY.storyboard,
+        ...raw.storyboard,
+        shares: { ...EMPTY.storyboard.shares, ...raw.storyboard?.shares },
+        pauses: { ...EMPTY_PAUSES, ...raw.storyboard?.pauses },
+      },
       montage: { ...EMPTY.montage, ...raw.montage },
       footage: {
         video: { ...EMPTY_FOOTAGE, ...raw.footage?.video },

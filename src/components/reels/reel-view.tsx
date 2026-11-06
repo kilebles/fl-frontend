@@ -246,6 +246,9 @@ export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number
                     .join("·")}${s?.intro ? `, кадр ${s.intro.shot_sec.join("–")} с` : ""}`
                 : "",
               footageLine(r),
+              r.settings.storyboard.pauses && r.settings.storyboard.pauses.mode !== "off"
+                ? `паузы: ${{ chapters: "в конце глав", every: `~раз в ${r.settings.storyboard.pauses.every_sec} с`, auto: "по смыслу" }[r.settings.storyboard.pauses.mode]}${s?.pauses ? ` (${s.pauses.count})` : ""}`
+                : "",
               r.settings.storyboard.notes ? `детали: ${r.settings.storyboard.notes}` : "",
             ]
               .filter(Boolean)

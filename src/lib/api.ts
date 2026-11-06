@@ -1503,6 +1503,7 @@ export interface Reel {
     fallback_paragraphs: number[]
     errors: string[]
     usage: ReelUsage
+    pauses?: { count: number; sec: number }
     /** The first minutes with their own shares and shot length (when switched on). */
     intro?: { sec: number; seconds: number; shot_sec: [number, number]; mix: ReelMix; main_mix: ReelMix }
   } | null
@@ -1619,7 +1620,15 @@ export interface ReelSettings {
   /** targets — languages of translation; voices — a voice per language (empty: the profile's default). */
   voice: { profile?: string; name?: string; targets?: string[]; voices?: Record<string, string>; model?: string }
   avatar: { id: string; name?: string; voice?: string }
-  storyboard: { shares: ReelShares; engine: string; model: string; style: string; notes: string }
+  storyboard: {
+    shares: ReelShares
+    engine: string
+    model: string
+    style: string
+    notes: string
+    /** Silence after a paragraph while the picture goes on: off | chapters | every (~every_sec) | auto; sec — its length. */
+    pauses?: { mode: "off" | "chapters" | "every" | "auto"; sec: number; every_sec: number }
+  }
   montage: { style: string; music: string }
   /** «Поиск видео» for each real category; null / "" — as set on the module's server. */
   footage?: { video: ReelFootageSettings; history: ReelFootageSettings }

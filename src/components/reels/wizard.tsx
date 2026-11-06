@@ -101,7 +101,11 @@ export function ReelWizard({ onCreated }: { onCreated: (id: string) => void }) {
           script: { mode: s.mode, topic: s.topic, minutes: Number(s.minutes) || null, language: s.language, tone: s.tone, model: s.model, notes: s.notes },
           voice: d.voice,
           avatar: d.host.on ? { id: d.host.id, name: d.host.name, voice: d.host.voice } : { id: "" },
-          storyboard: { ...d.storyboard, model: "" },
+          storyboard: {
+            ...d.storyboard,
+            model: "",
+            pauses: { mode: d.storyboard.pauses.mode, sec: d.storyboard.pauses.sec, every_sec: d.storyboard.pauses.everySec },
+          },
           montage: d.montage,
           footage: { video: footageBody(d.footage.video), history: footageBody(d.footage.history) },
           intro: introBody(d.intro),

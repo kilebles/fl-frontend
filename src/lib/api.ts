@@ -1633,7 +1633,8 @@ export interface ReelSettings {
     pauses?: { modes?: { mode: "chapters" | "every" | "auto"; fade: boolean }[]; mode?: string; sec: number; every_sec: number }
   }
   /** font — the title font (`ReelFont.value`); "" — the montage style's font. */
-  montage: { style: string; music: string; font?: string }
+  /** quality: "" — 1080p as before; "sharp" — 1080p + sharpening; "4k" — 2160p + sharpening. */
+  montage: { style: string; music: string; font?: string; quality?: string }
   /** «Поиск видео» for each real category; null / "" — as set on the module's server. */
   footage?: { video: ReelFootageSettings; history: ReelFootageSettings }
   /** The first minutes apart: own shares, shot length and category score floor. */
@@ -1692,6 +1693,7 @@ export interface ReelOptions {
   font_default?: string
   pauses?: { value: "chapters" | "every" | "auto"; label: string; hint?: string }[]
   pause_fade_hint?: string
+  qualities?: { value: string; label: string }[]
 }
 
 /** A title font of the reel; `available` — its file is on the server (preview and render use it). */

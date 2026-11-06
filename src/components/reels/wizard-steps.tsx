@@ -129,6 +129,7 @@ export function NicheStep({ d, up }: StepProps) {
           style: preset.montage?.style || "classic",
           music: preset.montage?.music || "chapters",
           font: preset.montage?.font ?? DEFAULT_FONT,
+          quality: preset.montage?.quality ?? "",
         }
         Object.assign(next, fromPreset(preset, x))
         next.format = preset.format === "9:16" ? "9:16" : "16:9"
@@ -855,6 +856,14 @@ function PausesPick({ d, up }: { d: Draft; up: Up }) {
 
 /* ------------------------------------------------------------------ 6. Монтаж */
 
+const QUALITY_OPTIONS = [
+  ["", "1080p", "Как раньше: 1920×1080, клипы растягиваются до размера кадра без обработки"],
+  ["sharp", "1080p + резкость", "1920×1080: клипы растягиваются точнее и с лёгким повышением резкости — 720p из Flow выглядят чётче"],
+  ["4k", "4K + резкость", "3840×2160 с той же обработкой: YouTube сжимает 4K лучше, но рендер дольше и файл в несколько раз крупнее"],
+] as const
+
+export const qualityLabel = (q: string | undefined) => QUALITY_OPTIONS.find(([v]) => v === (q ?? ""))?.[1] ?? "1080p"
+
 export function MontageStep({ d, up }: StepProps) {
   const { data: options } = useReelOptions()
   const sec = useReelSeconds(d)
@@ -892,7 +901,7 @@ export function MontageStep({ d, up }: StepProps) {
         />
       </div>
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-12">
-        <div className="xl:col-span-5">
+        <div className="xl:col-span-4">
           <Label aside={<span className="font-mono text-[11px] text-faint">заработает с музыкой</span>}>Стиль музыки</Label>
           <Pick
             value={d.montage.music}
@@ -910,6 +919,16 @@ export function MontageStep({ d, up }: StepProps) {
               9:16 · позже
             </button>
           </div>
+        </div>
+        <div className="md:col-span-2 xl:col-span-5">
+          <Label aside={d.montage.quality === "4k" ? <span className="font-mono text-[11px] text-faint">рендер дольше, файл крупнее</span> : undefined}>
+            Качество
+          </Label>
+          <Seg
+            value={d.montage.quality}
+            onChange={(v) => up((x) => ({ ...x, montage: { ...x.montage, quality: v } }))}
+            options={[...QUALITY_OPTIONS]}
+          />
         </div>
       </div>
     </div>
@@ -970,7 +989,7 @@ export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & {
         )}
       </span>,
     ],
-    ["Монтаж", `${montageLabel} · шрифт: ${fontLabel(fonts, d.montage.font)} · 16:9`],
+    ["Монтаж", `${montageLabel} · шрифт: ${fontLabel(fonts, d.montage.font)} · 16:9 · ${qualityLabel(d.montage.quality)}`],
   ]
   return (
     <div className="space-y-5">

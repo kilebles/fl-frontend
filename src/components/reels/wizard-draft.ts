@@ -70,8 +70,8 @@ export type Draft = {
   /** engine + model: the storyboard model («agy» + «gemini-4-argon-high»); "" — from the brain's settings.
    *  pauses: chapters (end of each chapter) / every (~every N s, at a fitting place) / auto (the model decides), with or without fade. */
   storyboard: { shares: ReelShares; style: string; notes: string; engine: string; model: string; pauses: PausesDraft }
-  /** font — the title font; "" — the montage style's font. */
-  montage: { style: string; music: string; font: string }
+  /** font — the title font; "" — the montage style's font. quality: "" (1080p as before) | "sharp" | "4k". */
+  montage: { style: string; music: string; font: string; quality: string }
   footage: { video: FootageDraft; history: FootageDraft }
   intro: IntroDraft
   format: "16:9" | "9:16"
@@ -87,7 +87,7 @@ export const EMPTY: Draft = {
   voice: { profile: "", name: "", targets: [], voices: {}, model: "" },
   host: { on: false, id: "", name: "", voice: "" },
   storyboard: { shares: PRESETS[0].shares, style: STYLES[0].value, notes: "", engine: "", model: "", pauses: EMPTY_PAUSES },
-  montage: { style: "classic", music: "chapters", font: DEFAULT_FONT },
+  montage: { style: "classic", music: "chapters", font: DEFAULT_FONT, quality: "" },
   footage: { video: EMPTY_FOOTAGE, history: EMPTY_FOOTAGE },
   intro: { on: false, sec: 120, shares: PRESETS[0].shares, shot: ["", ""], minFit: "" },
   format: "16:9",

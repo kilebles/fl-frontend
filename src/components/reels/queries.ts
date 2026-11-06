@@ -11,6 +11,7 @@ export const rkeys = {
   health: ["reels", "health"] as const,
   options: ["reels", "options"] as const,
   voice: ["reels", "voice"] as const,
+  fonts: ["reels", "fonts"] as const,
   list: ["reels", "list"] as const,
   reel: (id: string) => ["reels", "reel", id] as const,
   storyboard: (id: string) => ["reels", "storyboard", id] as const,
@@ -27,6 +28,10 @@ export function useReelsHealth() {
 
 export function useReelOptions() {
   return ready(useQuery({ queryKey: rkeys.options, queryFn: reels.options, staleTime: 5 * 60_000 }), useHydrated())
+}
+
+export function useReelFonts() {
+  return ready(useQuery({ queryKey: rkeys.fonts, queryFn: reels.fonts, staleTime: 5 * 60_000, retry: false }), useHydrated())
 }
 
 export function useReelVoiceSources(enabled: boolean) {

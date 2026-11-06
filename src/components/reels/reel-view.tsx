@@ -28,6 +28,7 @@ import { statusText } from "@/components/reels/reel-list"
 import { rkeys, useReelOptions, useStoryboard } from "@/components/reels/queries"
 import { BriefCard, StoryboardCard } from "@/components/reels/storyboard"
 import { MaterialsCard, ResultCard } from "@/components/reels/result"
+import { fontLabel, useFontList } from "@/components/reels/fonts"
 import { TracksCard } from "@/components/reels/tracks"
 import { ConfirmDialog } from "@/components/script/parts"
 import { setUrlParams } from "@/components/script/queries"
@@ -157,6 +158,7 @@ export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number
 
   const { data: options } = useReelOptions()
   const montage = options?.montage.find((m) => m.value === r.settings.montage?.style)?.label ?? ""
+  const fonts = useFontList()
   const s = r.summary
   const pr = r.progress
   const active = r.status === "running" || r.status === "queued"
@@ -236,7 +238,7 @@ export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number
         <div className="mt-4 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-4">
           <span className="min-w-0 flex-1 truncate text-xs text-faint">
             {[
-              montage ? `Монтаж: ${montage}` : "",
+              montage ? `Монтаж: ${montage} · шрифт: ${fontLabel(fonts, r.settings.montage?.font)}` : "",
               r.settings.storyboard.style ? `стиль: ${r.settings.storyboard.style}` : "",
               r.settings.avatar?.id ? `ведущий: ${r.settings.avatar.name || "аватар"}` : "",
               r.settings.voice?.targets?.length ? `переводы: ${r.settings.voice.targets.join(", ")}` : "",

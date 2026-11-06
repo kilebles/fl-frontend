@@ -1629,7 +1629,8 @@ export interface ReelSettings {
     /** Silence after a paragraph while the picture goes on: off | chapters | every (~every_sec) | auto; sec — its length. */
     pauses?: { mode: "off" | "chapters" | "every" | "auto"; sec: number; every_sec: number }
   }
-  montage: { style: string; music: string }
+  /** font — the title font (`ReelFont.value`); "" — the montage style's font. */
+  montage: { style: string; music: string; font?: string }
   /** «Поиск видео» for each real category; null / "" — as set on the module's server. */
   footage?: { video: ReelFootageSettings; history: ReelFootageSettings }
   /** The first minutes apart: own shares, shot length and category score floor. */
@@ -1665,6 +1666,9 @@ export interface ReelMontageStyle {
   look: string
   text: string
   shot_sec: [number, number]
+  /** The style shows chapter titles; font — its own title font (serif | sans | mono). */
+  titles?: boolean
+  font?: "serif" | "sans" | "mono"
 }
 
 export interface ReelOptions {
@@ -1680,6 +1684,16 @@ export interface ReelOptions {
   footage_groups?: { value: FootageGroup; label: string }[]
   /** Intro defaults: its length and the shot length per montage style. */
   intro?: { sec: number; shot_sec: Record<string, [number, number]> }
+  font_default?: string
+}
+
+/** A title font of the reel; `available` — its file is on the server (preview and render use it). */
+export interface ReelFont {
+  value: string
+  label: string
+  family: string
+  available: boolean
+  format: string
 }
 
 export interface ReelVoiceSource {
@@ -1710,6 +1724,8 @@ export const reels = {
   health: () => request<{ status: string; worker_online: boolean }>("/api/reels/health"),
   options: () => request<ReelOptions>("/api/reels/options"),
   voiceSources: () => request<ReelVoiceSource[]>("/api/reels/voice-sources"),
+  fonts: () => request<ReelFont[]>("/api/reels/fonts"),
+  fontUrl: (value: string) => withToken(`/api/reels/fonts/${encodeURIComponent(value)}`),
   list: () => request<Reel[]>("/api/reels"),
   get: (id: string) => request<Reel>(rid(id)),
   storyboard: (id: string) => request<ReelStoryboard>(`${rid(id)}/storyboard`),

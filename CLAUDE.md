@@ -51,7 +51,8 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
   the reel: «Готовый ролик» — player, mp4 and the DaVinci montage project (`/api/reels/{id}/result/mp4|montage`).
   Step 5 also holds «Паузы» (off / chapter ends / ~every N s at a fitting place / auto; pause length), «Первые N минуты отдельно» (intro: own shares, shorter shots and a category score floor) and «Видео и исторические кадры» (threshold, sources, engine and model of picking per category —
   `reels/wizard-advanced.tsx`). Work time: `reel.timing` (reel and each stage, queue/idle not counted), ticked live by
-  `useSpent` from the query's `dataUpdatedAt`.
+  `useSpent` from the query's `dataUpdatedAt`. Step 6 «Шрифт титров» (`reels/fonts.tsx`): Constantia (default), Constantine, oSerif, SatyrSP or
+  the style's font; previews of «Your vision. Our production.» load the file from `/api/reels/fonts/{value}` (else a local font).
 
 - Projects (ролики): the current project lives in localStorage; screens filter by it and new jobs/runs carry `project_id`.
   The project's style line is appended to every prompt (composer, batch, «В производство», avatar scene).

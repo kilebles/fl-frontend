@@ -22,7 +22,8 @@ import {
 import { useReelOptions, useReelVoiceSources } from "@/components/reels/queries"
 import { FootageSettings, IntroSettings, footageText, fromPreset } from "@/components/reels/wizard-advanced"
 import { LEVEL_LABEL, familyOf, levelOf, withLevel } from "@/lib/voice-models"
-import { EMPTY_PAUSES, type Draft } from "@/components/reels/wizard-draft"
+import { DEFAULT_FONT, EMPTY_PAUSES, type Draft } from "@/components/reels/wizard-draft"
+import { FontPick, fontLabel, useFontList } from "@/components/reels/fonts"
 import { skeys, useNiches, useScenarioOptions } from "@/components/script/queries"
 import { BTN_PRIMARY, BTN_SECONDARY, INPUT, Label, ON_BLUE, Pick, Seg } from "@/components/script/ui"
 import { reels, scenario, voice, type ReelSettings, type ReelShares, type ScenarioNiche } from "@/lib/api"
@@ -123,7 +124,11 @@ export function NicheStep({ d, up }: StepProps) {
             ? { mode: preset.storyboard.pauses.mode, sec: preset.storyboard.pauses.sec, everySec: preset.storyboard.pauses.every_sec }
             : EMPTY_PAUSES,
         }
-        next.montage = { style: preset.montage?.style || "classic", music: preset.montage?.music || "chapters" }
+        next.montage = {
+          style: preset.montage?.style || "classic",
+          music: preset.montage?.music || "chapters",
+          font: preset.montage?.font ?? DEFAULT_FONT,
+        }
         Object.assign(next, fromPreset(preset, x))
         next.format = preset.format === "9:16" ? "9:16" : "16:9"
       }
@@ -776,6 +781,7 @@ function PausesPick({ d, up }: { d: Draft; up: Up }) {
 export function MontageStep({ d, up }: StepProps) {
   const { data: options } = useReelOptions()
   const sec = useReelSeconds(d)
+  const style = options?.montage.find((m) => m.value === d.montage.style)
   return (
     <div className="space-y-5">
       <div>
@@ -796,6 +802,17 @@ export function MontageStep({ d, up }: StepProps) {
             )
           })}
         </div>
+      </div>
+      <div>
+        <Label aside={style && style.titles === false ? <span className="font-mono text-[11px] text-warn">в стиле «{style.label}» титров нет</span> : undefined}>
+          Шрифт титров
+        </Label>
+        <FontPick
+          value={d.montage.font}
+          onChange={(v) => up((x) => ({ ...x, montage: { ...x.montage, font: v } }))}
+          styleLabel={style?.label ?? ""}
+          styleFont={style?.font ?? "serif"}
+        />
       </div>
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-12">
         <div className="xl:col-span-5">
@@ -829,6 +846,7 @@ export function shareText(s: ReelShares, host: boolean) {
 }
 
 export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & { onJump: (i: number) => void; montageLabel: string }) {
+  const fonts = useFontList()
   const { data: voices } = useReelVoiceSources(d.script.mode === "ready" && d.script.from === "voice")
   const v = voices?.find((x) => String(x.id) === d.script.voiceJob)
   const s = d.script
@@ -870,7 +888,7 @@ export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & {
         )}
       </span>,
     ],
-    ["Монтаж", `${montageLabel} · 16:9`],
+    ["Монтаж", `${montageLabel} · шрифт: ${fontLabel(fonts, d.montage.font)} · 16:9`],
   ]
   return (
     <div className="space-y-5">

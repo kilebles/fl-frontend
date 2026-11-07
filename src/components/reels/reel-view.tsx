@@ -148,6 +148,7 @@ function MixCard({ reel, sb }: { reel: Reel; sb: ReelStoryboard }) {
 export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number }) {
   const qc = useQueryClient()
   const [del, setDel] = useState(false)
+  const [again, setAgain] = useState(false)
   const done = r.steps.find((s) => s.key === "storyboard")?.state === "done"
   const { data: sb, error: sbError } = useStoryboard(r.id, done)
   const act = useMutation({
@@ -296,11 +297,27 @@ export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number
                 {act.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />}
                 Дальше: материалы и сборка
               </button>
+            ) : done && r.status !== "done" ? (
+              <>
+                <button type="button" disabled={act.isPending} onClick={() => act.mutate("resume")} className={BTN_PRIMARY}>
+                  {act.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />}
+                  Продолжить
+                </button>
+                <button
+                  type="button"
+                  disabled={act.isPending}
+                  onClick={() => setAgain(true)}
+                  className={BTN_SECONDARY}
+                  title="Модель разложит ролик заново: найденные материалы сбросятся"
+                >
+                  Раскадровка заново
+                </button>
+              </>
             ) : done ? (
               <button
                 type="button"
                 disabled={act.isPending}
-                onClick={() => act.mutate("again")}
+                onClick={() => setAgain(true)}
                 className={BTN_SECONDARY}
                 title="Модель разложит ролик заново (новые вызовы, лимит подписки)"
               >
@@ -344,6 +361,20 @@ export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number
         </div>
       )}
 
+      <ConfirmDialog
+        open={again}
+        title="Раскадровка заново?"
+        text={
+          r.materials?.total || r.result
+            ? "Модель разложит ролик заново. Найденные материалы и сборка сбросятся — их придётся заказывать снова. Чтобы продолжить с того же места, нажмите «Продолжить»."
+            : "Модель разложит ролик заново: новые вызовы, лимит подписки."
+        }
+        action="Раскадровка заново"
+        onClose={() => setAgain(false)}
+        onConfirm={async () => {
+          await act.mutateAsync("again")
+        }}
+      />
       <ConfirmDialog
         open={del}
         title={`Удалить «${r.title}»?`}

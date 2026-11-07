@@ -57,9 +57,6 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
   `useSpent` from the query's `dataUpdatedAt`. Step 6 «Шрифт титров» (`reels/fonts.tsx`): Constantia (default), Constantine, oSerif, SatyrSP or
   the style's font; previews of «Your vision. Our production.» load the file from `/api/reels/fonts/{value}` (else a local font).
 
-- «Материалы» on the reel screen (`reels/result.tsx`): per planned category — found in it (`own`), where the rest went
-  (`moved`: second round / AI), and the shares by the storyboard vs in the reel (`materials.mix`); the list's mix bar uses
-  `materials.mix` when the brain sends it.
 - Projects (ролики): the current project lives in localStorage; screens filter by it and new jobs/runs carry `project_id`.
   The project's style line is appended to every prompt (composer, batch, «В производство», avatar scene).
 - Credits/balance are a UI stub (`— кр.`) — no billing yet.
@@ -70,3 +67,6 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
 
 - Client-facing: no accounts/strategy in the UI (internal), minimal copy — no slogans or explanatory subtitles. No logo/brand yet.
 - Single vs batch is not stored in the API: `isSingle(job)` = 1 row and not f2v (feed on Создать); everything else is a batch.
+- «Материалы» on the reel screen (`reels/result.tsx`): per planned category — found in it (`own`), where the rest went
+  (`moved`: second round / AI), and the shares by the storyboard vs in the reel (`materials.mix`); the list's mix bar uses
+  `materials.mix` when the brain sends it.

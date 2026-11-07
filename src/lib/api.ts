@@ -1459,7 +1459,7 @@ export interface ReelQueue {
   /** Who holds a place on a heavy stage now. */
   slots?: { storyboard?: string[]; assembly?: string[] }
 }
-export type ReelStepKey = "script" | "voice" | "storyboard" | "materials" | "assembly"
+export type ReelStepKey = "script" | "voice" | "storyboard" | "materials" | "music" | "sounds" | "assembly"
 export type ReelStepState = "done" | "active" | "queued" | "todo" | "skipped" | "error" | "stopped"
 export type ReelShares = Record<ReelCategory, number>
 
@@ -1528,6 +1528,10 @@ export interface Reel {
   tracks?: ReelTracksStatus
   /** Orders to the modules: per planned category — total, done, gone to a fallback, failed. */
   materials?: { by_category: Partial<Record<ReelCategory, { total: number; done: number; fallback: number; failed: number }>>; done: number; total: number } | null
+  /** Music from Epidemic Sound: a track per chapter, fitted to its length (stage «музыка»). */
+  music?: ReelMusic | null
+  /** Sounds from Epidemic Sound: background per place, short sounds of shots, transition (stage «звуки»). */
+  sounds?: ReelSounds | null
   /** The assembled reel: mp4 and the montage project for DaVinci. */
   result?: {
     mp4: { name: string; size: number }
@@ -1537,7 +1541,61 @@ export interface Reel {
     languages: string[]
     fallbacks: number
     failed: number
+    /** Music tracks and sound layers in the mix. */
+    music?: number
+    sounds?: { ambience?: number; spots?: number; transitions?: number; veo?: number }
   } | null
+}
+
+/** A track or a sound of Epidemic Sound; preview — a short low-quality mp3 to listen on the page. */
+export interface ReelEpidemicItem {
+  id: string
+  title: string
+  artists?: string[]
+  bpm?: number
+  moods?: string[]
+  sec?: number
+  preview?: string | null
+}
+
+export interface ReelMusic {
+  /** off — switched off in the menu or Epidemic not connected; error — Epidemic refused (see note). */
+  status: "done" | "off" | "error"
+  note?: string
+  style?: string
+  tracks?: number
+  /** Chapters left without music (nothing found). */
+  missing?: number[]
+  items?: {
+    k: number
+    chapter: string
+    first: number
+    last: number
+    start: number
+    sec: number
+    /** false — Epidemic could not fit the track, it is cut with a fade. */
+    fitted?: boolean | null
+    note?: string
+    track: ReelEpidemicItem | null
+  }[]
+}
+
+export interface ReelSoundSettings {
+  on: boolean
+  density: "low" | "normal" | "high"
+  /** mute — Veo clips silent; keep — their sound quietly under the background. */
+  veo: "mute" | "keep"
+}
+
+export interface ReelSounds extends Partial<ReelSoundSettings> {
+  status: "done" | "off" | "error"
+  note?: string
+  ambience?: { first: number; last: number; query: string; sfx: ReelEpidemicItem | null }[]
+  spots?: { shot: string; paragraph: number; sound: string; priority: number; sfx: ReelEpidemicItem | null }[]
+  transition?: { query: string; sfx: ReelEpidemicItem | null } | null
+  /** What the model proposed before the density cut: paragraphs with a background, shots with a sound. */
+  planned?: { ambience: number; spots: number }
+  errors?: string[]
 }
 
 export interface ReelTiming {
@@ -1648,7 +1706,7 @@ export interface ReelSettings {
   }
   /** font — the title font (`ReelFont.value`); "" — the montage style's font. */
   /** quality: "" — 1080p as before; "sharp" — 1080p + sharpening; "4k" — 2160p + sharpening. */
-  montage: { style: string; music: string; font?: string; quality?: string }
+  montage: { style: string; music: string; font?: string; quality?: string; sounds?: ReelSoundSettings }
   /** «Поиск видео» for each real category; null / "" — as set on the module's server. */
   footage?: { video: ReelFootageSettings; history: ReelFootageSettings }
   /** The first minutes apart: own shares, shot length and category score floor. */
@@ -1708,6 +1766,13 @@ export interface ReelOptions {
   pauses?: { value: "chapters" | "every" | "auto"; label: string; hint?: string }[]
   pause_fade_hint?: string
   qualities?: { value: string; label: string }[]
+  /** Sounds: density and Veo choices, short sounds per minute and a transition sound per montage style. */
+  sounds?: {
+    density: { value: ReelSoundSettings["density"]; label: string }[]
+    veo: { value: ReelSoundSettings["veo"]; label: string }[]
+    per_min: Record<string, number>
+    transitions: Record<string, boolean>
+  }
 }
 
 /** A title font of the reel; `available` — its file is on the server (preview and render use it). */

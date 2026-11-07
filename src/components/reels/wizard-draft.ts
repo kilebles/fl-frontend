@@ -1,6 +1,6 @@
 "use client"
 
-import type { FootageGroup, ReelShares } from "@/lib/api"
+import type { FootageGroup, ReelShares, ReelSoundSettings } from "@/lib/api"
 import { PRESETS, STYLES, savedShares } from "@/components/reels/parts"
 
 /** «Поиск видео» settings of one real category; empty strings — as set on the module's server. */
@@ -28,6 +28,7 @@ export type PauseMode = "chapters" | "every" | "auto"
 export type PausesDraft = { modes: { mode: PauseMode; fade: boolean }[]; sec: number; everySec: number }
 /** The title font of a new reel. */
 export const DEFAULT_FONT = "constantia"
+export const DEFAULT_SOUNDS: ReelSoundSettings = { on: true, density: "normal", veo: "mute" }
 
 export const EMPTY_PAUSES: PausesDraft = { modes: [], sec: 1.5, everySec: 60 }
 
@@ -71,7 +72,8 @@ export type Draft = {
    *  pauses: chapters (end of each chapter) / every (~every N s, at a fitting place) / auto (the model decides), with or without fade. */
   storyboard: { shares: ReelShares; style: string; notes: string; engine: string; model: string; pauses: PausesDraft }
   /** font — the title font; "" — the montage style's font. quality: "" (1080p as before) | "sharp" | "4k". */
-  montage: { style: string; music: string; font: string; quality: string }
+  /** sounds — background, short sounds of shots and transitions from Epidemic; veo: mute | keep the Veo clips' sound. */
+  montage: { style: string; music: string; font: string; quality: string; sounds: ReelSoundSettings }
   footage: { video: FootageDraft; history: FootageDraft }
   intro: IntroDraft
   format: "16:9" | "9:16"
@@ -87,7 +89,7 @@ export const EMPTY: Draft = {
   voice: { profile: "", name: "", targets: [], voices: {}, model: "" },
   host: { on: false, id: "", name: "", voice: "" },
   storyboard: { shares: PRESETS[0].shares, style: STYLES[0].value, notes: "", engine: "", model: "", pauses: EMPTY_PAUSES },
-  montage: { style: "classic", music: "chapters", font: DEFAULT_FONT, quality: "" },
+  montage: { style: "classic", music: "chapters", font: DEFAULT_FONT, quality: "", sounds: DEFAULT_SOUNDS },
   footage: { video: EMPTY_FOOTAGE, history: EMPTY_FOOTAGE },
   intro: { on: false, sec: 120, shares: PRESETS[0].shares, shot: ["", ""], minFit: "" },
   format: "16:9",
@@ -112,7 +114,7 @@ export function loadDraft(): Draft {
         model: raw.storyboard?.model ?? "",
         pauses: pausesFrom(raw.storyboard?.pauses),
       },
-      montage: { ...EMPTY.montage, ...raw.montage },
+      montage: { ...EMPTY.montage, ...raw.montage, sounds: { ...DEFAULT_SOUNDS, ...(raw.montage?.sounds ?? {}) } },
       footage: {
         video: { ...EMPTY_FOOTAGE, ...raw.footage?.video },
         history: { ...EMPTY_FOOTAGE, ...raw.footage?.history },

@@ -36,6 +36,8 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
 - «Поиск видео» talks to fl-footage at `/api/footage/*` (Caddy → Windows :8030); SSE `/api/footage/events` invalidates
   `["footage", …]`. The script comes from a «Озвучка» project (fl-footage reads it from the voice API) or a file;
   results are downloaded as zips — shots are not previewed on the page.
+  A reel's search while it runs: `reels/search-progress.tsx` reads fl-reel `materials.search` (module step, counter, found
+  so far) and `materials.relaxed` (shots taken with the threshold lowered by 1) — local types, older brains send neither.
 - «Промпты» talk to fl-prompts at `/api/prompts/*` (Caddy → Windows :8040): niche master prompts (обычный / аватар),
   projects brief → prompts → check → done, result rows; SSE `/api/prompts/events` invalidates `["prompts", …]`.
   «Генерации пакетом» take finished prompts from there too (`/batch?prompts=<id>&mode=i2i2v`).
@@ -57,8 +59,6 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
   `useSpent` from the query's `dataUpdatedAt`. Step 6 «Шрифт титров» (`reels/fonts.tsx`): Constantia (default), Constantine, oSerif, SatyrSP or
   the style's font; previews of «Your vision. Our production.» load the file from `/api/reels/fonts/{value}` (else a local font).
 
-- «Поиск видео» of a reel while it runs: `reels/search-progress.tsx` reads `materials.search` (module step, counter, found so far)
-  and `materials.relaxed` (shots taken with the threshold lowered by 1) — local types, older brains send neither.
 - Projects (ролики): the current project lives in localStorage; screens filter by it and new jobs/runs carry `project_id`.
   The project's style line is appended to every prompt (composer, batch, «В производство», avatar scene).
 - Credits/balance are a UI stub (`— кр.`) — no billing yet.

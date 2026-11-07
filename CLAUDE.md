@@ -56,7 +56,8 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
   style + music; the draft lives in localStorage. A reel's storyboard gives every shot a category (ИИ / видео /
   исторические / графика / ведущий — the host takes whole paragraphs; colours in `reels/parts.tsx`); new shares
   re-allocate a finished storyboard on the server at once. «Дорожки для YouTube» on the reel screen: fl-reel builds one
-  mp3 per language mixed in «Озвучка», each exactly as long as the reel (`/api/reels/{id}/tracks`). After the
+  mp3 per language mixed in «Озвучка», each exactly as long as the reel (`/api/reels/{id}/tracks`); translations mixed after
+  assembly: `status.waiting` (the brain refreshes tracks itself), languages mixed later than the tracks — a hint to rebuild. After the
   storyboard the brain orders materials from the modules (`reels/result.tsx` → «Материалы» by category) and assembles
   the reel: «Готовый ролик» — player, mp4 and the DaVinci montage project (`/api/reels/{id}/result/mp4|montage`).
   Step 3: the translation model on top — one list of family × level (`flatModels` in `lib/voice-models.ts`, same list in

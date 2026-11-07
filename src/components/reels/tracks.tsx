@@ -7,7 +7,7 @@ import { toast } from "sonner"
 import { clock } from "@/components/reels/parts"
 import { rkeys, useReelTracks } from "@/components/reels/queries"
 import { BTN_PRIMARY, BTN_SECONDARY, Card } from "@/components/script/ui"
-import { reels, type Reel } from "@/lib/api"
+import { reels, type Reel, type ReelTracksStatus } from "@/lib/api"
 import { bytes } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
@@ -19,7 +19,8 @@ export function TracksCard({ reel: r }: { reel: Reel }) {
     r.steps.some((s) => s.key === "voice" && s.state === "done") ||
     (!!r.tracks && r.tracks.state !== "none")
   const { data: info, error, isLoading } = useReelTracks(r.id, hasVoice)
-  const st = r.tracks ?? info?.status ?? { state: "none" as const }
+  // waiting / lost — newer brains: translations «Озвучка» still mixes after assembly (tracks refresh on their own) or ended without
+  const st: ReelTracksStatus & { waiting?: string[]; lost?: string[] } = r.tracks ?? info?.status ?? { state: "none" as const }
   const build = useMutation({
     mutationFn: () => reels.buildTracks(r.id),
     onSuccess: () => {
@@ -37,6 +38,11 @@ export function TracksCard({ reel: r }: { reel: Reel }) {
   const canBuild = mixed.includes(base) && !building
   const hostSilent = st.state === "done" && !!st.host?.length
   const missing = Object.entries(st.missing ?? {})
+  const waiting = st.state === "done" ? (st.waiting ?? []) : []
+  const lost = st.state === "done" ? (st.lost ?? []).filter((l) => !mixed.includes(l)) : []
+  const built = new Set((st.files ?? []).map((f) => f.lang))
+  // mixed in «Озвучка» after these tracks were built and nobody is going to add them — only a rebuild will
+  const stale = st.state === "done" ? mixed.filter((l) => !built.has(l) && !waiting.includes(l)) : []
 
   return (
     <Card
@@ -106,6 +112,21 @@ export function TracksCard({ reel: r }: { reel: Reel }) {
                   </a>
                 </div>
               ))}
+            </div>
+          )}
+
+          {(waiting.length > 0 || stale.length > 0 || lost.length > 0) && (
+            <div className="space-y-1 text-[13px]">
+              {waiting.length > 0 && (
+                <p className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="size-3.5 shrink-0 animate-spin" />
+                  Ещё сводятся в «Озвучке»: {waiting.join(", ")} — дорожки и монтаж обновятся сами
+                </p>
+              )}
+              {stale.length > 0 && (
+                <p className="text-warn">Сведены после сборки дорожек: {stale.join(", ")} — «Собрать заново»</p>
+              )}
+              {lost.length > 0 && <p className="text-warn">«Озвучка» закончила без: {lost.join(", ")}</p>}
             </div>
           )}
 

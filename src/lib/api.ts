@@ -1515,7 +1515,16 @@ export interface Reel {
   /** Only on GET /api/reels/{id}: the last build of the language tracks. */
   tracks?: ReelTracksStatus
   /** Orders to the modules: per planned category — total, done, gone to a fallback, failed. */
-  materials?: { by_category: Partial<Record<ReelCategory, { total: number; done: number; fallback: number; failed: number }>>; done: number; total: number } | null
+  /** Shots ordered per planned category: done (own — done in that category), fallback and where they went (moved);
+   *  mix — the actual screen-time shares by the category each shot ended up in (newer brains). */
+  materials?: {
+    by_category: Partial<
+      Record<ReelCategory, { total: number; done: number; own?: number; fallback: number; failed: number; moved?: Partial<Record<ReelCategory, number>> }>
+    >
+    done: number
+    total: number
+    mix?: Partial<ReelShares>
+  } | null
   /** The assembled reel: mp4 and the montage project for DaVinci. */
   result?: {
     mp4: { name: string; size: number }

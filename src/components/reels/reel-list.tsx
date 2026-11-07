@@ -45,7 +45,7 @@ function StatusCell({ r, updatedAt }: { r: Reel; updatedAt: number }) {
             {t.total ? ` · за ${spentText(t.total)}` : ""}
           </span>
         </span>
-        {s && <MixBar shares={s.mix.actual} />}
+        {s && <MixBar shares={r.materials?.mix && Object.keys(r.materials.mix).length ? r.materials.mix : s.mix.actual} />}
       </span>
     )
   if (r.status === "done" && s)

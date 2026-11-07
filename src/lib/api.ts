@@ -1445,7 +1445,7 @@ export const footage = {
 
 /* ------------------------------------------------------------------ reels (fl-reel, /api/reels/*) */
 
-export type ReelCategory = "ai" | "video" | "history" | "graphics" | "avatar"
+export type ReelCategory = "ai" | "video" | "history" | "graphics" | "infographics" | "avatar"
 export type ReelStatus = "queued" | "running" | "done" | "error" | "stopped"
 export type ReelStepKey = "script" | "voice" | "storyboard" | "materials" | "assembly"
 export type ReelStepState = "done" | "active" | "queued" | "todo" | "skipped" | "error" | "stopped"
@@ -1573,6 +1573,8 @@ export interface ReelShot {
   queries: { stock?: string[]; archive?: string[]; youtube?: string[] }
   ai: string
   card: { subject?: string; kind?: string; caption?: string }
+  /** Task for «Инфографика» (fl-montage): type and what to show. */
+  info?: { type?: string; brief?: string }
   avoid: string[]
   fallback: boolean
   executor: string
@@ -1757,4 +1759,115 @@ export const reels = {
   trackUrl: (id: string, lang: string) => withToken(`${rid(id)}/tracks/${encodeURIComponent(lang.toUpperCase())}`),
   resultUrl: (id: string, kind: "mp4" | "montage") => withToken(`${rid(id)}/result/${kind}`),
   eventsUrl: () => withToken("/api/reels/events"),
+}
+
+/* ------------------------------------------------------------------ montage (fl-montage, /api/montage/*) */
+
+export type InfoType = "timeline" | "tree" | "table" | "chart" | "map" | "facts" | "battle"
+export type InfoStyle = "parchment" | "cinematic" | "clean" | "chronicle"
+export type InfoKind = "animated" | "static"
+export type InfoStatus = "queued" | "running" | "done" | "error" | "stopped"
+
+export interface InfoSettings {
+  type: InfoType | "auto"
+  kind: InfoKind
+  format: "16:9" | "9:16"
+  quality: "720" | "1080" | "2160"
+  style: InfoStyle
+  /** Seconds of every animated infographic; null — by the amount of data. */
+  duration: number | null
+  /** Second file with a transparent background (ProRes 4444 .mov / PNG). */
+  alpha: boolean
+  language: string
+  /** "engine:model" from options.models; "" — the module's default. */
+  model: string
+  max_items: number
+  notes: string
+}
+
+export interface InfoFile {
+  name: string
+  size: number
+}
+
+export interface InfoItem {
+  key: string
+  type: InfoType
+  title: string
+  describe: string
+  status: "pending" | "ready" | "done" | "failed"
+  error?: string | null
+  sec: number | null
+  files: InfoFile[]
+  /** Last frame of an animated infographic (jpg) — the video's poster on the page, not in the zip. */
+  poster?: string | null
+  /** The data drawn (only in a single job, not in the list). */
+  spec?: Record<string, unknown> | null
+}
+
+export interface InfoJob {
+  id: string
+  title: string
+  project_id: string | null
+  status: InfoStatus
+  created: string
+  updated: string
+  started: string | null
+  finished: string | null
+  source: { kind: "text" | "file" | "orders"; name: string; chars?: number; orders?: number }
+  settings: InfoSettings
+  stage: "extract" | "render" | "done"
+  items: InfoItem[]
+  progress: { stage?: "extract" | "render"; done?: number; total?: number; step?: string; wait?: string }
+  problems: string[]
+  usage: { calls?: number; cache_hits?: number } | null
+  error: string | null
+  timing: { sec: number; running: boolean }
+  files: number
+}
+
+export interface InfoOptions {
+  types: { value: InfoType | "auto"; label: string; hint: string }[]
+  styles: { value: InfoStyle; label: string; hint: string }[]
+  formats: { value: "16:9" | "9:16"; label: string; width: number; height: number }[]
+  qualities: { value: InfoSettings["quality"]; label: string }[]
+  kinds: { value: InfoKind; label: string }[]
+  languages: { value: string; label: string }[]
+  /** Models in one list: value «engine:model», label «Gemini 4 Argon · High». */
+  models: { value: string; engine: string; model: string; label: string; group: string }[]
+  defaults: Omit<InfoSettings, "duration" | "max_items" | "notes"> & { max_auto: number }
+  limits: { max_items: number; min_sec: number; max_sec: number; max_upload_mb: number }
+}
+
+export interface InfoCreate extends Partial<InfoSettings> {
+  title?: string
+  project_id?: string | null
+  text?: string
+}
+
+export type InfoRerender = Partial<Pick<InfoSettings, "kind" | "format" | "quality" | "style" | "duration" | "alpha">>
+
+const mid = (id: string) => `/api/montage/infographics/${encodeURIComponent(id)}`
+
+export const montage = {
+  health: () =>
+    request<{ status: string; worker_online: boolean; renderer: boolean; renderer_note: string }>("/api/montage/health"),
+  options: () => request<InfoOptions>("/api/montage/options"),
+  list: () => request<InfoJob[]>("/api/montage/infographics"),
+  get: (id: string) => request<InfoJob>(mid(id)),
+  create: (body: InfoCreate, file?: File | null) => {
+    const form = new FormData()
+    form.append("data", JSON.stringify(body))
+    if (file) form.append("file", file)
+    return request<InfoJob>("/api/montage/infographics", { method: "POST", body: form })
+  },
+  rename: (id: string, title: string) => request<InfoJob>(mid(id), json("PATCH", { title })),
+  stop: (id: string) => request<InfoJob>(`${mid(id)}/stop`, json("POST")),
+  resume: (id: string, again = false) => request<InfoJob>(`${mid(id)}/resume`, json("POST", { again })),
+  rerender: (id: string, changes: InfoRerender) => request<InfoJob>(`${mid(id)}/rerender`, json("POST", { changes })),
+  remove: (id: string) => request<void>(mid(id), { method: "DELETE" }),
+  fileUrl: (id: string, name: string, download = false) =>
+    withToken(`${mid(id)}/files/${encodeURIComponent(name)}${download ? "?download=true" : ""}`),
+  zipUrl: (id: string) => withToken(`${mid(id)}/zip`),
+  eventsUrl: () => withToken("/api/montage/events"),
 }

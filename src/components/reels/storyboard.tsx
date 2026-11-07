@@ -45,7 +45,7 @@ function download(name: string, text: string) {
 function FitBars({ shot, host }: { shot: ReelShot; host: boolean }) {
   const cats = host ? CATEGORIES : BASE_CATEGORIES
   return (
-    <div className={cn("grid gap-2", cats.length > 4 ? "grid-cols-5" : "grid-cols-4")}>
+    <div className={cn("grid gap-2", cats.length > 5 ? "grid-cols-3 sm:grid-cols-6" : "grid-cols-5")}>
       {cats.map((c) => (
         <div key={c} className="min-w-0">
           <div className="mb-1 flex justify-between font-mono text-[11px]">
@@ -113,6 +113,11 @@ function ShotRow({ shot, open, onToggle, host }: { shot: ReelShot; open: boolean
             ))}
           {shot.category === "graphics" && shot.card?.subject && (
             <Detail label="Карточка">{[shot.card.subject, shot.card.caption].filter(Boolean).join(" — ")}</Detail>
+          )}
+          {shot.category === "infographics" && (
+            <Detail label="Инфографика">
+              {[TYPE_LABEL[shot.info?.type || "auto"] ?? shot.info?.type, shot.info?.brief].filter(Boolean).join(" — ")}
+            </Detail>
           )}
           {shot.category !== "ai" && shot.ai && <Detail label="Если на ИИ">{shot.ai}</Detail>}
           {shot.avoid.length > 0 && <Detail label="Избегать">{shot.avoid.join(", ")}</Detail>}

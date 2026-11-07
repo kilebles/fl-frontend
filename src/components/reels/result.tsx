@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from "react"
 import { Download, Film, FolderArchive, Volume2 } from "lucide-react"
 
-import { CAT_BG, CAT_LABEL, CATEGORIES, clock } from "@/components/reels/parts"
+import { CAT_BG, CAT_LABEL, CATEGORIES, MixBar, clock } from "@/components/reels/parts"
 import { BTN_PRIMARY, BTN_SECONDARY, Card } from "@/components/script/ui"
-import { reels, type Reel } from "@/lib/api"
+import { reels, type Reel, type ReelCategory, type ReelShares } from "@/lib/api"
 import { bytes } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
@@ -43,11 +43,30 @@ function setEmbeddedAudioEnabled(video: HTMLVideoElement, enabled: boolean) {
   }
 }
 
-/** Orders to the modules: how many shots of each category are ready, went to a fallback or failed. */
+/** The materials summary of newer brains: own — found in the planned category, moved — where the rest went,
+ *  mix — the actual screen-time shares in the reel. Older brains send only total / done / fallback / failed. */
+export type MaterialsSummary = {
+  by_category: Partial<
+    Record<ReelCategory, { total: number; done: number; own?: number; fallback: number; failed: number; moved?: Partial<Record<ReelCategory, number>> }>
+  >
+  done: number
+  total: number
+  mix?: Partial<ReelShares>
+}
+
+/** The actual shares in the reel when the brain sends them (materials.mix), else null. */
+export function factMix(r: Reel): Partial<ReelShares> | null {
+  const mix = (r.materials as MaterialsSummary | null | undefined)?.mix
+  return mix && Object.keys(mix).length ? mix : null
+}
+
+/** Orders to the modules: per planned category — found in it, moved to the second round or AI, failed; then the shares
+ *  by the storyboard against the shares in the reel (newer brains send `mix`). */
 export function MaterialsCard({ reel: r }: { reel: Reel }) {
-  const m = r.materials
+  const m = r.materials as MaterialsSummary | null | undefined
   if (!m || !m.total) return null
   const rows = CATEGORIES.filter((c) => m.by_category[c]?.total)
+  const plan = r.summary?.mix.actual
   return (
     <Card title="Материалы" aside={<span className="font-mono text-[11px] text-faint">{m.done} из {m.total} кадров</span>}>
       <div className="space-y-2.5">
@@ -57,18 +76,47 @@ export function MaterialsCard({ reel: r }: { reel: Reel }) {
             <div key={c} className="grid grid-cols-[150px_1fr_auto] items-center gap-3 text-sm max-sm:grid-cols-[110px_1fr]">
               <span className="truncate text-foreground-2">{CAT_LABEL[c]}</span>
               <div className="h-1.5 overflow-hidden rounded-full bg-elev">
-                <div className={cn("h-full", CAT_BG[c])} style={{ width: `${(100 * x.done) / x.total}%` }} />
+                <div className={cn("h-full", CAT_BG[c])} style={{ width: `${(100 * (x.own ?? x.done)) / x.total}%` }} />
               </div>
               <span className="font-mono text-[11px] text-faint max-sm:col-span-2">
-                {x.done}/{x.total}
-                {x.fallback ? ` · в ИИ ${x.fallback}` : ""}
+                {x.own ?? x.done}/{x.total}
+                {x.moved
+                  ? Object.entries(x.moved)
+                      .map(([k, n]) => ` · ${MOVED_TO[k] ?? k} ${n}`)
+                      .join("")
+                  : x.fallback
+                    ? ` · в ИИ ${x.fallback}`
+                    : ""}
                 {x.failed ? ` · не вышло ${x.failed}` : ""}
               </span>
             </div>
           )
         })}
       </div>
+      {plan && m.mix && Object.keys(m.mix).length > 0 && (
+        <div className="mt-4 space-y-1.5 border-t border-line pt-3">
+          <MixRow label="по раскадровке" shares={plan} />
+          <MixRow label="в ролике" shares={m.mix} />
+        </div>
+      )}
     </Card>
+  )
+}
+
+/** Where shots that were not found went: the next category of the second round or AI. */
+const MOVED_TO: Record<string, string> = { ai: "в ИИ", video: "в видео", history: "в историю", graphics: "в графику", infographics: "в инфографику" }
+
+function MixRow({ label, shares }: { label: string; shares: Partial<ReelShares> }) {
+  return (
+    <div className="grid grid-cols-[150px_1fr_auto] items-center gap-3 max-sm:grid-cols-[110px_1fr]">
+      <span className="font-mono text-[11px] text-faint">{label}</span>
+      <MixBar shares={shares} />
+      <span className="font-mono text-[11px] text-faint max-sm:col-span-2">
+        {CATEGORIES.filter((c) => shares[c])
+          .map((c) => Math.round(shares[c] ?? 0))
+          .join(" · ")}
+      </span>
+    </div>
   )
 }
 

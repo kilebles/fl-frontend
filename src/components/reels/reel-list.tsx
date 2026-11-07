@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Loader2, Mic, Paperclip, Trash2 } from "lucide-react"
 
+import { factMix } from "@/components/reels/result"
 import { MixBar, StepBars, clock, shotsText, spentText, useSpent } from "@/components/reels/parts"
 import { rkeys, useReelQueue, useReels } from "@/components/reels/queries"
 import { ConfirmDialog, useNow } from "@/components/script/parts"
@@ -60,7 +61,7 @@ function StatusCell({ r, updatedAt, place }: { r: Reel; updatedAt: number; place
             {t.total ? ` · за ${spentText(t.total)}` : ""}
           </span>
         </span>
-        {s && <MixBar shares={s.mix.actual} />}
+        {s && <MixBar shares={factMix(r) ?? s.mix.actual} />}
       </span>
     )
   if (r.status === "done" && s)

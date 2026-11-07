@@ -82,3 +82,6 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
 
 - Client-facing: no accounts/strategy in the UI (internal), minimal copy — no slogans or explanatory subtitles. No logo/brand yet.
 - Single vs batch is not stored in the API: `isSingle(job)` = 1 row and not f2v (feed on Создать); everything else is a batch.
+- «Материалы» on the reel screen (`reels/result.tsx`): per planned category — found in it (`own`), where the rest went
+  (`moved`: second round / AI), and the shares by the storyboard vs in the reel (`materials.mix`); the list's mix bar uses
+  `materials.mix` when the brain sends it.

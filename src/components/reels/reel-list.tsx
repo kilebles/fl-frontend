@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Loader2, Mic, Paperclip, Trash2 } from "lucide-react"
 
-import type { MaterialsSummary } from "@/components/reels/result"
+import { factMix } from "@/components/reels/result"
 import { MixBar, StepBars, clock, shotsText, spentText, useSpent } from "@/components/reels/parts"
 import { rkeys, useReels } from "@/components/reels/queries"
 import { ConfirmDialog, useNow } from "@/components/script/parts"
@@ -30,12 +30,6 @@ export function statusText(r: Reel): string {
   }
   const step = pr.step ? STEP_TEXT[pr.step] ?? pr.step : "запуск"
   return pr.step === "shots" && pr.total ? `${step} · пачка ${pr.done ?? 0} из ${pr.total}` : step
-}
-
-/** The actual shares in the reel when the brain sends them (materials.mix), else null. */
-function factMix(r: Reel) {
-  const mix = (r.materials as MaterialsSummary | null | undefined)?.mix
-  return mix && Object.keys(mix).length ? mix : null
 }
 
 function StatusCell({ r, updatedAt }: { r: Reel; updatedAt: number }) {

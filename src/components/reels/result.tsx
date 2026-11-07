@@ -54,6 +54,12 @@ export type MaterialsSummary = {
   mix?: Partial<ReelShares>
 }
 
+/** The actual shares in the reel when the brain sends them (materials.mix), else null. */
+export function factMix(r: Reel): Partial<ReelShares> | null {
+  const mix = (r.materials as MaterialsSummary | null | undefined)?.mix
+  return mix && Object.keys(mix).length ? mix : null
+}
+
 /** Orders to the modules: per planned category — found in it, moved to the second round or AI, failed; then the shares
  *  by the storyboard against the shares in the reel (newer brains send `mix`). */
 export function MaterialsCard({ reel: r }: { reel: Reel }) {

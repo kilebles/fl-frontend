@@ -25,6 +25,7 @@ import {
   useSpent,
 } from "@/components/reels/parts"
 import { statusText } from "@/components/reels/reel-list"
+import { SearchProgressCard } from "@/components/reels/search-progress"
 import { rkeys, useReelOptions, useStoryboard } from "@/components/reels/queries"
 import { BriefCard, StoryboardCard } from "@/components/reels/storyboard"
 import { MaterialsCard, ResultCard } from "@/components/reels/result"
@@ -304,6 +305,7 @@ export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number
       </section>
 
       <ResultCard reel={r} />
+      <SearchProgressCard reel={r} />
       <MaterialsCard reel={r} />
       <TracksCard reel={r} />
 

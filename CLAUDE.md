@@ -57,6 +57,8 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
   `useSpent` from the query's `dataUpdatedAt`. Step 6 «Шрифт титров» (`reels/fonts.tsx`): Constantia (default), Constantine, oSerif, SatyrSP or
   the style's font; previews of «Your vision. Our production.» load the file from `/api/reels/fonts/{value}` (else a local font).
 
+- «Поиск видео» of a reel while it runs: `reels/search-progress.tsx` reads `materials.search` (module step, counter, found so far)
+  and `materials.relaxed` (shots taken with the threshold lowered by 1) — local types, older brains send neither.
 - Projects (ролики): the current project lives in localStorage; screens filter by it and new jobs/runs carry `project_id`.
   The project's style line is appended to every prompt (composer, batch, «В производство», avatar scene).
 - Credits/balance are a UI stub (`— кр.`) — no billing yet.

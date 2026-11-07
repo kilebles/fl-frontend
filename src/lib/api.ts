@@ -726,6 +726,8 @@ export interface VoiceStageStatus {
   fish_model: "free" | "paid" | "mixed" | "drama"
   voice_id: string | null
   voice_name: string | null
+  /** what holds the voiceover up right now, e.g. Fish retries of a paragraph */
+  note?: string | null
 }
 
 export interface MixStageStatus {

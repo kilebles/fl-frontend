@@ -1438,8 +1438,8 @@ export function VoiceView() {
                       }
                     : l.stage === "voice"
                       ? {
-                          text: `озвучка ${l.voice.done}/${l.voice.total}`,
-                          tone: l.voice.state === "running" ? "text-electric-text" : "text-faint",
+                          text: `озвучка ${l.voice.done}/${l.voice.total}` + (l.voice.note ? " · повтор" : ""),
+                          tone: l.voice.state === "running" ? (l.voice.note ? "text-warn" : "text-electric-text") : "text-faint",
                         }
                       : { text: "сведение", tone: l.mix?.state === "running" ? "text-electric-text" : "text-faint" }
               return (
@@ -1455,8 +1455,10 @@ export function VoiceView() {
                   )}
                 >
                   <span className="font-mono text-[13px] font-semibold text-foreground">{l.lang}</span>
-                  <span className={cn("sm:order-none", status.tone)}>
-                    {status.tone === "text-electric-text" && <Loader2 className="mr-1 inline size-3 animate-spin" />}
+                  <span className={cn("sm:order-none", status.tone)} title={l.voice.note ?? undefined}>
+                    {(status.tone === "text-electric-text" || status.tone === "text-warn") && (
+                      <Loader2 className="mr-1 inline size-3 animate-spin" />
+                    )}
                     {isSource ? "оригинал" : status.text}
                   </span>
                   <span className="col-span-2 truncate text-muted-foreground sm:col-span-1">
@@ -1493,6 +1495,11 @@ export function VoiceView() {
                       ) : null
                     )}
                   </span>
+                  {l.voice.note && l.voice.state === "running" && (
+                    <span className="col-span-full truncate font-mono text-[11px] text-warn" title={l.voice.note}>
+                      Fish: {l.voice.note}
+                    </span>
+                  )}
                 </div>
               )
             })}

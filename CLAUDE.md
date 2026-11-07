@@ -66,6 +66,8 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
   the style's font; previews of «Your vision. Our production.» load the file from `/api/reels/fonts/{value}` (else a local font).
   «Качество» there: 1080p as before / 1080p + sharpening / 4K + sharpening (`montage.quality`: "" | sharp | 4k).
 
+- «Ролики» list header: brain queue (`QueueControl`) — running / waiting, «одновременно» 1/2/3/5 (`PUT /api/reels/queue/limits`);
+  waiting reels show their place (`queue.queued`).
 - Projects (ролики): the current project lives in localStorage; screens filter by it and new jobs/runs carry `project_id`.
   The project's style line is appended to every prompt (composer, batch, «В производство», avatar scene).
 - Credits/balance are a UI stub (`— кр.`) — no billing yet.

@@ -9,6 +9,7 @@ import { useHydrated } from "@/lib/queries"
 export const rkeys = {
   all: ["reels"] as const,
   health: ["reels", "health"] as const,
+  queue: ["reels", "queue"] as const,
   options: ["reels", "options"] as const,
   voice: ["reels", "voice"] as const,
   fonts: ["reels", "fonts"] as const,
@@ -24,6 +25,10 @@ function ready<T>(q: T & { data?: unknown; isLoading: boolean }, ok: boolean): T
 
 export function useReelsHealth() {
   return ready(useQuery({ queryKey: rkeys.health, queryFn: reels.health, refetchInterval: 60_000, retry: false }), useHydrated())
+}
+
+export function useReelQueue() {
+  return ready(useQuery({ queryKey: rkeys.queue, queryFn: reels.queue, refetchInterval: 15_000, retry: false }), useHydrated())
 }
 
 export function useReelOptions() {
@@ -76,6 +81,7 @@ export function useReelEvents() {
   useEffect(() => {
     const es = new EventSource(reels.eventsUrl(), { withCredentials: true })
     es.addEventListener("reel.changed", (ev) => {
+      qc.invalidateQueries({ queryKey: rkeys.queue })
       qc.invalidateQueries({ queryKey: rkeys.list })
       try {
         const d = JSON.parse((ev as MessageEvent).data || "{}")
@@ -87,6 +93,7 @@ export function useReelEvents() {
       } catch {}
     })
     es.addEventListener("worker.changed", () => qc.invalidateQueries({ queryKey: rkeys.health }))
+    es.addEventListener("queue.changed", () => qc.invalidateQueries({ queryKey: rkeys.queue }))
     return () => es.close()
   }, [qc])
 }

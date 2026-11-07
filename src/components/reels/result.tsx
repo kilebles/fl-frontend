@@ -104,7 +104,7 @@ export function MaterialsCard({ reel: r }: { reel: Reel }) {
 }
 
 /** Where shots that were not found went: the next category of the second round or AI. */
-const MOVED_TO: Record<string, string> = { ai: "в ИИ", video: "в видео", history: "в историю", graphics: "в графику" }
+const MOVED_TO: Record<string, string> = { ai: "в ИИ", video: "в видео", history: "в историю", graphics: "в графику", infographics: "в инфографику" }
 
 function MixRow({ label, shares }: { label: string; shares: Partial<ReelShares> }) {
   return (

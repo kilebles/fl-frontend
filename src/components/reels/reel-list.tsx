@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Loader2, Mic, Paperclip, Trash2 } from "lucide-react"
 
+import type { MaterialsSummary } from "@/components/reels/result"
 import { MixBar, StepBars, clock, shotsText, spentText, useSpent } from "@/components/reels/parts"
 import { rkeys, useReels } from "@/components/reels/queries"
 import { ConfirmDialog, useNow } from "@/components/script/parts"
@@ -31,6 +32,12 @@ export function statusText(r: Reel): string {
   return pr.step === "shots" && pr.total ? `${step} · пачка ${pr.done ?? 0} из ${pr.total}` : step
 }
 
+/** The actual shares in the reel when the brain sends them (materials.mix), else null. */
+function factMix(r: Reel) {
+  const mix = (r.materials as MaterialsSummary | null | undefined)?.mix
+  return mix && Object.keys(mix).length ? mix : null
+}
+
 function StatusCell({ r, updatedAt }: { r: Reel; updatedAt: number }) {
   const s = r.summary
   const t = useSpent(r.timing, updatedAt)
@@ -45,7 +52,7 @@ function StatusCell({ r, updatedAt }: { r: Reel; updatedAt: number }) {
             {t.total ? ` · за ${spentText(t.total)}` : ""}
           </span>
         </span>
-        {s && <MixBar shares={r.materials?.mix && Object.keys(r.materials.mix).length ? r.materials.mix : s.mix.actual} />}
+        {s && <MixBar shares={factMix(r) ?? s.mix.actual} />}
       </span>
     )
   if (r.status === "done" && s)

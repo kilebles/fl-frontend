@@ -5,7 +5,7 @@ import { Download, Film, FolderArchive, Volume2 } from "lucide-react"
 
 import { CAT_BG, CAT_LABEL, CATEGORIES, MixBar, clock } from "@/components/reels/parts"
 import { BTN_PRIMARY, BTN_SECONDARY, Card } from "@/components/script/ui"
-import { reels, type Reel, type ReelShares } from "@/lib/api"
+import { reels, type Reel, type ReelCategory, type ReelShares } from "@/lib/api"
 import { bytes } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
@@ -43,10 +43,21 @@ function setEmbeddedAudioEnabled(video: HTMLVideoElement, enabled: boolean) {
   }
 }
 
+/** The materials summary of newer brains: own — found in the planned category, moved — where the rest went,
+ *  mix — the actual screen-time shares in the reel. Older brains send only total / done / fallback / failed. */
+export type MaterialsSummary = {
+  by_category: Partial<
+    Record<ReelCategory, { total: number; done: number; own?: number; fallback: number; failed: number; moved?: Partial<Record<ReelCategory, number>> }>
+  >
+  done: number
+  total: number
+  mix?: Partial<ReelShares>
+}
+
 /** Orders to the modules: per planned category — found in it, moved to the second round or AI, failed; then the shares
  *  by the storyboard against the shares in the reel (newer brains send `mix`). */
 export function MaterialsCard({ reel: r }: { reel: Reel }) {
-  const m = r.materials
+  const m = r.materials as MaterialsSummary | null | undefined
   if (!m || !m.total) return null
   const rows = CATEGORIES.filter((c) => m.by_category[c]?.total)
   const plan = r.summary?.mix.actual

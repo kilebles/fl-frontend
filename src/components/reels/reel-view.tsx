@@ -52,6 +52,13 @@ function footageLine(r: Reel) {
   return [one("видео", f.video), one("история", f.history)].filter(Boolean).join(" · ")
 }
 
+/** Ожидание ролика из мозга — теперь на любом этапе: «ждёт места на сборке», «Epidemic недоступен — повторю»,
+ *  «в очереди «Генераций»: 2-й…». Фразы на «ждёт» — про ролик, остальные — с большой буквы как есть. */
+function waitText(wait: string): string {
+  const t = wait.trim().replace(/\.$/, "")
+  return t.startsWith("ждёт") ? `Ролик ${t}` : t.charAt(0).toUpperCase() + t.slice(1)
+}
+
 function Tile({ label, value, sub, tone }: { label: string; value: React.ReactNode; sub?: React.ReactNode; tone?: "warn" }) {
   return (
     <div className="flex min-w-0 flex-col justify-between gap-2 rounded-[3px] border border-line bg-background p-3.5">
@@ -220,7 +227,7 @@ export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number
       {active && pr.wait && (
         <div className="flex items-start gap-2.5 rounded-[4px] border border-warn/40 bg-warn-soft px-4 py-3 text-sm">
           <Clock className="mt-0.5 size-4 shrink-0 text-warn" />
-          <span className="text-foreground-2">Раскадровка {pr.wait}. Продолжит сама.</span>
+          <span className="text-foreground-2">{waitText(pr.wait)}. Продолжит сам.</span>
         </div>
       )}
       {!!s?.fallback_paragraphs.length && (

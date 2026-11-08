@@ -48,7 +48,7 @@ function Tile({ item, onRemove, onSec }: { item: Local; onRemove: () => void; on
           muted
           preload="metadata"
           playsInline
-          onLoadedMetadata={(e) => onSec(e.currentTarget.duration)}
+          onLoadedMetadata={(e) => Number.isFinite(e.currentTarget.duration) && onSec(e.currentTarget.duration)}
           className="size-full object-cover"
         />
       ) : (
@@ -162,6 +162,19 @@ export function EditLaunch() {
     return () => clearTimeout(t)
   }, [])
   useEffect(() => () => urls.current.forEach((u) => URL.revokeObjectURL(u)), [])
+  // Ничего не запомнено — значения модуля по умолчанию (например, музыка Epidemic, если на сервере есть ключ).
+  const defaults = opts?.defaults
+  useEffect(() => {
+    if (!defaults) return
+    const r = loadRemembered()
+    const t = setTimeout(() => {
+      if (!r.format) setFormat(defaults.format)
+      if (!r.quality) setQuality(defaults.quality)
+      if (!r.style) setStyle(defaults.style)
+      if (!r.music) setMusic(defaults.music)
+    }, 0)
+    return () => clearTimeout(t)
+  }, [defaults])
   // Длина озвучки — чтобы сразу сказать, если она длиннее предела.
   useEffect(() => {
     if (!voice) return
@@ -205,7 +218,12 @@ export function EditLaunch() {
       next.push({ key: `${f.name}-${f.size}-${f.lastModified}-${Math.random().toString(36).slice(2, 7)}`, file: f, url, kind })
     }
     if (skipped.length) toast.error(`Не подходит (${[...exts.video, ...exts.image].join(" ")}): ${skipped.join(", ")}`)
-    setItems((cur) => [...cur, ...next].slice(0, limits?.max_files ?? 30))
+    const most = limits?.max_files ?? 30
+    if (items.length + next.length > most) {
+      toast.error(`Не больше ${most} файлов в одном монтаже — лишние не добавлены`)
+      next.slice(Math.max(0, most - items.length)).forEach((x) => URL.revokeObjectURL(x.url))
+    }
+    setItems((cur) => [...cur, ...next].slice(0, most))
   }
 
   const sec = Number(duration.replace(",", "."))

@@ -96,6 +96,7 @@ export function MontageView() {
           </div>
         }
       />
+      {screen === "montage" && <EditLaunch hidden={!!openEdit} />}
       {screen === "montage" ? (
         openEdit ? (
           editLoading ? (
@@ -108,10 +109,7 @@ export function MontageView() {
             <EditView key={edit.id} job={edit} />
           )
         ) : (
-          <>
-            <EditLaunch />
-            <EditList onOpen={(id) => setUrlParams({ e: id })} />
-          </>
+          <EditList onOpen={(id) => setUrlParams({ e: id })} />
         )
       ) : open ? (
         isLoading ? (

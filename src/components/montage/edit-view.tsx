@@ -9,6 +9,7 @@ import { clock } from "@/components/footage/parts"
 import { EDIT_ACCENT, EditProgress, MEDIA_ICON, editStep, mediaMeta, sec1, secs } from "@/components/montage/edit-parts"
 import { size } from "@/components/montage/parts"
 import { mkeys, useMontageOptions } from "@/components/montage/queries"
+import { ConfirmDialog } from "@/components/script/parts"
 import { BTN_PRIMARY, BTN_SECONDARY, Card, INPUT, Label, Seg } from "@/components/script/ui"
 import { edits, type EditJob, type EditSettings, type EditStyle } from "@/lib/api"
 import { cn } from "@/lib/utils"
@@ -211,8 +212,8 @@ function Rebuild({ job }: { job: EditJob }) {
   const same = style === s.style && format === s.format && quality === s.quality && (dur ?? null) === (s.duration ?? null)
   const go = useMutation({
     mutationFn: () => edits.rerender(job.id, { style, format, quality, duration: dur }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: mkeys.edit(job.id) })
+    onSuccess: (j) => {
+      qc.setQueryData(mkeys.edit(job.id), j)  // кнопки сразу видят «в очереди» — второй клик не уйдёт
       qc.invalidateQueries({ queryKey: mkeys.edits })
     },
     onError: (e) => toast.error(e.message),
@@ -271,13 +272,13 @@ function Rebuild({ job }: { job: EditJob }) {
 
 export function EditView({ job }: { job: EditJob }) {
   const qc = useQueryClient()
-  const refresh = () => {
-    qc.invalidateQueries({ queryKey: mkeys.edit(job.id) })
-    qc.invalidateQueries({ queryKey: mkeys.edits })
-  }
+  const [askAgain, setAskAgain] = useState(false)
   const act = useMutation({
     mutationFn: (what: "stop" | "resume" | "again") => (what === "stop" ? edits.stop(job.id) : edits.resume(job.id, what === "again")),
-    onSuccess: refresh,
+    onSuccess: (j) => {
+      qc.setQueryData(mkeys.edit(job.id), j)
+      qc.invalidateQueries({ queryKey: mkeys.edits })
+    },
     onError: (e) => toast.error(e.message),
   })
   const busy = ACTIVE.includes(job.status)
@@ -316,7 +317,13 @@ export function EditView({ job }: { job: EditJob }) {
                     Продолжить
                   </button>
                 )}
-                <button type="button" onClick={() => act.mutate("again")} disabled={act.isPending} className={BTN_SECONDARY} title="Модель заново смотрит файлы и составляет новый план">
+                <button
+                  type="button"
+                  onClick={() => (job.status === "done" ? setAskAgain(true) : act.mutate("again"))}
+                  disabled={act.isPending}
+                  className={BTN_SECONDARY}
+                  title="Модель заново смотрит файлы и составляет новый план"
+                >
                   <RotateCcw className="size-3.5" />
                   Заново
                 </button>
@@ -366,6 +373,18 @@ export function EditView({ job }: { job: EditJob }) {
 
       <Files job={job} />
       {job.plan && <Rebuild key={job.updated} job={job} />}
+      <ConfirmDialog
+        open={askAgain}
+        title="Смонтировать заново?"
+        text="Модель составит новый план по тем же файлам. Готовое видео и проект DaVinci удалятся — скачай их сначала, если нужны."
+        action="Заново"
+        onClose={() => setAskAgain(false)}
+        onConfirm={async () => {
+          const j = await edits.resume(job.id, true)
+          qc.setQueryData(mkeys.edit(job.id), j)
+          qc.invalidateQueries({ queryKey: mkeys.edits })
+        }}
+      />
     </div>
   )
 }

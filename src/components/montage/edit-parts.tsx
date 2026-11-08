@@ -25,12 +25,15 @@ const STAGE_TEXT: Record<string, string> = {
   render: "рендер",
 }
 
+/** progress — только если он о текущем этапе: между этапами запись уже на новом, а progress ещё о прошлом. */
+const current = (j: EditJob) => (j.progress.stage && j.progress.stage === j.stage ? j.progress : { wait: j.progress.wait })
+
 /** What the montage is doing now, in plain words. */
 export function editStep(j: EditJob): string {
-  const p = j.progress
+  const p = current(j)
   if (p.wait) return p.wait
-  if (p.step) return p.step
-  return STAGE_TEXT[p.stage ?? j.stage] ?? "запуск"
+  if ("step" in p && p.step) return p.step
+  return STAGE_TEXT[j.stage] ?? "запуск"
 }
 
 const SPAN: Record<string, [number, number]> = {
@@ -43,8 +46,8 @@ const SPAN: Record<string, [number, number]> = {
 
 export function editShare(j: EditJob): number {
   if (j.status === "done") return 1
-  const p = j.progress
-  const [a, b] = SPAN[p.stage ?? j.stage] ?? [0, 0]
+  const p = current(j) as EditJob["progress"]
+  const [a, b] = SPAN[j.stage] ?? [0, 0]
   const part = p.total ? Math.min(1, (p.done ?? 0) / p.total) : 0
   return a + (b - a) * part
 }

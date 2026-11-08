@@ -73,11 +73,12 @@ function Tile({ item, onRemove, onSec }: { item: Local; onRemove: () => void; on
 }
 
 /** A single audio file slot (voiceover, own music). */
-function AudioSlot({ file, onFile, icon: Icon, empty, disabled, exts }: { file: File | null; onFile: (f: File | null) => void; icon: typeof Mic; empty: string; disabled?: boolean; exts: string[] }) {
+function AudioSlot({ file, onFile, icon: Icon, empty, disabled, exts, maxMb }: { file: File | null; onFile: (f: File | null) => void; icon: typeof Mic; empty: string; disabled?: boolean; exts: string[]; maxMb: number }) {
   const ref = useRef<HTMLInputElement>(null)
   const take = (f: File | null | undefined) => {
-    if (!f) return
+    if (!f || disabled) return
     if (!exts.includes(ext(f.name))) toast.error(`«${f.name}» — не звук (${exts.join(" ")})`)
+    else if (f.size > maxMb * 1024 * 1024) toast.error(`«${f.name}» больше ${maxMb} МБ`)
     else onFile(f)
   }
   return (
@@ -105,7 +106,7 @@ function AudioSlot({ file, onFile, icon: Icon, empty, disabled, exts }: { file: 
             title="Убрать"
             onClick={(e) => {
               e.stopPropagation()
-              onFile(null)
+              if (!disabled) onFile(null)
             }}
             className="shrink-0 text-faint hover:text-danger"
           >
@@ -127,7 +128,8 @@ function AudioSlot({ file, onFile, icon: Icon, empty, disabled, exts }: { file: 
   )
 }
 
-export function EditLaunch() {
+/** hidden — панель скрыта (открыт монтаж), но остаётся на месте: идущая загрузка и выбранные файлы не теряются. */
+export function EditLaunch({ hidden = false }: { hidden?: boolean }) {
   const qc = useQueryClient()
   const { data: options } = useMontageOptions()
   const opts = options?.edit
@@ -179,15 +181,26 @@ export function EditLaunch() {
   useEffect(() => {
     if (!voice) return
     const url = URL.createObjectURL(voice)
+    let live = true
     const a = new Audio()
     a.preload = "metadata"
-    a.onloadedmetadata = () => setVoiceSec(Number.isFinite(a.duration) ? a.duration : null)
+    a.onloadedmetadata = () => live && setVoiceSec(Number.isFinite(a.duration) ? a.duration : null)
     a.src = url
     return () => {
+      live = false
+      a.onloadedmetadata = null
+      a.removeAttribute("src")
       URL.revokeObjectURL(url)
       setVoiceSec(null)
     }
   }, [voice])
+  // На сервере нет ключа Epidemic: подбора нет — запомненный выбор сбрасывается на «Без музыки».
+  const epidemicOff = opts?.epidemic === false
+  useEffect(() => {
+    if (!epidemicOff) return
+    const t = setTimeout(() => setMusic((m) => (m === "epidemic" ? "none" : m)), 0)
+    return () => clearTimeout(t)
+  }, [epidemicOff])
   const remember = (patch: Remembered) => {
     try {
       localStorage.setItem(REMEMBER, JSON.stringify({ ...loadRemembered(), ...patch }))
@@ -233,6 +246,19 @@ export function EditLaunch() {
   const total = items.reduce((a, i) => a + i.file.size, 0) + (voice?.size ?? 0) + (music === "own" ? (musicFile?.size ?? 0) : 0)
   const tooBig = total > totalMb * 1024 * 1024
   const ready = items.length > 0 && durOk && !voiceTooLong && !tooBig && (music !== "own" || !!musicFile)
+  // почему «Смонтировать» недоступна — пишется под панелью, а не только красной рамкой
+  const why = !items.length
+    ? ""
+    : music === "own" && !musicFile
+      ? "добавь файл музыки или выбери другую"
+      : !durOk
+        ? `длительность — от ${limits?.min_sec ?? 5} до ${maxSec} с или пусто (авто)`
+        : voiceTooLong
+          ? `озвучка длиннее ${String(voiceMax).replace(".", ",")} с`
+          : tooBig
+            ? `больше ${Math.round(totalMb / 1024)} ГБ за раз — убери часть файлов`
+            : ""
+  const abort = useRef<AbortController | null>(null)
 
   const settings = (): Partial<EditSettings> => ({ format, quality, style, music, model, duration: !voice && duration ? sec : null })
 
@@ -247,19 +273,22 @@ export function EditLaunch() {
         ],
       }),
     onSuccess: (r) => {
-      setBefore(description)
+      setBefore((b) => b ?? description)
       setDescription(r.text)
     },
     onError: (e) => toast.error(e.message),
   })
 
   const create = useMutation({
-    mutationFn: () =>
-      edits.create(
+    mutationFn: () => {
+      abort.current = new AbortController()
+      return edits.create(
         { ...settings(), title: title.trim() || undefined, project_id: projectId, description },
         { media: items.map((i) => i.file), voice, music: music === "own" ? musicFile : null },
         (share) => setSent(share),
-      ),
+        abort.current.signal,
+      )
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: mkeys.edits })
       items.forEach((i) => URL.revokeObjectURL(i.url))
@@ -272,17 +301,45 @@ export function EditLaunch() {
       toast.success("Монтаж в очереди")
     },
     onError: (e) => toast.error(e.message),
-    onSettled: () => setSent(null),
+    onSettled: () => {
+      setSent(null)
+      abort.current = null
+    },
   })
+  const busy = create.isPending
+  // загрузка идёт — закрытие вкладки её оборвёт: браузер спросит
+  useEffect(() => {
+    if (!busy) return
+    const stop = (e: BeforeUnloadEvent) => e.preventDefault()
+    window.addEventListener("beforeunload", stop)
+    return () => window.removeEventListener("beforeunload", stop)
+  }, [busy])
 
   const musicModes = (opts?.music ?? [
     { value: "none", label: "Без музыки" },
     { value: "own", label: "Своя" },
     { value: "epidemic", label: "Epidemic (подбор)" },
-  ]) as { value: EditMusic; label: string }[]
+  ]).filter((m) => !(epidemicOff && m.value === "epidemic")) as { value: EditMusic; label: string }[]
+
+  const progress =
+    sent === null ? "" : sent < 1 ? `загрузка ${Math.round(sent * 100)}% из ${size(total)}` : "сервер принимает файлы…"
+  if (hidden) {
+    // открыт монтаж, а новый ещё грузится: полоска сверху, чтобы загрузку было видно и её можно было отменить
+    return busy ? (
+      <div className="mb-4 flex items-center gap-3 rounded-[4px] border border-line bg-surface px-4 py-2.5 text-xs">
+        <Loader2 className="size-3.5 animate-spin text-pick" />
+        <span className="font-mono text-muted-foreground">Новый монтаж: {progress}</span>
+        <button type="button" onClick={() => abort.current?.abort()} className="ml-auto text-muted-foreground hover:text-danger">
+          Отменить
+        </button>
+      </div>
+    ) : null
+  }
 
   return (
     <section className="mb-6 rounded-[4px] border border-line bg-surface">
+      {/* пока файлы уходят на сервер, менять нечего: иначе изменения не попали бы в монтаж и стёрлись бы после */}
+      <fieldset disabled={busy} className="m-0 min-w-0 border-0 p-0 disabled:opacity-70">
       <div className="grid grid-cols-1 gap-x-5 gap-y-5 p-5 md:grid-cols-2 xl:grid-cols-12">
         <div className="md:col-span-2 xl:col-span-7">
           <Label
@@ -298,7 +355,7 @@ export function EditLaunch() {
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
               e.preventDefault()
-              if (e.dataTransfer.files?.length) add(e.dataTransfer.files)
+              if (!busy && e.dataTransfer.files?.length) add(e.dataTransfer.files)
             }}
             className={cn("rounded-[3px] border border-dashed bg-background", items.length ? "border-line-strong p-2" : "border-line-strong")}
           >
@@ -353,7 +410,7 @@ export function EditLaunch() {
               <Label aside={voiceSec ? <span className={cn("font-mono text-[11px]", voiceTooLong ? "text-danger" : "text-faint")}>{sec1(voiceSec)}</span> : undefined}>
                 Озвучка
               </Label>
-              <AudioSlot file={voice} onFile={setVoice} icon={Mic} empty="mp3 wav m4a — задаёт длину" exts={exts.audio} />
+              <AudioSlot file={voice} onFile={setVoice} icon={Mic} empty="mp3 wav m4a — задаёт длину" exts={exts.audio} maxMb={maxMb} disabled={busy} />
               {voiceTooLong && <div className="mt-1 text-xs text-danger">Длиннее {String(voiceMax).replace(".", ",")} с — сократи озвучку</div>}
             </div>
             <div>
@@ -368,7 +425,7 @@ export function EditLaunch() {
               />
               {music === "own" && (
                 <div className="mt-2">
-                  <AudioSlot file={musicFile} onFile={setMusicFile} icon={Music} empty="файл музыки" exts={exts.audio} />
+                  <AudioSlot file={musicFile} onFile={setMusicFile} icon={Music} empty="файл музыки" exts={exts.audio} maxMb={maxMb} disabled={busy} />
                 </div>
               )}
             </div>
@@ -401,7 +458,7 @@ export function EditLaunch() {
                   <button
                     type="button"
                     title="Кисть: модель распишет описание подробнее — ритм, порядок, акценты, титры, музыка, финал"
-                    disabled={!description.trim() || brush.isPending}
+                    disabled={!description.trim() || brush.isPending || busy}
                     onClick={() => brush.mutate()}
                     className={cn("flex h-7 items-center gap-1.5 rounded-[3px] px-2.5 text-xs font-medium transition-colors disabled:opacity-40", ON_BLUE)}
                   >
@@ -458,7 +515,9 @@ export function EditLaunch() {
             onChange={(e) => {
               const v = e.target.value.replace(/[^\d.,]/g, "").slice(0, 4)
               setDuration(v)
-              remember({ duration: v })
+              const n = Number(v.replace(",", "."))
+              // запоминается только годная длина — иначе следующий раз панель открылась бы уже с ошибкой
+              if (v === "" || (n >= (limits?.min_sec ?? 5) && n <= maxSec)) remember({ duration: v })
             }}
             placeholder={voice ? "по озвучке" : "авто"}
             inputMode="decimal"
@@ -511,6 +570,7 @@ export function EditLaunch() {
           </div>
         </div>
       </div>
+      </fieldset>
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3">
         <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -519,20 +579,22 @@ export function EditLaunch() {
               <div className="h-1 w-40 overflow-hidden rounded-full bg-elev">
                 <div className="h-full rounded-full bg-pick transition-[width]" style={{ width: `${Math.round(sent * 100)}%` }} />
               </div>
-              <span className="font-mono text-[11px] text-muted-foreground">
-                {sent < 1 ? `загрузка ${Math.round(sent * 100)}% из ${size(total)}` : "сервер принимает файлы…"}
-              </span>
+              <span className="font-mono text-[11px] text-muted-foreground">{progress}</span>
+              <button type="button" onClick={() => abort.current?.abort()} className="font-mono text-[11px] text-muted-foreground hover:text-danger">
+                отменить
+              </button>
             </>
           ) : (
-            <span className={cn("min-w-0 truncate font-mono text-[11px]", tooBig ? "text-danger" : "text-muted-foreground")}>
-              {tooBig
-                ? `Больше ${Math.round(totalMb / 1024)} ГБ за раз — убери часть файлов`
+            <span className={cn("min-w-0 truncate font-mono text-[11px]", why ? "text-danger" : "text-muted-foreground")}>
+              {why
+                ? `Не запустить: ${why}`
                 : items.length
                 ? [
                     `${items.filter((i) => i.kind === "video").length} видео`,
                     ((n) => (n ? `${n} ${plural(n, "картинка", "картинки", "картинок")}` : ""))(items.filter((i) => i.kind === "image").length),
                     voice ? "озвучка" : "",
                     music === "own" && musicFile ? "своя музыка" : music === "epidemic" ? "музыка Epidemic" : "",
+                    !voice && duration ? `${duration.replace(".", ",")} с` : "",
                   ]
                     .filter(Boolean)
                     .join(" · ")

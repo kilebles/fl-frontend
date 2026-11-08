@@ -153,9 +153,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 /** POST a multipart form with upload progress (fetch has none): big montage uploads show how far they got. */
-function upload<T>(path: string, form: FormData, onProgress?: (share: number) => void): Promise<T> {
+function upload<T>(path: string, form: FormData, onProgress?: (share: number) => void, signal?: AbortSignal): Promise<T> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
+    signal?.addEventListener("abort", () => xhr.abort())
+    xhr.onabort = () => reject(new ApiError(0, "Загрузка отменена"))
     xhr.open("POST", `${apiBase()}${path}`)
     xhr.withCredentials = true
     for (const [k, v] of Object.entries(headers() as Record<string, string>)) xhr.setRequestHeader(k, v)
@@ -2061,13 +2063,18 @@ const eid = (id: string) => `/api/montage/edits/${encodeURIComponent(id)}`
 export const edits = {
   list: () => request<EditJob[]>("/api/montage/edits"),
   get: (id: string) => request<EditJob>(eid(id)),
-  create: (body: EditCreate, files: { media: File[]; voice?: File | null; music?: File | null }, onProgress?: (share: number) => void) => {
+  create: (
+    body: EditCreate,
+    files: { media: File[]; voice?: File | null; music?: File | null },
+    onProgress?: (share: number) => void,
+    signal?: AbortSignal,
+  ) => {
     const form = new FormData()
     form.append("data", JSON.stringify(body))
     for (const f of files.media) form.append("media", f)
     if (files.voice) form.append("voice", files.voice)
     if (files.music) form.append("music", files.music)
-    return upload<EditJob>("/api/montage/edits", form, onProgress)
+    return upload<EditJob>("/api/montage/edits", form, onProgress, signal)
   },
   /** «Кисть»: the description → a detailed brief (the model answers in 10–60 s). */
   brush: (body: Partial<EditSettings> & { text: string; files: { name: string; kind: string; sec?: number | null }[] }) =>

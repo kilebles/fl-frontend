@@ -8,7 +8,7 @@ import { EditProgress, editStep, secs } from "@/components/montage/edit-parts"
 import { mkeys, useEditJobs } from "@/components/montage/queries"
 import { ConfirmDialog, useNow } from "@/components/script/parts"
 import { edits, type EditJob } from "@/lib/api"
-import { timeAgo } from "@/lib/format"
+import { plural, timeAgo } from "@/lib/format"
 import { useCurrentProject } from "@/lib/project"
 
 function Thumb({ j }: { j: EditJob }) {
@@ -58,7 +58,7 @@ export function EditList({ onOpen }: { onOpen: (id: string) => void }) {
           const meta = [
             s.format,
             s.quality === "2160" ? "4K" : `${s.quality}p`,
-            `${files} ${files === 1 ? "файл" : files < 5 ? "файла" : "файлов"}`,
+            `${files} ${plural(files, "файл", "файла", "файлов")}`,
             j.media.some((m) => m.kind === "voice") ? "озвучка" : "",
             now !== null ? timeAgo(j.created, now) : "",
           ].filter(Boolean)
@@ -106,11 +106,13 @@ export function EditList({ onOpen }: { onOpen: (id: string) => void }) {
         })}
       </div>
       <ConfirmDialog
+        key={del?.id ?? "none"}
         open={del !== null}
         title={`Удалить «${del?.title || "монтаж"}»?`}
         text={del?.status === "running" ? "Монтаж в работе — сначала останови его." : "Монтаж, загруженные файлы и результат удалятся с сервера."}
         onClose={() => setDel(null)}
         onConfirm={async () => {
+          if (del!.status === "running") throw new Error("Сначала останови монтаж на его странице")
           await edits.remove(del!.id)
           qc.invalidateQueries({ queryKey: mkeys.edits })
         }}

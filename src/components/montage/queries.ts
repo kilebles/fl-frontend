@@ -3,7 +3,7 @@
 import { useEffect } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
-import { montage } from "@/lib/api"
+import { edits, montage } from "@/lib/api"
 import { useHydrated } from "@/lib/queries"
 
 export const mkeys = {
@@ -12,6 +12,8 @@ export const mkeys = {
   options: ["montage", "options"] as const,
   jobs: ["montage", "jobs"] as const,
   job: (id: string) => ["montage", "job", id] as const,
+  edits: ["montage", "edits"] as const,
+  edit: (id: string) => ["montage", "edit", id] as const,
 }
 
 function ready<T>(q: T & { data?: unknown; isLoading: boolean }, ok: boolean): T {
@@ -42,6 +44,22 @@ export function useInfoJob(id: string | null) {
   )
 }
 
+export function useEditJobs() {
+  return ready(useQuery({ queryKey: mkeys.edits, queryFn: edits.list, refetchInterval: 60_000 }), useHydrated())
+}
+
+export function useEditJob(id: string | null) {
+  return ready(
+    useQuery({
+      queryKey: mkeys.edit(id ?? ""),
+      queryFn: () => edits.get(id!),
+      enabled: !!id,
+      retry: (n, e) => n < 2 && !("status" in e && e.status === 404),
+    }),
+    useHydrated(),
+  )
+}
+
 /** /api/montage/events (SSE): refetch exactly what changed. */
 export function useMontageEvents() {
   const qc = useQueryClient()
@@ -49,9 +67,13 @@ export function useMontageEvents() {
     const es = new EventSource(montage.eventsUrl(), { withCredentials: true })
     es.addEventListener("job.changed", (ev) => {
       qc.invalidateQueries({ queryKey: mkeys.jobs })
+      qc.invalidateQueries({ queryKey: mkeys.edits })
       try {
         const d = JSON.parse((ev as MessageEvent).data || "{}")
-        if (typeof d.id === "string") qc.invalidateQueries({ queryKey: mkeys.job(d.id) })
+        if (typeof d.id === "string") {
+          qc.invalidateQueries({ queryKey: mkeys.job(d.id) })
+          qc.invalidateQueries({ queryKey: mkeys.edit(d.id) })
+        }
       } catch {}
     })
     es.addEventListener("worker.changed", () => qc.invalidateQueries({ queryKey: mkeys.health }))

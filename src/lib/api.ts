@@ -186,6 +186,11 @@ export const api = {
     const qs = params.toString()
     return `${apiBase()}/api/jobs/${id}/zip${qs ? `?${qs}` : ""}`
   },
+  /** A link to the archive that works without signing in for `days` days (fl-api src/api/share.py). */
+  zipLink: (id: string, kind?: "video" | "image" | "all") =>
+    request<{ url: string; expires: string; days: number }>(`/api/jobs/${id}/zip/link${kind ? `?kind=${kind}` : ""}`, {
+      method: "POST",
+    }),
   eventsUrl: () => `${apiBase()}/api/events${API_TOKEN ? `?token=${encodeURIComponent(API_TOKEN)}` : ""}`,
 }
 

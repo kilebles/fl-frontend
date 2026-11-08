@@ -19,7 +19,7 @@ src/app/            / (Генерации: вручную — feed + composer), 
                     jobs/[id]/ (batch results), avatars/, prompts/ (projects ?p=, niche templates ?tab=templates), graphics/ (+ runs/[id], motion-aign cards),
                     script/ (Сценарий: projects ?p=, niches ?tab=niches), analytics/ (topic picks ?a=), voice/,
                     footage/ (Поиск видео: projects ?p=, sources ?tab=sources), videos/ (Ролики: reels ?p=),
-                    edit/ (Монтаж: «Инфографика» jobs ?j=, «Монтаж» ?tab=montage — stub for now),
+                    edit/ (Монтаж: «Монтаж» by description — montages ?e=, the default; «Инфографика» ?tab=infographics, jobs ?j=),
                     music, library, history — DevStub pages
 src/components/     shell/ (nav sidebar, logo, theme, project-picker, page-header + DevStub), create/ (composer, feed,
                     generations-bar, form-parts, dropzone), batch/ (batch-form, batches-panel), avatars/, prompts/,
@@ -27,7 +27,7 @@ src/components/     shell/ (nav sidebar, logo, theme, project-picker, page-heade
                     script/ (fl-scenario: launch panel, project list/view, niches, analytics, queries + SSE, send)
                     footage/ (fl-footage: launch panel, project list/view, sources, queries + SSE)
                     reels/ (fl-reel: «Новый ролик» wizard + draft, reel list/view, storyboard + brief, materials + result, YouTube tracks, queries + SSE)
-                    montage/ (fl-montage: «Инфографика» launch panel, job list/view with previews and «Перерисовать», queries + SSE)
+                    montage/ (fl-montage: «Монтаж» edit-launch/-list/-view/-parts; «Инфографика» launch panel, job list/view with previews and «Перерисовать», queries + SSE)
 src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), project.ts (current project, withStyle),
                     draft.ts (composer text shared with the feed), modes.ts, format.ts,
                     handoff.ts (finished script → «Промпты» / «Озвучка»)
@@ -49,6 +49,12 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
   cinematic / clean / chronicle), optional transparent layer; the job page previews every file (animated ones with the
   `poster` jpg) and «Перерисовать» re-renders with another style / format / quality without the model. «Ролики» order
   infographics there too (category `infographics`, shot `info: {type, brief}`, colour in `reels/parts.tsx`).
+  «Монтаж» (by description, up to 60 s; `/api/montage/edits`): videos and images (up to 30, live previews), an optional
+  voiceover (sets the length) and music (none / own file / Epidemic picked by the module), format, quality, duration,
+  one of six montage styles (the same names as «Ролики»), model, and the description with «Кисть» (`edits.brush` — the
+  model rewrites it into a detailed brief, «Вернуть» restores the text). Upload goes through XHR with progress
+  (`upload()` in `lib/api.ts`). The montage page: player with the poster, mp4 and the DaVinci project, the plan
+  (pieces with thumbnails, transitions, why), music and titles, uploaded files, «Пересобрать» (same plan without the model).
 - «Ролики» talk to fl-reel (the brain of the full cycle) at `/api/reels/*` (Caddy → Windows :8050); SSE `/api/reels/events`
   invalidates `["reels", …]`. «Новый ролик» (`?new=1`) is a six-step wizard: niche (fl-scenario niches; picking one
   loads the niche preset from fl-reel) → script (by topic — the brain orders it from «Сценарий», then «Озвучка»; or ready

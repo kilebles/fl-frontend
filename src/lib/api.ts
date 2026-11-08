@@ -2043,7 +2043,9 @@ export interface EditOptions {
   /** The module has an Epidemic key: music can be picked automatically. */
   epidemic: boolean
   defaults: Omit<EditSettings, "duration">
-  limits: { min_sec: number; max_sec: number; max_files: number; max_file_mb: number }
+  limits: { min_sec: number; max_sec: number; max_files: number; max_file_mb: number; max_total_mb?: number; voice_max_sec?: number }
+  /** File extensions the module accepts (".mp4" …). */
+  extensions?: { video: string[]; image: string[]; audio: string[] }
 }
 
 export interface EditCreate extends Partial<EditSettings> {

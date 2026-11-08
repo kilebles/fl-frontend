@@ -15,9 +15,13 @@ import { useCurrentProject } from "@/lib/project"
 import { cn } from "@/lib/utils"
 
 const REMEMBER = "montage.edit"
-const VIDEO_EXT = /\.(mp4|mov|m4v|webm|mkv|avi)$/i
-const IMAGE_EXT = /\.(jpe?g|png|webp)$/i
-const AUDIO_EXT = /\.(mp3|wav|m4a|aac|ogg|flac)$/i
+/** What the module accepts (options.edit.extensions overrides): by extension, as the server checks. */
+const EXT = {
+  video: [".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi"],
+  image: [".jpg", ".jpeg", ".png", ".webp"],
+  audio: [".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac"],
+}
+const ext = (name: string) => (name.match(/\.[^.]+$/)?.[0] ?? "").toLowerCase()
 
 type Remembered = Partial<Pick<EditSettings, "format" | "quality" | "style" | "music" | "model">> & { duration?: string }
 
@@ -31,8 +35,8 @@ function loadRemembered(): Remembered {
   }
 }
 
-const kindOf = (f: File): "video" | "image" | null =>
-  f.type.startsWith("video/") || VIDEO_EXT.test(f.name) ? "video" : f.type.startsWith("image/") || IMAGE_EXT.test(f.name) ? "image" : null
+const kindOf = (f: File, exts: typeof EXT): "video" | "image" | null =>
+  exts.video.includes(ext(f.name)) ? "video" : exts.image.includes(ext(f.name)) ? "image" : null
 
 /** One uploaded video or image: a live preview (the video's first frame), its length, remove. */
 function Tile({ item, onRemove, onSec }: { item: Local; onRemove: () => void; onSec: (s: number) => void }) {
@@ -69,8 +73,13 @@ function Tile({ item, onRemove, onSec }: { item: Local; onRemove: () => void; on
 }
 
 /** A single audio file slot (voiceover, own music). */
-function AudioSlot({ file, onFile, icon: Icon, empty, disabled }: { file: File | null; onFile: (f: File | null) => void; icon: typeof Mic; empty: string; disabled?: boolean }) {
+function AudioSlot({ file, onFile, icon: Icon, empty, disabled, exts }: { file: File | null; onFile: (f: File | null) => void; icon: typeof Mic; empty: string; disabled?: boolean; exts: string[] }) {
   const ref = useRef<HTMLInputElement>(null)
+  const take = (f: File | null | undefined) => {
+    if (!f) return
+    if (!exts.includes(ext(f.name))) toast.error(`«${f.name}» — не звук (${exts.join(" ")})`)
+    else onFile(f)
+  }
   return (
     <>
       <button
@@ -80,8 +89,7 @@ function AudioSlot({ file, onFile, icon: Icon, empty, disabled }: { file: File |
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
           e.preventDefault()
-          const f = e.dataTransfer.files?.[0]
-          if (f && AUDIO_EXT.test(f.name)) onFile(f)
+          take(e.dataTransfer.files?.[0])
         }}
         className={cn(
           "flex h-10 w-full min-w-0 items-center gap-2 rounded-[3px] border border-dashed px-3 text-left text-sm transition-colors disabled:opacity-40",
@@ -108,10 +116,10 @@ function AudioSlot({ file, onFile, icon: Icon, empty, disabled }: { file: File |
       <input
         ref={ref}
         type="file"
-        accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac"
+        accept={exts.join(",")}
         className="hidden"
         onChange={(e) => {
-          onFile(e.target.files?.[0] ?? null)
+          take(e.target.files?.[0])
           e.target.value = ""
         }}
       />
@@ -174,13 +182,16 @@ export function EditLaunch() {
   }
 
   const limits = opts?.limits
+  const exts = opts?.extensions ?? EXT
   const maxSec = limits?.max_sec ?? 60
+  const voiceMax = limits?.voice_max_sec ?? maxSec - 0.3
   const maxMb = limits?.max_file_mb ?? 2048
+  const totalMb = limits?.max_total_mb ?? 6144
   const add = (files: FileList | File[]) => {
     const next: Local[] = []
     const skipped: string[] = []
     for (const f of Array.from(files)) {
-      const kind = kindOf(f)
+      const kind = kindOf(f, exts)
       if (!kind) {
         skipped.push(f.name)
         continue
@@ -193,15 +204,17 @@ export function EditLaunch() {
       urls.current.push(url)
       next.push({ key: `${f.name}-${f.size}-${f.lastModified}-${Math.random().toString(36).slice(2, 7)}`, file: f, url, kind })
     }
-    if (skipped.length) toast.error(`Не видео и не картинка: ${skipped.join(", ")}`)
+    if (skipped.length) toast.error(`Не подходит (${[...exts.video, ...exts.image].join(" ")}): ${skipped.join(", ")}`)
     setItems((cur) => [...cur, ...next].slice(0, limits?.max_files ?? 30))
   }
 
   const sec = Number(duration.replace(",", "."))
-  const durOk = duration === "" || (sec >= (limits?.min_sec ?? 5) && sec <= maxSec)
-  const voiceTooLong = voiceSec !== null && voiceSec > maxSec + 0.05
-  const ready = items.length > 0 && durOk && !voiceTooLong && (music !== "own" || !!musicFile)
+  // с озвучкой длину задаёт она: поле длительности не участвует
+  const durOk = !!voice || duration === "" || (sec >= (limits?.min_sec ?? 5) && sec <= maxSec)
+  const voiceTooLong = voiceSec !== null && voiceSec > voiceMax + 0.05
   const total = items.reduce((a, i) => a + i.file.size, 0) + (voice?.size ?? 0) + (music === "own" ? (musicFile?.size ?? 0) : 0)
+  const tooBig = total > totalMb * 1024 * 1024
+  const ready = items.length > 0 && durOk && !voiceTooLong && !tooBig && (music !== "own" || !!musicFile)
 
   const settings = (): Partial<EditSettings> => ({ format, quality, style, music, model, duration: !voice && duration ? sec : null })
 
@@ -310,7 +323,7 @@ export function EditLaunch() {
             ref={pickRef}
             type="file"
             multiple
-            accept="video/*,image/*,.mov,.mkv,.webm"
+            accept={[...exts.video, ...exts.image].join(",")}
             className="hidden"
             onChange={(e) => {
               if (e.target.files?.length) add(e.target.files)
@@ -322,8 +335,8 @@ export function EditLaunch() {
               <Label aside={voiceSec ? <span className={cn("font-mono text-[11px]", voiceTooLong ? "text-danger" : "text-faint")}>{sec1(voiceSec)}</span> : undefined}>
                 Озвучка
               </Label>
-              <AudioSlot file={voice} onFile={setVoice} icon={Mic} empty="mp3 wav m4a — задаёт длину" />
-              {voiceTooLong && <div className="mt-1 text-xs text-danger">Длиннее {maxSec} с — сократи озвучку</div>}
+              <AudioSlot file={voice} onFile={setVoice} icon={Mic} empty="mp3 wav m4a — задаёт длину" exts={exts.audio} />
+              {voiceTooLong && <div className="mt-1 text-xs text-danger">Длиннее {String(voiceMax).replace(".", ",")} с — сократи озвучку</div>}
             </div>
             <div>
               <Label>Музыка</Label>
@@ -337,7 +350,7 @@ export function EditLaunch() {
               />
               {music === "own" && (
                 <div className="mt-2">
-                  <AudioSlot file={musicFile} onFile={setMusicFile} icon={Music} empty="файл музыки" />
+                  <AudioSlot file={musicFile} onFile={setMusicFile} icon={Music} empty="файл музыки" exts={exts.audio} />
                 </div>
               )}
             </div>
@@ -493,8 +506,10 @@ export function EditLaunch() {
               </span>
             </>
           ) : (
-            <span className="min-w-0 truncate font-mono text-[11px] text-muted-foreground">
-              {items.length
+            <span className={cn("min-w-0 truncate font-mono text-[11px]", tooBig ? "text-danger" : "text-muted-foreground")}>
+              {tooBig
+                ? `Больше ${Math.round(totalMb / 1024)} ГБ за раз — убери часть файлов`
+                : items.length
                 ? [
                     `${items.filter((i) => i.kind === "video").length} видео`,
                     ((n) => (n ? `${n} ${plural(n, "картинка", "картинки", "картинок")}` : ""))(items.filter((i) => i.kind === "image").length),

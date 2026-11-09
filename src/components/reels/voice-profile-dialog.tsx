@@ -8,6 +8,7 @@ import { toast } from "sonner"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { BTN_PRIMARY, BTN_SECONDARY, INPUT, Label, Pick } from "@/components/script/ui"
 import { voice, voiceMediaUrl, type VoiceProfile } from "@/lib/api"
+import { langCode } from "@/lib/langs"
 import { cn } from "@/lib/utils"
 
 /** Language names of «Озвучка» (main ones first). */
@@ -219,7 +220,7 @@ function ProfileForm({
                     <option value="">Добавить язык…</option>
                     {free.map(([c, n]) => (
                       <option key={c} value={c}>
-                        {c} · {n}
+                        {langCode(c)} · {n}
                       </option>
                     ))}
                   </select>
@@ -256,7 +257,7 @@ function ProfileForm({
                   className="grid grid-cols-[52px_minmax(0,1fr)_36px_150px_28px] items-center gap-2 border-b border-line px-3 py-2 last:border-b-0"
                 >
                   <span className="font-mono text-xs text-ok" title={NAME[code]}>
-                    {code}
+                    {langCode(code)}
                   </span>
                   <Pick value={r.voice} onChange={(v) => set(i, { voice: v })} options={voiceOptions} placeholder={voiceName(r.voice) || "Голос"} />
                   <button
@@ -324,7 +325,7 @@ function ProfileForm({
             <select value={fish.lang} onChange={(e) => setFish({ ...fish, lang: e.target.value })} className={cn(SMALL, "h-9")}>
               {LANGS.map(([c]) => (
                 <option key={c} value={c}>
-                  {c}
+                  {langCode(c)}
                 </option>
               ))}
             </select>

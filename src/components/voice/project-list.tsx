@@ -6,6 +6,7 @@ import { Download, Loader2, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { type VoiceJob, type VoiceJobLanguage, voice } from "@/lib/api"
 import { timeAgo } from "@/lib/format"
+import { langCode, langList } from "@/lib/langs"
 import { cn } from "@/lib/utils"
 
 const MODE_LABEL: Record<string, string> = {
@@ -95,7 +96,7 @@ export function jobProgress(job: VoiceJob): number {
 }
 
 function langsIn(job: VoiceJob, pick: (l: VoiceJobLanguage) => boolean): string[] {
-  return job.languages.filter(pick).map((l) => l.lang)
+  return job.languages.filter(pick).map((l) => langCode(l.lang))
 }
 
 /** What the job is doing right now, in a few words. */
@@ -109,7 +110,7 @@ function currentStep(job: VoiceJob): string {
   if (translating.length) return `перевод · ${translating.join(", ")}`
   const voicing = job.languages.find((l) => l.voice.state === "running")
   if (voicing)
-    return `озвучка ${voicing.lang} · ${voicing.voice.done}/${voicing.voice.total}` + (voicing.voice.note ? " · повтор Fish" : "")
+    return `озвучка ${langCode(voicing.lang)} · ${voicing.voice.done}/${voicing.voice.total}` + (voicing.voice.note ? " · повтор Fish" : "")
   const mixing = job.languages.find((l) => l.mix?.state === "running")
   if (mixing) return "сведение"
   // between two saves of the worker's progress: name the next unfinished step (translate → voice → mix)
@@ -117,7 +118,7 @@ function currentStep(job: VoiceJob): string {
   const toTranslate = langsIn(job, (l) => open(l.translate?.state))
   if (toTranslate.length) return `перевод · ${toTranslate.join(", ")}`
   const toVoice = job.languages.find((l) => open(l.voice.state))
-  if (toVoice) return `озвучка ${toVoice.lang} · ${toVoice.voice.done}/${toVoice.voice.total}`
+  if (toVoice) return `озвучка ${langCode(toVoice.lang)} · ${toVoice.voice.done}/${toVoice.voice.total}`
   if (job.languages.some((l) => open(l.mix?.state))) return "сведение"
   return "в работе"
 }
@@ -128,7 +129,7 @@ function doneFacts(job: VoiceJob): { facts: string[]; warning: string | null } {
   const inNorm = langs.reduce((a, l) => a + (l.in_norm || 0), 0)
   const facts = [
     formatDuration(job.summary?.duration_sec ?? job.source_duration_sec),
-    job.targets.length ? `${job.targets.length} яз.` : job.source_lang,
+    job.targets.length ? `${job.targets.length} яз.` : langCode(job.source_lang),
     total ? `в норме ${Math.round((inNorm / total) * 100)}%` : "",
   ].filter(Boolean)
   const skipped = Object.keys(job.summary?.skipped ?? {})
@@ -162,7 +163,7 @@ function ProjectRow({
   onDelete: () => void
 }) {
   const meta = [
-    `${job.source_lang} → ${job.targets.join(" ") || "—"}`,
+    `${langCode(job.source_lang)} → ${langList(job.targets, " ") || "—"}`,
     MODE_LABEL[job.mode] ?? job.mode,
     job.mode === "all" || job.mode === "translate" ? modelLabel(job.model) : "",
     job.mode === "all" || job.mode === "voice" ? (job.voice_model === "drama-3" ? "Drama 3" : "S2.1") : "",

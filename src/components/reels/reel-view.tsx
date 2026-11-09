@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { langCode, langList } from "@/lib/langs"
 import { AlertTriangle, Clock, Loader2, RotateCcw, Square, Trash2, TriangleAlert } from "lucide-react"
 import { toast } from "sonner"
 
@@ -180,7 +181,7 @@ export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number
   const now = (stage: string) => active && (pr.stage ?? "storyboard") === stage
   const captions = {
     script: now("script") ? statusText(r) : r.source.kind === "voice" ? `из «Озвучки»` : r.source.kind === "topic" ? "по теме" : r.source.name,
-    voice: now("voice") ? statusText(r) : r.source.timed ? `${r.source.language.toUpperCase()} · ${r.source.timed} дорожек` : "",
+    voice: now("voice") ? statusText(r) : r.source.timed ? `${langCode(r.source.language)} · ${r.source.timed} дорожек` : "",
     storyboard: done && s ? shotsText(s.shots) : now("storyboard") ? statusText(r) : "",
     materials: now("materials") ? statusText(r) : r.materials?.total ? `${r.materials.done} из ${r.materials.total} кадров` : "",
     music: now("music")
@@ -275,7 +276,7 @@ export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number
                 : "",
               r.settings.storyboard.style ? `стиль: ${r.settings.storyboard.style}` : "",
               r.settings.avatar?.id ? `ведущий: ${r.settings.avatar.name || "аватар"}` : "",
-              r.settings.voice?.targets?.length ? `переводы: ${r.settings.voice.targets.join(", ")}` : "",
+              r.settings.voice?.targets?.length ? `переводы: ${langList(r.settings.voice.targets)}` : "",
               r.settings.intro?.on
                 ? `первые ${Math.round(r.settings.intro.sec / 60)} мин: ${(r.settings.avatar?.id ? CATEGORIES : BASE_CATEGORIES)
                     .map((c) => Math.round(r.settings.intro?.shares[c] ?? 0))

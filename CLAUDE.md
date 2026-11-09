@@ -84,6 +84,8 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
 - Projects (ролики): the current project lives in localStorage; screens filter by it and new jobs/runs carry `project_id`.
   The project's style line is appended to every prompt (composer, batch, «В производство», avatar scene).
 - Credits/balance are a UI stub (`— кр.`) — no billing yet.
+- Language codes on screen go through `langCode()` / `langList()` (`lib/langs.ts`): the team's labels — GER, ESP, POR, JP, ARB,
+  KOR, DUT, TUR, SWE, NOR, DAN, CZE; the APIs keep the modules' codes (DE, ES, PT, JA, AR, KO, NL, TR, SV, NO, DA, CS).
 - Data is client-side: React Query against `NEXT_PUBLIC_API_URL`; `/api/events` SSE updates the cache live.
 - Cache Components rules: no `Date.now()` during render (use effects), `usePathname`/params under `<Suspense>`.
 - Design tokens in `globals.css` (`--electric` #3d6bff accent, layered dark surfaces, faint grid backdrop `.panel-backdrop`, `.glow-electric`, `.shimmer`, `.bar-running`). References: whitenetwork.cloud (tokens) + rythm.fm (shell).

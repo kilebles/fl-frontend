@@ -14,6 +14,7 @@ import { setUrlParams, useUrlParam } from "@/components/script/queries"
 import { BTN_PRIMARY, BTN_SMALL } from "@/components/script/ui"
 import { PageHeader } from "@/components/shell/page-header"
 import { reels, type Reel } from "@/lib/api"
+import { langCode } from "@/lib/langs"
 import { cn } from "@/lib/utils"
 
 /** Shown only when something is wrong: the API is down or nobody runs the queue. */
@@ -104,7 +105,7 @@ export function ReelsView() {
               {[
                 reel.settings.niche_name || "",
                 reel.source.kind === "voice"
-                  ? `озвучка ${reel.source.language.toUpperCase()}`
+                  ? `озвучка ${langCode(reel.source.language)}`
                   : reel.source.kind === "topic"
                     ? "по теме"
                     : reel.source.name,

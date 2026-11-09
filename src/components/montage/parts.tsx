@@ -73,8 +73,8 @@ export function PaletteSwatch({ style, colors = [], className, large }: { style:
       >
         Аа
       </span>
-      <span className="absolute top-[46%] left-[10%] h-[2px] w-[28%]" style={{ background: accent }} />
-      {mark && <span className="absolute top-[58%] left-[10%] aspect-square w-[6%] rounded-full" style={{ background: mark }} />}
+      <span className={cn("absolute left-[10%] h-[2px] w-[28%]", large ? "top-[56%]" : "top-[46%]")} style={{ background: accent }} />
+      {mark && <span className={cn("absolute left-[10%] aspect-square w-[6%] rounded-full", large ? "top-[66%]" : "top-[58%]")} style={{ background: mark }} />}
       <span className="absolute right-[10%] bottom-[18%] h-[30%] w-[12%] rounded-[1px]" style={{ background: a }} />
       <span className="absolute right-[26%] bottom-[18%] h-[48%] w-[12%] rounded-[1px]" style={{ background: b }} />
     </span>

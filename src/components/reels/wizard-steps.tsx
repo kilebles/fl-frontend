@@ -823,7 +823,7 @@ function PausesPick({ d, up }: { d: Draft; up: Up }) {
                 <Hint text={hint(m.value)} />
               </label>
               {cur && m.value === "chapters" && (
-                <div className="min-w-0">
+                <div className="w-72 max-w-full">
                   <Seg
                     value={cur.sec ? String(cur.sec) : ""}
                     onChange={(v) => own("chapters", v)}
@@ -839,7 +839,7 @@ function PausesPick({ d, up }: { d: Draft; up: Up }) {
                 </div>
               )}
               {cur && m.value === "every" && (
-                <div className="min-w-0">
+                <div className="w-80 max-w-full">
                   <Seg
                     value={String(p.everySec)}
                     onChange={(v) => set({ everySec: Number(v) })}
@@ -848,7 +848,7 @@ function PausesPick({ d, up }: { d: Draft; up: Up }) {
                       ["30", "~30 с"],
                       ["45", "~45 с"],
                       ["60", "~1 мин"],
-                      ["90", "~1,5 мин"],
+                      ["90", "~90 с"],
                       ["120", "~2 мин"],
                     ]}
                   />

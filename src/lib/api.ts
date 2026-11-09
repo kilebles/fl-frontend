@@ -152,6 +152,31 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.status === 204 ? (undefined as T) : res.json()
 }
 
+/** POST a multipart form with upload progress (fetch has none): big montage uploads show how far they got. */
+function upload<T>(path: string, form: FormData, onProgress?: (share: number) => void, signal?: AbortSignal): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    signal?.addEventListener("abort", () => xhr.abort())
+    xhr.onabort = () => reject(new ApiError(0, "Загрузка отменена"))
+    xhr.open("POST", `${apiBase()}${path}`)
+    xhr.withCredentials = true
+    for (const [k, v] of Object.entries(headers() as Record<string, string>)) xhr.setRequestHeader(k, v)
+    if (onProgress) xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total)
+    xhr.onerror = () => reject(new ApiError(0, "Сервер недоступен — загрузка прервалась"))
+    xhr.onload = () => {
+      let body: unknown = null
+      try {
+        body = JSON.parse(xhr.responseText || "null")
+      } catch {}
+      if (xhr.status >= 200 && xhr.status < 300) return resolve(body as T)
+      const detail = (body as { detail?: unknown } | null)?.detail
+      if (xhr.status === 401) unauthorizedListeners.forEach((fn) => fn())
+      reject(new ApiError(xhr.status, typeof detail === "string" ? detail : xhr.status === 413 ? "Файл слишком большой" : xhr.statusText || "Ошибка загрузки"))
+    }
+    xhr.send(form)
+  })
+}
+
 function json(method: string, body?: unknown): RequestInit {
   return {
     method,
@@ -1923,6 +1948,8 @@ export interface InfoOptions {
   models: { value: string; engine: string; model: string; label: string; group: string }[]
   defaults: Omit<InfoSettings, "duration" | "max_items" | "notes"> & { max_auto: number }
   limits: { max_items: number; min_sec: number; max_sec: number; max_upload_mb: number }
+  /** «Монтаж» по описанию; absent on an older module. */
+  edit?: EditOptions
 }
 
 export interface InfoCreate extends Partial<InfoSettings> {
@@ -1932,6 +1959,141 @@ export interface InfoCreate extends Partial<InfoSettings> {
 }
 
 export type InfoRerender = Partial<Pick<InfoSettings, "kind" | "format" | "quality" | "style" | "duration" | "alpha">>
+
+/* «Монтаж» по описанию: videos, images, a voiceover and music → a montage up to 60 s (fl-montage /api/montage/edits). */
+
+export type EditStyle = "classic" | "epic" | "calm" | "chronicle" | "explainer" | "vlog"
+export type EditMusic = "none" | "own" | "epidemic"
+export type EditStage = "probe" | "plan" | "music" | "build" | "render" | "done"
+
+export interface EditSettings {
+  format: "16:9" | "9:16"
+  quality: "720" | "1080" | "2160"
+  /** Seconds; null — by the voiceover, or the model chooses (up to the limit). */
+  duration: number | null
+  style: EditStyle
+  music: EditMusic
+  /** "engine:model" from options.models; "" — the module's default. */
+  model: string
+}
+
+export interface EditMedia {
+  id: string
+  kind: "video" | "image" | "voice" | "music"
+  name: string
+  size: number
+  sec?: number | null
+  width?: number | null
+  height?: number | null
+  audio?: boolean | null
+  /** Small jpg of the file (out/), for the page. */
+  thumb?: string | null
+}
+
+export interface EditSegment {
+  media: string
+  name: string
+  kind: "video" | "image"
+  /** Start on the montage timeline and length on screen, seconds. */
+  at: number
+  sec: number
+  /** Piece of the video, seconds inside it. */
+  from?: number | null
+  to?: number | null
+  speed: number
+  transition: string
+  sound: boolean
+  why: string
+}
+
+export interface EditPlan {
+  title: string
+  /** model — the model's plan; code — the model failed, files in order. */
+  by: "model" | "code"
+  length: number
+  segments: EditSegment[]
+  titles: { text: string; kind: "title" | "lower" | "caption"; at: number; sec: number }[]
+  notes: string
+}
+
+export interface EditJob {
+  id: string
+  mode: "montage"
+  title: string
+  project_id: string | null
+  status: InfoStatus
+  created: string
+  updated: string
+  started: string | null
+  finished: string | null
+  settings: EditSettings
+  description: string
+  stage: EditStage
+  media: EditMedia[]
+  plan: EditPlan | null
+  music: {
+    mode: EditMusic
+    name?: string
+    note?: string
+    edited?: boolean
+    track?: { id: string; title?: string; artists?: string[]; bpm?: number; preview?: string | null }
+  } | null
+  result: { video: string; poster: string | null; project: string | null; sec: number; size: number; width: number; height: number; frames: number } | null
+  progress: { stage?: EditStage; done?: number; total?: number; step?: string; wait?: string }
+  problems: string[]
+  usage: { calls?: number; cache_hits?: number } | null
+  error: string | null
+  timing: { sec: number; running: boolean }
+}
+
+export interface EditOptions {
+  styles: { value: EditStyle; label: string; hint: string; shot: [number, number] }[]
+  music: { value: EditMusic; label: string }[]
+  /** The module has an Epidemic key: music can be picked automatically. */
+  epidemic: boolean
+  defaults: Omit<EditSettings, "duration">
+  limits: { min_sec: number; max_sec: number; max_files: number; max_file_mb: number; max_total_mb?: number; voice_max_sec?: number }
+  /** File extensions the module accepts (".mp4" …). */
+  extensions?: { video: string[]; image: string[]; audio: string[] }
+}
+
+export interface EditCreate extends Partial<EditSettings> {
+  title?: string
+  project_id?: string | null
+  description?: string
+}
+
+export type EditRerender = Partial<Pick<EditSettings, "format" | "quality" | "style" | "duration">>
+
+const eid = (id: string) => `/api/montage/edits/${encodeURIComponent(id)}`
+
+export const edits = {
+  list: () => request<EditJob[]>("/api/montage/edits"),
+  get: (id: string) => request<EditJob>(eid(id)),
+  create: (
+    body: EditCreate,
+    files: { media: File[]; voice?: File | null; music?: File | null },
+    onProgress?: (share: number) => void,
+    signal?: AbortSignal,
+  ) => {
+    const form = new FormData()
+    form.append("data", JSON.stringify(body))
+    for (const f of files.media) form.append("media", f)
+    if (files.voice) form.append("voice", files.voice)
+    if (files.music) form.append("music", files.music)
+    return upload<EditJob>("/api/montage/edits", form, onProgress, signal)
+  },
+  /** «Кисть»: the description → a detailed brief (the model answers in 10–60 s). */
+  brush: (body: Partial<EditSettings> & { text: string; files: { name: string; kind: string; sec?: number | null }[] }) =>
+    request<{ text: string }>("/api/montage/edits/brush", json("POST", body)),
+  rename: (id: string, title: string) => request<EditJob>(eid(id), json("PATCH", { title })),
+  stop: (id: string) => request<EditJob>(`${eid(id)}/stop`, json("POST")),
+  resume: (id: string, again = false) => request<EditJob>(`${eid(id)}/resume`, json("POST", { again })),
+  rerender: (id: string, changes: EditRerender) => request<EditJob>(`${eid(id)}/rerender`, json("POST", { changes })),
+  remove: (id: string) => request<void>(eid(id), { method: "DELETE" }),
+  fileUrl: (id: string, name: string, download = false) =>
+    withToken(`${eid(id)}/files/${encodeURIComponent(name)}${download ? "?download=true" : ""}`),
+}
 
 const mid = (id: string) => `/api/montage/infographics/${encodeURIComponent(id)}`
 

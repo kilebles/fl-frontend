@@ -123,6 +123,8 @@ function MixRow({ label, shares }: { label: string; shares: Partial<ReelShares> 
 /** The assembled reel: player, mp4 and the montage project for DaVinci. */
 export function ResultCard({ reel: r }: { reel: Reel }) {
   const res = r.result
+  // why Remotion did not render (fl-reel stages.assembly.renderer_note: the gist of its error, or «не установлен»)
+  const renderNote = (r as Reel & { stages?: { assembly?: { renderer_note?: string } } }).stages?.assembly?.renderer_note ?? ""
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const langs = res?.languages?.length ? res.languages.map((l) => l.toUpperCase()) : []
@@ -277,8 +279,17 @@ export function ResultCard({ reel: r }: { reel: Reel }) {
           <div className="mt-2 space-y-1.5 text-[13px] text-muted-foreground">
             <p className="flex items-start gap-2">
               <Film className="mt-0.5 size-3.5 shrink-0 text-faint" />
-              {res.renderer === "remotion" ? "Переходы и обработка стиля монтажа" : "Склейка без переходов: на сервере нет Remotion"}
+              {res.renderer === "remotion"
+                ? "Переходы и обработка стиля монтажа"
+                : renderNote && !renderNote.includes("не установлен")
+                  ? "Склейка без переходов, титров и обработки стиля: Remotion не отрисовал ролик"
+                  : "Склейка без переходов: на сервере нет Remotion"}
             </p>
+            {res.renderer !== "remotion" && renderNote && !renderNote.includes("не установлен") && (
+              <p className="line-clamp-3 font-mono text-[11px] break-all text-warn" title={renderNote}>
+                {renderNote}
+              </p>
+            )}
             {res.fallbacks > 0 && <p>Запасной ход у {res.fallbacks} кадр. — подробности в report.json проекта</p>}
             {res.failed > 0 && <p className="text-warn">Не вышло {res.failed} кадр. — их время отдано соседним</p>}
             <p className="text-faint">В проекте: клипы, голос каждого языка, reel.xml для DaVinci (File → Import → Timeline), EDL, атрибуция футажей.</p>

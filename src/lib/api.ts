@@ -1743,6 +1743,10 @@ export interface ReelSettings {
   footage?: { video: ReelFootageSettings; history: ReelFootageSettings }
   /** The first minutes apart: own shares, shot length and category score floor. */
   intro?: ReelIntroSettings
+  /** On-screen text in one language (infographics, numbers and dates, chapter titles); older reels: absent. */
+  text?: ReelTextSettings
+  /** The model of AI shots (the host always goes i2i2v); older reels: absent — i2v. */
+  ai?: { mode: ReelAiMode }
   format: "16:9" | "9:16"
 }
 
@@ -1765,6 +1769,17 @@ export interface ReelIntroSettings {
   /** A category with a lower score is not used for an intro shot. */
   min_fit: number
 }
+
+/** lang: "" — the reel's base language; numbers — key numbers and dates the model picks (and how they look);
+ *  chapters — chapter titles, null — as the montage style has them. */
+export interface ReelTextSettings {
+  lang: string
+  numbers: boolean
+  chapters: boolean | null
+}
+
+/** i2v — «Картинка → видео» (Veo); flash_i2v — the same with the flash model. */
+export type ReelAiMode = "i2v" | "flash_i2v"
 
 export interface ReelMontageStyle {
   value: string
@@ -1791,6 +1806,8 @@ export interface ReelOptions {
   montage: ReelMontageStyle[]
   montage_default: string
   music: { value: string; label: string }[]
+  /** Models of AI shots; older brains: absent — no choice (i2v). */
+  ai_modes?: { value: ReelAiMode; label: string }[]
   footage_groups?: { value: FootageGroup; label: string }[]
   /** Intro defaults: its length and the shot length per montage style. */
   intro?: { sec: number; shot_sec: Record<string, [number, number]> }

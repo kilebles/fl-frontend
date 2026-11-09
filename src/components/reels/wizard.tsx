@@ -110,6 +110,8 @@ export function ReelWizard({ onCreated }: { onCreated: (id: string) => void }) {
           footage: { video: footageBody(d.footage.video), history: footageBody(d.footage.history) },
           intro: introBody(d.intro),
           format: d.format,
+          text: d.text,
+          ai: d.ai,
         },
         s.mode === "ready" && s.from === "file" ? file : null,
       ),

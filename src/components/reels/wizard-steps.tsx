@@ -32,6 +32,7 @@ import { BTN_PRIMARY, BTN_SECONDARY, INPUT, Label, ON_BLUE, Pick, Seg } from "@/
 import { reels, scenario, voice, type ReelSettings, type ReelShares, type ScenarioNiche } from "@/lib/api"
 import { useAvatars } from "@/lib/queries"
 import { cn } from "@/lib/utils"
+import { AiModePick, ChapterTitlesCheck, TextPick, TextSummary, textFromPreset } from "@/components/reels/wizard-text"
 
 export type Up = (fn: (d: Draft) => Draft) => void
 export type StepProps = { d: Draft; up: Up; file: File | null; setFile: (f: File | null) => void }
@@ -135,6 +136,7 @@ export function NicheStep({ d, up }: StepProps) {
         }
         Object.assign(next, fromPreset(preset, x))
         next.format = preset.format === "9:16" ? "9:16" : "16:9"
+        Object.assign(next, textFromPreset(preset))
       }
       return next
     })
@@ -746,6 +748,8 @@ export function StoryboardStep({ d, up }: StepProps) {
               ]}
             />
           </div>
+          <AiModePick d={d} up={up} />
+          <TextPick d={d} up={up} />
         </div>
       </div>
       <div className="space-y-3">
@@ -763,13 +767,16 @@ const PAUSE_MODES: { value: PauseMode; label: string; hint: string }[] = [
 ]
 const FADE_HINT = "Затухание: в паузе картинка уходит в чёрное и возвращается — сильнее отделяет части фильма."
 
+const secText = (v: number) => `${String(v).replace(".", ",")} с`
+
 export function pausesText(p: Draft["storyboard"]["pauses"]) {
   if (!p.modes.length) return "без пауз"
   const parts = p.modes.map((m) => {
     const what = m.mode === "chapters" ? "в конце глав" : m.mode === "every" ? `~раз в ${p.everySec} с` : "по смыслу"
-    return m.fade ? `${what} с затуханием` : what
+    const own = m.sec ? ` ${secText(m.sec)}` : ""
+    return m.fade ? `${what}${own} с затуханием` : `${what}${own}`
   })
-  return `паузы ${parts.join(" + ")} · ${String(p.sec).replace(".", ",")} с`
+  return `паузы ${parts.join(" + ")}${p.modes.some((m) => !m.sec) ? ` · ${secText(p.sec)}` : ""}`
 }
 
 function Hint({ text }: { text: string }) {
@@ -797,6 +804,10 @@ function PausesPick({ d, up }: { d: Draft; up: Up }) {
         : PAUSE_MODES.filter((m) => m.value === mode || of(m.value)).map((m) => of(m.value) ?? { mode, fade: false }),
     })
   const fade = (mode: PauseMode, on: boolean) => set({ modes: p.modes.map((m) => (m.mode === mode ? { ...m, fade: on } : m)) })
+  /** A variant's own length (only chapter pauses have the control); "" — the common length. */
+  const own = (mode: PauseMode, v: string) =>
+    set({ modes: p.modes.map((m) => (m.mode === mode ? { mode: m.mode, fade: m.fade, ...(v ? { sec: Number(v) } : {}) } : m)) })
+  const common = p.modes.filter((m) => !m.sec)
   const hint = (mode: PauseMode) => options?.pauses?.find((x) => x.value === mode)?.hint ?? PAUSE_MODES.find((m) => m.value === mode)!.hint
   return (
     <div>
@@ -811,6 +822,22 @@ function PausesPick({ d, up }: { d: Draft; up: Up }) {
                 <span className={cur ? "font-medium text-foreground" : "text-muted-foreground"}>{m.label}</span>
                 <Hint text={hint(m.value)} />
               </label>
+              {cur && m.value === "chapters" && (
+                <div className="min-w-0">
+                  <Seg
+                    value={cur.sec ? String(cur.sec) : ""}
+                    onChange={(v) => own("chapters", v)}
+                    mono
+                    options={[
+                      ["", "общая", "Как у остальных пауз"],
+                      ["2", "2 с"],
+                      ["3", "3 с"],
+                      ["4", "4 с"],
+                      ["5", "5 с"],
+                    ]}
+                  />
+                </div>
+              )}
               {cur && m.value === "every" && (
                 <div className="min-w-0">
                   <Seg
@@ -838,9 +865,9 @@ function PausesPick({ d, up }: { d: Draft; up: Up }) {
           )
         })}
       </div>
-      {p.modes.length > 0 && (
+      {common.length > 0 && (
         <div className="mt-2 flex items-center gap-3">
-          <span className="shrink-0 text-[13px] text-muted-foreground">Длина паузы</span>
+          <span className="shrink-0 text-[13px] text-muted-foreground">{common.length < p.modes.length ? "Длина остальных пауз" : "Длина паузы"}</span>
           <div className="min-w-0 flex-1">
             <Seg
               value={String(p.sec)}
@@ -856,6 +883,7 @@ function PausesPick({ d, up }: { d: Draft; up: Up }) {
           </div>
         </div>
       )}
+      <ChapterTitlesCheck d={d} up={up} />
     </div>
   )
 }
@@ -1049,6 +1077,7 @@ export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & {
         </span>
         <MixBar shares={d.storyboard.shares} className="max-w-xs" />
         {d.storyboard.pauses.modes.length > 0 && <span className="text-foreground-2">{pausesText(d.storyboard.pauses)}</span>}
+        <TextSummary d={d} />
         {d.intro.on && (
           <span className="text-foreground-2">
             первые {Math.round(d.intro.sec / 60)} мин: {shareText(d.intro.shares, d.host.on)}

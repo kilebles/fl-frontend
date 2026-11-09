@@ -41,6 +41,7 @@ import { BTN_PRIMARY, BTN_SECONDARY, Card } from "@/components/script/ui"
 import { reels, type Reel, type ReelFootageSettings, type ReelShares, type ReelStoryboard } from "@/lib/api"
 import { plural } from "@/lib/format"
 import { cn } from "@/lib/utils"
+import { textLine } from "@/components/reels/wizard-text"
 
 /** Search settings of the real categories that differ from the module's own, one short line. */
 function footageLine(r: Reel) {
@@ -286,6 +287,14 @@ export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number
                 ? `${pausesText(pausesFrom(r.settings.storyboard.pauses))}${s?.pauses ? ` (${s.pauses.count})` : ""}`
                 : "",
               r.settings.storyboard.notes ? `детали: ${r.settings.storyboard.notes}` : "",
+              r.settings.text
+                ? textLine(
+                    r.settings.text,
+                    r.settings.ai?.mode,
+                    (r.source.language || r.settings.script?.language || "").toUpperCase(),
+                    options?.montage.find((m) => m.value === r.settings.montage?.style)?.titles !== false,
+                  )
+                : "",
             ]
               .filter(Boolean)
               .join(" · ")}

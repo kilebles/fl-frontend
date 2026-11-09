@@ -23,9 +23,16 @@ export type IntroDraft = {
   minFit: string
 }
 
+/** On-screen text: lang "" — the reel's base language; numbers — key numbers and dates as text (the brain picks them and
+ *  their look); chapters — chapter titles, null — as the montage style has them. */
+export type TextDraft = { lang: string; numbers: boolean; chapters: boolean | null }
+export const DEFAULT_TEXT: TextDraft = { lang: "", numbers: true, chapters: null }
+export type AiMode = "i2v" | "flash_i2v"
+
 export type PauseMode = "chapters" | "every" | "auto"
 /** Several variants at once; fade — that variant's pauses go to black and back. Empty — no pauses. */
-export type PausesDraft = { modes: { mode: PauseMode; fade: boolean }[]; sec: number; everySec: number }
+/** sec of a variant — its own length (chapter pauses apart from the rest); absent — the common sec. */
+export type PausesDraft = { modes: { mode: PauseMode; fade: boolean; sec?: number }[]; sec: number; everySec: number }
 /** The title font of a new reel. */
 export const DEFAULT_FONT = "constantia"
 export const DEFAULT_SOUNDS: ReelSoundSettings = { on: true, density: "normal", veo: "mute" }
@@ -34,9 +41,9 @@ export const EMPTY_PAUSES: PausesDraft = { modes: [], sec: 1.5, everySec: 60 }
 
 /** Pauses from the API or an older draft ({mode: off|chapters|every|auto}). */
 export function pausesFrom(raw: unknown): PausesDraft {
-  const r = (raw ?? {}) as { modes?: { mode: PauseMode; fade?: boolean }[]; mode?: string; sec?: number; everySec?: number; every_sec?: number }
+  const r = (raw ?? {}) as { modes?: { mode: PauseMode; fade?: boolean; sec?: number }[]; mode?: string; sec?: number; everySec?: number; every_sec?: number }
   const modes = Array.isArray(r.modes)
-    ? r.modes.filter((m) => m && ["chapters", "every", "auto"].includes(m.mode)).map((m) => ({ mode: m.mode, fade: !!m.fade }))
+    ? r.modes.filter((m) => m && ["chapters", "every", "auto"].includes(m.mode)).map((m) => ({ mode: m.mode, fade: !!m.fade, ...(m.sec ? { sec: m.sec } : {}) }))
     : r.mode && r.mode !== "off"
       ? [{ mode: r.mode as PauseMode, fade: false }]
       : []
@@ -77,6 +84,10 @@ export type Draft = {
   footage: { video: FootageDraft; history: FootageDraft }
   intro: IntroDraft
   format: "16:9" | "9:16"
+  /** On-screen text in one language (infographics, numbers and dates, chapter titles). */
+  text: TextDraft
+  /** The model of AI shots; the host always goes «картинка → видео» with the avatar. */
+  ai: { mode: AiMode }
 }
 
 export const EMPTY: Draft = {
@@ -93,6 +104,8 @@ export const EMPTY: Draft = {
   footage: { video: EMPTY_FOOTAGE, history: EMPTY_FOOTAGE },
   intro: { on: false, sec: 120, shares: PRESETS[0].shares, shot: ["", ""], minFit: "" },
   format: "16:9",
+  text: DEFAULT_TEXT,
+  ai: { mode: "i2v" },
 }
 
 const KEY = "reels.draft"
@@ -120,6 +133,8 @@ export function loadDraft(): Draft {
         history: { ...EMPTY_FOOTAGE, ...raw.footage?.history },
       },
       intro: { ...EMPTY.intro, ...raw.intro, shares: savedShares(EMPTY.intro.shares, raw.intro?.shares) },
+      text: { ...DEFAULT_TEXT, ...raw.text },
+      ai: { mode: raw.ai?.mode === "flash_i2v" ? "flash_i2v" : "i2v" },
     }
   } catch {
     return EMPTY

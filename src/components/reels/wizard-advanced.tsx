@@ -5,7 +5,7 @@ import { useState } from "react"
 
 import { GROUPS, GROUP_COLOR, GROUP_HINT, GROUP_LABEL } from "@/components/footage/parts"
 import { useFootageOptions } from "@/components/footage/queries"
-import { BASE_CATEGORIES, CATEGORIES, CAT_BG, CAT_LABEL, SharesAside, SharesRows, clock, savedShares, sharesSum } from "@/components/reels/parts"
+import { CAT_BG, CAT_LABEL, SharesAside, SharesRows, clock, savedShares, shareText, sharesSum, useCategories } from "@/components/reels/parts"
 import { useReelOptions } from "@/components/reels/queries"
 import { ALL_GROUPS, EMPTY, EMPTY_FOOTAGE, type Draft, type FootageDraft, type IntroDraft } from "@/components/reels/wizard-draft"
 import { INPUT, Label, ON_BLUE, Pick, Seg } from "@/components/script/ui"
@@ -200,7 +200,8 @@ function Fold({
 
 /* ------------------------------------------------------------------ «Видео» и «История» */
 
-function FootageCard({ cat, f, set }: { cat: Real; f: FootageDraft; set: (patch: Partial<FootageDraft>) => void }) {
+/** also — «История 2» searches with the history settings (its pictures only move with parallax). */
+function FootageCard({ cat, f, set, also }: { cat: Real; f: FootageDraft; set: (patch: Partial<FootageDraft>) => void; also?: boolean }) {
   const { data: fo } = useFootageOptions()
   const defEngine = fo?.defaults?.vision_engine || fo?.defaults?.engine || "agy"
   const engine = f.engine || defEngine
@@ -211,6 +212,12 @@ function FootageCard({ cat, f, set }: { cat: Real; f: FootageDraft; set: (patch:
       <div className="flex items-center gap-2 text-sm font-medium">
         <span className={cn("size-2 rounded-full", CAT_BG[cat])} />
         {CAT_LABEL[cat]}
+        {also && (
+          <>
+            <span className={cn("ml-1 size-2 rounded-full", CAT_BG.history2)} />
+            {CAT_LABEL.history2}
+          </>
+        )}
       </div>
       <div>
         <Label aside={<span className="font-mono text-[11px] text-faint">ниже — кадр уходит в ИИ</span>}>Порог оценки найденного</Label>
@@ -297,7 +304,7 @@ export function FootageSettings({ d, up }: { d: Draft; up: Up }) {
       ...x,
       footage: { ...x.footage, [cat]: { ...x.footage[cat], ...patch } },
     }))
-  const off = !d.storyboard.shares.video && !d.storyboard.shares.history
+  const off = !d.storyboard.shares.video && !d.storyboard.shares.history && !d.storyboard.shares.history2
   return (
     <Fold
       title="Видео и исторические кадры"
@@ -305,7 +312,7 @@ export function FootageSettings({ d, up }: { d: Draft; up: Up }) {
     >
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
         <FootageCard cat="video" f={d.footage.video} set={set("video")} />
-        <FootageCard cat="history" f={d.footage.history} set={set("history")} />
+        <FootageCard cat="history" f={d.footage.history} set={set("history")} also={d.storyboard.shares.history2 > 0} />
       </div>
     </Fold>
   )
@@ -319,12 +326,12 @@ export function IntroSettings({ d, up }: { d: Draft; up: Up }) {
   const set = (patch: Partial<IntroDraft>) => up((x) => ({ ...x, intro: { ...x.intro, ...patch } }))
   const defShot = options?.intro?.shot_sec[d.montage.style] ?? [3, 5]
   const mainShot = options?.montage.find((m) => m.value === d.montage.style)?.shot_sec
-  const cats = d.host.on ? CATEGORIES : BASE_CATEGORIES
+  const cats = useCategories(d.host.on)
   const min = i.sec / 60
   const summary = i.on
     ? [
         `${clock(i.sec)}`,
-        cats.map((c) => Math.round(i.shares[c] ?? 0)).join(" · "),
+        shareText(i.shares, d.host.on),
         `кадр ${i.shot[0] || defShot[0]}–${i.shot[1] || defShot[1]} с`,
         i.minFit ? `оценка ≥ ${i.minFit}` : "",
       ]

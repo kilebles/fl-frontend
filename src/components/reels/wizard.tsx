@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { ArrowLeft, ArrowRight, Check, Clapperboard, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
-import { sharesSum } from "@/components/reels/parts"
+import { shareText, sharesSum } from "@/components/reels/parts"
 import { rkeys, useReelOptions, useReelVoiceSources } from "@/components/reels/queries"
 import { EMPTY, clearDraft, loadDraft, saveDraft, type Draft } from "@/components/reels/wizard-draft"
 import { footageBody, introBody, introOk } from "@/components/reels/wizard-advanced"
@@ -17,7 +17,6 @@ import {
   StoryboardStep,
   SummaryStep,
   VoiceStep,
-  shareText,
   type StepProps,
 } from "@/components/reels/wizard-steps"
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/components/script/ui"

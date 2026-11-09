@@ -1355,6 +1355,8 @@ export interface FootageOptionsSet {
   min_score: number | null
   format: "16:9" | "9:16"
   plan_only: boolean
+  /** How found paintings and photos move: zoom (as before) | parallax (2.5D by a depth map); older servers: absent. */
+  image_motion?: "zoom" | "parallax"
 }
 
 /** Shots taken from one source group: video/photo split and which sites they came from. */
@@ -1417,6 +1419,10 @@ export interface FootageOptions {
   }
   routing: Record<string, FootageGroup[]>
   voice_api: boolean
+  /** «Оживление картинок» (older fl-footage: absent — no control). */
+  image_motions?: { value: "zoom" | "parallax"; label: string }[]
+  /** Parallax needs the depth model; not ready — pictures go with zoom, note says why. */
+  parallax?: { ready: boolean; note: string }
 }
 
 export interface FootageSources {
@@ -1477,7 +1483,7 @@ export const footage = {
 
 /* ------------------------------------------------------------------ reels (fl-reel, /api/reels/*) */
 
-export type ReelCategory = "ai" | "video" | "history" | "graphics" | "infographics" | "avatar"
+export type ReelCategory = "ai" | "video" | "history" | "history2" | "graphics" | "infographics" | "infographics2" | "avatar"
 export type ReelStatus = "queued" | "running" | "done" | "error" | "stopped"
 
 /** The brain's queue: up to limits.parallel reels at once; storyboard and assembly have their own places. */
@@ -1491,7 +1497,7 @@ export interface ReelQueue {
   /** Who holds a place on a heavy stage now. */
   slots?: { storyboard?: string[]; assembly?: string[] }
 }
-export type ReelStepKey = "script" | "voice" | "storyboard" | "materials" | "music" | "sounds" | "assembly"
+export type ReelStepKey = "script" | "voice" | "storyboard" | "materials" | "review" | "music" | "sounds" | "assembly"
 export type ReelStepState = "done" | "active" | "queued" | "todo" | "skipped" | "error" | "stopped"
 export type ReelShares = Record<ReelCategory, number>
 
@@ -1560,6 +1566,8 @@ export interface Reel {
   tracks?: ReelTracksStatus
   /** Orders to the modules: per planned category — total, done, gone to a fallback, failed. */
   materials?: { by_category: Partial<Record<ReelCategory, { total: number; done: number; fallback: number; failed: number }>>; done: number; total: number } | null
+  /** Check of the finished shots before assembly (stage «проверка»); older reels: absent. */
+  review?: ReelReview | null
   /** Music from Epidemic Sound: a track per chapter, fitted to its length (stage «музыка»). */
   music?: ReelMusic | null
   /** Sounds from Epidemic Sound: background per place, short sounds of shots, transition (stage «звуки»). */
@@ -1577,6 +1585,32 @@ export interface Reel {
     music?: number
     sounds?: { ambience?: number; spots?: number; transitions?: number; veo?: number }
   } | null
+}
+
+export type ReelReviewKind = "offensive" | "anachronism" | "mismatch" | "artifact" | "watermark" | "broken"
+
+export interface ReelReviewShot {
+  id: string
+  /** Seconds from the start of the reel. */
+  start: number
+  /** Where the shot is now (a replaced one: usually «ai») and what the storyboard planned. */
+  category: ReelCategory | ""
+  planned: ReelCategory | ""
+  /** after — found on the replacement. */
+  problems: { kind: ReelReviewKind; severity: "red" | "minor"; note: string; after?: boolean }[]
+  /** replaced — made again; kept — left as is (minor, or the replacement failed); left — the replacement still has it. */
+  action: "replaced" | "kept" | "left"
+}
+
+export interface ReelReview {
+  /** off — switched off in the brain's settings; failed — the check did not run (see note). */
+  status: "done" | "failed" | "off"
+  note?: string
+  checked?: number
+  flagged?: number
+  replaced?: number
+  left?: number
+  shots?: ReelReviewShot[]
 }
 
 /** A track or a sound of Epidemic Sound; preview — a short low-quality mp3 to listen on the page. */
@@ -1677,6 +1711,8 @@ export interface ReelShot {
   card: { subject?: string; kind?: string; caption?: string }
   /** Task for «Инфографика» (fl-montage): type and what to show. */
   info?: { type?: string; brief?: string }
+  /** Task for «Инфографика 2» (fl-montage): a journey on a map, a grid of dots or a document. */
+  info2?: { type?: "journey" | "units" | "document"; brief?: string }
   avoid: string[]
   fallback: boolean
   executor: string
@@ -1874,7 +1910,7 @@ export const reels = {
 
 /* ------------------------------------------------------------------ montage (fl-montage, /api/montage/*) */
 
-export type InfoType = "timeline" | "tree" | "table" | "chart" | "map" | "facts" | "battle"
+export type InfoType = "timeline" | "tree" | "table" | "chart" | "map" | "facts" | "battle" | "journey" | "units" | "document"
 export type InfoStyle = "parchment" | "cinematic" | "clean" | "chronicle"
 export type InfoKind = "animated" | "static"
 export type InfoStatus = "queued" | "running" | "done" | "error" | "stopped"
@@ -1939,6 +1975,8 @@ export interface InfoJob {
 
 export interface InfoOptions {
   types: { value: InfoType | "auto"; label: string; hint: string }[]
+  /** The types in groups («Инфографика», «Инфографика 2»); older servers: absent — one list. */
+  groups?: { label: string; types: (InfoType | "auto")[] }[]
   styles: { value: InfoStyle; label: string; hint: string }[]
   formats: { value: "16:9" | "9:16"; label: string; width: number; height: number }[]
   qualities: { value: InfoSettings["quality"]; label: string }[]

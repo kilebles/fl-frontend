@@ -7,7 +7,7 @@ import { toast } from "sonner"
 
 import { GROUPS, GROUP_COLOR, GROUP_HINT, GROUP_LABEL, clock, shotsText } from "@/components/footage/parts"
 import { fkeys, useFootageOptions, useVoiceSources } from "@/components/footage/queries"
-import { BTN_PRIMARY, BTN_SECONDARY, INPUT, Label, ON_BLUE, Pick } from "@/components/script/ui"
+import { BTN_PRIMARY, BTN_SECONDARY, INPUT, Label, ON_BLUE, Pick, Seg } from "@/components/script/ui"
 import { footage, type FootageGroup } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
@@ -15,7 +15,16 @@ const REMEMBER = "footage.launch"
 const PRESETS = ["6", "7", "8"]
 
 type Opts = { yt_first: boolean; yt_trusted: boolean; yt_any: boolean; film_risky: boolean }
-type Remembered = { from?: "voice" | "file"; engine?: string; groups?: FootageGroup[]; opts?: Opts; score?: string; format?: "16:9" | "9:16" }
+type Motion = "zoom" | "parallax"
+type Remembered = {
+  from?: "voice" | "file"
+  engine?: string
+  groups?: FootageGroup[]
+  opts?: Opts
+  score?: string
+  format?: "16:9" | "9:16"
+  motion?: Motion
+}
 
 function loadRemembered(): Remembered {
   try {
@@ -135,6 +144,7 @@ export function LaunchPanel() {
   const [opts, setOpts] = useState<Opts>({ yt_first: false, yt_trusted: true, yt_any: false, film_risky: false })
   const [score, setScore] = useState("")
   const [format, setFormat] = useState<"16:9" | "9:16">("16:9")
+  const [motion, setMotion] = useState<Motion>("zoom")
 
   useEffect(() => {
     const r = loadRemembered()
@@ -145,6 +155,7 @@ export function LaunchPanel() {
       if (r.opts) setOpts(r.opts)
       if (r.score) setScore(r.score)
       if (r.format) setFormat(r.format)
+      if (r.motion) setMotion(r.motion)
     }, 0)
     return () => clearTimeout(t)
   }, [])
@@ -155,6 +166,8 @@ export function LaunchPanel() {
   }
 
   const def = options?.defaults
+  /** Older fl-footage sends no image_motions — no control, nothing sent. */
+  const motions = options?.image_motions ?? []
   const effScore = score || (def?.min_score != null ? String(def.min_score) : "7")
   const scoreNum = Number(effScore.replace(",", "."))
   const scoreOk = effScore !== "" && scoreNum >= 0 && scoreNum <= 10
@@ -168,7 +181,7 @@ export function LaunchPanel() {
           title: title.trim(),
           source: from,
           voice_job: from === "voice" && v ? v.id : undefined,
-          options: { engine, groups, ...opts, min_score: scoreNum, format, plan_only: planOnly },
+          options: { engine, groups, ...opts, min_score: scoreNum, format, plan_only: planOnly, ...(motions.length ? { image_motion: motion } : {}) },
         },
         from === "file" ? script : null,
         from === "file" ? audio : null,
@@ -329,36 +342,56 @@ export function LaunchPanel() {
             ))}
           </div>
         </div>
-        <div className="xl:col-span-3">
-          <Label aside={<span className="font-mono text-[11px] text-faint">ниже — на ИИ</span>}>Порог</Label>
-          <Threshold
-            value={effScore}
-            onChange={(s) => {
-              setScore(s)
-              remember({ score: s })
-            }}
-          />
-        </div>
-        <div className="xl:col-span-2">
-          <Label>Формат</Label>
-          <div className="flex rounded-[3px] bg-surface-2 p-[3px]">
-            {(["16:9", "9:16"] as const).map((f) => (
-              <button
-                key={f}
-                type="button"
-                onClick={() => {
-                  setFormat(f)
-                  remember({ format: f })
-                }}
-                className={cn(
-                  "flex-1 rounded-[2px] py-2 font-mono text-[13px] transition-colors",
-                  format === f ? ON_BLUE : "text-foreground-2 hover:text-foreground",
-                )}
-              >
-                {f}
-              </button>
-            ))}
+        <div className="grid grid-cols-1 content-start gap-x-5 gap-y-4 md:col-span-2 md:grid-cols-2 xl:col-span-5 xl:grid-cols-5">
+          <div className="xl:col-span-3">
+            <Label aside={<span className="font-mono text-[11px] text-faint">ниже — на ИИ</span>}>Порог</Label>
+            <Threshold
+              value={effScore}
+              onChange={(s) => {
+                setScore(s)
+                remember({ score: s })
+              }}
+            />
           </div>
+          <div className="xl:col-span-2">
+            <Label>Формат</Label>
+            <div className="flex rounded-[3px] bg-surface-2 p-[3px]">
+              {(["16:9", "9:16"] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => {
+                    setFormat(f)
+                    remember({ format: f })
+                  }}
+                  className={cn(
+                    "flex-1 rounded-[2px] py-2 font-mono text-[13px] transition-colors",
+                    format === f ? ON_BLUE : "text-foreground-2 hover:text-foreground",
+                  )}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+          </div>
+          {motions.length > 0 && (
+            <div className="md:col-span-2 xl:col-span-5">
+              <Label>Оживление картинок</Label>
+              <Seg
+                value={motion}
+                onChange={(m) => {
+                  setMotion(m as Motion)
+                  remember({ motion: m as Motion })
+                }}
+                options={motions.map((m) => [m.value, m.label] as const)}
+              />
+              {motion === "parallax" && options?.parallax && !options.parallax.ready && (
+                <p className="mt-1.5 text-xs text-faint" title={options.parallax.note || undefined}>
+                  модель глубины не установлена — картинки пойдут наездом
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

@@ -3,9 +3,12 @@
 import {
   BarChart3,
   CalendarRange,
+  Grip,
   IdCard,
   Map as MapIcon,
   Network,
+  Route,
+  ScrollText,
   Sparkles,
   Swords,
   Table2,
@@ -25,6 +28,9 @@ export const TYPE_ICON: Record<InfoType | "auto", LucideIcon> = {
   map: MapIcon,
   facts: IdCard,
   battle: Swords,
+  journey: Route,
+  units: Grip,
+  document: ScrollText,
 }
 
 /** Short names for chips and rows (the full ones come from /options). */
@@ -37,6 +43,9 @@ export const TYPE_SHORT: Record<InfoType | "auto", string> = {
   map: "карта",
   facts: "факты",
   battle: "схема боя",
+  journey: "путь",
+  units: "точки",
+  document: "документ",
 }
 
 /** A small preview of each visual style (the same colours as renderer/src/theme.ts in fl-montage). */

@@ -7,8 +7,6 @@ import { AlertTriangle, Check, FileText, Loader2, Mic, Paperclip, Pencil, Plus, 
 import { toast } from "sonner"
 
 import {
-  BASE_CATEGORIES,
-  CATEGORIES,
   MixBar,
   STYLES,
   STYLE_LABEL,
@@ -17,8 +15,10 @@ import {
   clock,
   isRealistic,
   savedShares,
+  shareText,
   sharesSum,
   shotsText,
+  useCategories,
 } from "@/components/reels/parts"
 import { useReelOptions, useReelVoiceSources } from "@/components/reels/queries"
 import { FootageSettings, IntroSettings, footageText, fromPreset } from "@/components/reels/wizard-advanced"
@@ -29,7 +29,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { FontPick, fontLabel, useFontList } from "@/components/reels/fonts"
 import { skeys, useNiches, useScenarioOptions } from "@/components/script/queries"
 import { BTN_PRIMARY, BTN_SECONDARY, INPUT, Label, ON_BLUE, Pick, Seg } from "@/components/script/ui"
-import { reels, scenario, voice, type ReelSettings, type ReelShares, type ScenarioNiche } from "@/lib/api"
+import { reels, scenario, voice, type ReelSettings, type ScenarioNiche } from "@/lib/api"
 import { useAvatars } from "@/lib/queries"
 import { cn } from "@/lib/utils"
 
@@ -667,9 +667,9 @@ export function StoryboardStep({ d, up }: StepProps) {
   const sb = d.storyboard
   const set = (patch: Partial<Draft["storyboard"]>) => up((x) => ({ ...x, storyboard: { ...x.storyboard, ...patch } }))
   const realistic = isRealistic(sb.style)
-  const clash = !realistic && (sb.shares.video > 0 || sb.shares.history > 0)
+  const clash = !realistic && (sb.shares.video > 0 || sb.shares.history > 0 || sb.shares.history2 > 0)
   const preset = STYLES.findIndex((s) => s.value === sb.style.trim())
-  const cats = d.host.on ? CATEGORIES : BASE_CATEGORIES
+  const cats = useCategories(d.host.on)
   const defEngine = options?.engines.find((e) => e.value === options?.defaults.engine)
   const defaultModel = defEngine ? (options?.models?.find((m) => m.engine === defEngine.value && m.model === defEngine.model)?.label ?? defEngine.model) : ""
   return (
@@ -712,8 +712,8 @@ export function StoryboardStep({ d, up }: StepProps) {
                 onClick={() =>
                   set({
                     shares: d.host.on
-                      ? { ai: 65, video: 0, history: 0, graphics: 10, infographics: 10, avatar: 15 }
-                      : { ai: 80, video: 0, history: 0, graphics: 10, infographics: 10, avatar: 0 },
+                      ? { ai: 65, video: 0, history: 0, history2: 0, graphics: 10, infographics: 10, infographics2: 0, avatar: 15 }
+                      : { ai: 80, video: 0, history: 0, history2: 0, graphics: 10, infographics: 10, infographics2: 0, avatar: 0 },
                   })
                 }
               >
@@ -1011,9 +1011,6 @@ export function soundsText(s: { on?: boolean; density?: string; veo?: string } |
 
 /* ------------------------------------------------------------------ сводка */
 
-export function shareText(s: ReelShares, host: boolean) {
-  return (host ? CATEGORIES : BASE_CATEGORIES).map((c) => Math.round(s[c] ?? 0)).join(" · ")
-}
 
 export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & { onJump: (i: number) => void; montageLabel: string }) {
   const fonts = useFontList()
@@ -1056,7 +1053,7 @@ export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & {
             {d.intro.minFit ? ` · оценка ≥ ${d.intro.minFit}` : ""}
           </span>
         )}
-        {(d.storyboard.shares.video > 0 || d.storyboard.shares.history > 0) && (
+        {(d.storyboard.shares.video > 0 || d.storyboard.shares.history > 0 || d.storyboard.shares.history2 > 0) && (
           <span className="text-muted-foreground">
             видео: {footageText(d.footage.video)} · история: {footageText(d.footage.history)}
           </span>

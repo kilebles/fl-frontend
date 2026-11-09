@@ -2,54 +2,76 @@
 
 import { Check, Minus, Plus, Timer, X } from "lucide-react"
 
+import { useReelOptions } from "@/components/reels/queries"
 import { useNow } from "@/components/script/parts"
 import { plural } from "@/lib/format"
 import type { ReelCategory, ReelShares, ReelStep, ReelStepKey, ReelTiming } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
-export const CATEGORIES: ReelCategory[] = ["ai", "video", "history", "graphics", "infographics", "avatar"]
+/** Local fallback in the brain's order; the brain's own list (`/options` categories) wins — `useCategories`. */
+export const CATEGORIES: ReelCategory[] = ["ai", "video", "history", "history2", "graphics", "infographics", "infographics2", "avatar"]
 /** Categories without the host: the host shows only when the reel has an avatar. */
-export const BASE_CATEGORIES: ReelCategory[] = ["ai", "video", "history", "graphics", "infographics"]
+export const BASE_CATEGORIES: ReelCategory[] = CATEGORIES.filter((c) => c !== "avatar")
 export const CAT_LABEL: Record<ReelCategory, string> = {
   ai: "ИИ-генерации",
   video: "Подбор видео",
   history: "Исторические кадры",
+  history2: "История 2",
   graphics: "Графика",
   infographics: "Инфографика",
+  infographics2: "Инфографика 2",
   avatar: "Ведущий",
 }
 export const CAT_SHORT: Record<ReelCategory, string> = {
   ai: "ИИ",
   video: "видео",
   history: "история",
+  history2: "история 2",
   graphics: "графика",
   infographics: "инфографика",
+  infographics2: "инфографика 2",
   avatar: "ведущий",
 }
 export const CAT_HINT: Record<ReelCategory, string> = {
   ai: "Промпты → Генерации (Veo)",
   video: "Поиск видео: стоки, YouTube",
   history: "Поиск видео: архивы и музеи",
+  history2: "Поиск видео: исторические кадры, картины и фото — параллаксом",
   graphics: "Графика: карточки",
   infographics: "Монтаж: таймлайн, древо, таблица, график, карта, факты, схема боя",
+  infographics2: "Монтаж: путь на карте, сетка точек, документ",
   avatar: "говорит в кадре сам, берёт абзацы целиком",
 }
-/** One hue per category, the same in both themes (graphics is not the light theme's terracotta accent). */
+/** One hue per category, the same in both themes (graphics is not the light theme's terracotta accent);
+ *  «История 2» — the bronze of history, «Инфографика 2» — a deeper blue than infographics. */
 export const CAT_BG: Record<ReelCategory, string> = {
   ai: "bg-[#8b7cf0]",
   video: "bg-[#4fb3a9]",
   history: "bg-[#c9a04f]",
+  history2: "bg-[#a8703c]",
   graphics: "bg-[#d9658f]",
   infographics: "bg-[#4a9be8]",
+  infographics2: "bg-[#5a6ee0]",
   avatar: "bg-[#e8804a]",
 }
 export const CAT_TEXT: Record<ReelCategory, string> = {
   ai: "text-[#8b7cf0]",
   video: "text-[#3e9c92]",
   history: "text-[#b08a3c]",
+  history2: "text-[#9a6432]",
   graphics: "text-[#c9527c]",
   infographics: "text-[#3a86d1]",
+  infographics2: "text-[#4d61d1]",
   avatar: "text-[#d06a35]",
+}
+
+/** The brain's categories in its order (`GET /api/reels/options`), only those the site can draw; before the options
+ *  come (or a brain without the list) — the local one. Without the host the avatar is left out. */
+export function useCategories(host: boolean): ReelCategory[] {
+  const { data } = useReelOptions()
+  const known = (data?.categories ?? []).map((c) => c.value).filter((c): c is ReelCategory => c in CAT_BG)
+  const list = known.length ? known : CATEGORIES
+  return host ? list : list.filter((c) => c !== "avatar")
 }
 
 export const TYPE_LABEL: Record<string, string> = {
@@ -69,6 +91,9 @@ export const TYPE_LABEL: Record<string, string> = {
   map: "карта",
   facts: "факты",
   battle: "схема боя",
+  journey: "путь на карте",
+  units: "сетка точек",
+  document: "документ",
   auto: "инфографика",
   avatar: "ведущий",
 }
@@ -76,13 +101,13 @@ export const TYPE_LABEL: Record<string, string> = {
 export const ENGINE_LABEL: Record<string, string> = { agy: "agy (Gemini)", claude: "Claude Code", fake: "тестовый", "": "" }
 
 export const PRESETS: { label: string; shares: ReelShares }[] = [
-  { label: "40 · 30 · 15 · 10 · 5", shares: { ai: 40, video: 30, history: 15, graphics: 10, infographics: 5, avatar: 0 } },
-  { label: "30 · 30 · 25 · 10 · 5", shares: { ai: 30, video: 30, history: 25, graphics: 10, infographics: 5, avatar: 0 } },
+  { label: "40 · 30 · 15 · 10 · 5", shares: { ai: 40, video: 30, history: 15, history2: 0, graphics: 10, infographics: 5, infographics2: 0, avatar: 0 } },
+  { label: "30 · 30 · 25 · 10 · 5", shares: { ai: 30, video: 30, history: 25, history2: 0, graphics: 10, infographics: 5, infographics2: 0, avatar: 0 } },
 ]
 /** The same mixes with the host taking 10% from AI. */
 export const HOST_PRESETS: { label: string; shares: ReelShares }[] = [
-  { label: "30 · 30 · 15 · 10 · 5 · 10", shares: { ai: 30, video: 30, history: 15, graphics: 10, infographics: 5, avatar: 10 } },
-  { label: "20 · 30 · 25 · 10 · 5 · 10", shares: { ai: 20, video: 30, history: 25, graphics: 10, infographics: 5, avatar: 10 } },
+  { label: "30 · 30 · 15 · 10 · 5 · 10", shares: { ai: 30, video: 30, history: 15, history2: 0, graphics: 10, infographics: 5, infographics2: 0, avatar: 10 } },
+  { label: "20 · 30 · 25 · 10 · 5 · 10", shares: { ai: 20, video: 30, history: 25, history2: 0, graphics: 10, infographics: 5, infographics2: 0, avatar: 10 } },
 ]
 
 /** Picture styles for the AI scenes; only the first two go with real footage. */
@@ -131,11 +156,18 @@ export function useSpent(timing: ReelTiming | undefined, updatedAt: number) {
 }
 
 /** Saved shares (a draft, a niche preset) over the defaults. A category the saved set does not have (added after it
- *  was saved, like «Инфографика») gets 0 — otherwise its default share would push the sum over 100%. */
+ *  was saved, like «Инфографика» or «История 2») gets 0 — otherwise its default share would push the sum over 100%. */
 export const savedShares = (base: ReelShares, saved?: Partial<ReelShares> | null): ReelShares =>
   saved && Object.keys(saved).length
     ? { ...(Object.fromEntries(CATEGORIES.map((c) => [c, 0])) as ReelShares), ...saved }
     : base
+
+/** «ИИ 40 · видео 30 · история 15»: only the categories that have a share (too many for bare numbers). */
+export function shareText(s: Partial<ReelShares>, host: boolean) {
+  return CATEGORIES.filter((c) => (host || c !== "avatar") && Math.round(s[c] ?? 0) > 0)
+    .map((c) => `${CAT_SHORT[c]} ${Math.round(s[c] ?? 0)}`)
+    .join(" · ")
+}
 
 export const sharesSum = (s: ReelShares) => CATEGORIES.reduce((a, c) => a + (Number(s[c]) || 0), 0)
 export const sameShares = (a: ReelShares, b: ReelShares) => CATEGORIES.every((c) => Math.round(a[c]) === Math.round(b[c]))
@@ -156,7 +188,12 @@ export function SharesInput({
 }) {
   const set = (c: ReelCategory, v: number) => onChange({ ...value, [c]: Math.max(0, Math.min(100, Math.round(v))) })
   return (
-    <div className={cn("grid grid-cols-2 gap-[3px] rounded-[3px] bg-surface-2 p-[3px]", cats.length > 5 ? "sm:grid-cols-3 xl:grid-cols-6" : cats.length > 4 ? "sm:grid-cols-5" : "sm:grid-cols-4")}>
+    <div
+      className={cn(
+        "grid grid-cols-2 gap-[3px] rounded-[3px] bg-surface-2 p-[3px]",
+        cats.length > 6 ? "sm:grid-cols-4" : cats.length > 5 ? "sm:grid-cols-3 xl:grid-cols-6" : cats.length > 4 ? "sm:grid-cols-5" : "sm:grid-cols-4",
+      )}
+    >
       {cats.map((c) => (
         <div key={c} className="flex min-w-0 flex-col gap-1.5 rounded-[2px] bg-background px-2.5 pt-2 pb-1.5" title={CAT_HINT[c]}>
           <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
@@ -309,10 +346,10 @@ export function MixBar({ shares, className }: { shares: Partial<ReelShares>; cla
 
 const stepCaption = (s: ReelStep) => (s.state === "skipped" && s.key === "voice" ? "по тексту" : s.soon ? "скоро" : "")
 
-/** Compact line for a reel row: five bars with captions. */
+/** Compact line for a reel row: a bar with a caption per stage (the stages come from the brain). */
 export function StepBars({ steps }: { steps: ReelStep[] }) {
   return (
-    <div className="grid grid-cols-5 gap-1.5">
+    <div className={cn("grid gap-1.5", steps.length > 7 ? "grid-cols-4" : "grid-cols-5")}>
       {steps.map((s) => {
         const part = s.state === "active" && s.total ? Math.max(0.06, (s.done ?? 0) / s.total) : null
         return (
@@ -362,7 +399,7 @@ export function StepSteps({
   times?: Partial<Record<string, string>>
 }) {
   return (
-    <ol className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+    <ol className={cn("grid grid-cols-2 gap-3", steps.length > 7 ? "sm:grid-cols-4" : "sm:grid-cols-5")}>
       {steps.map((s, i) => (
         <li key={s.key} className={cn("flex min-w-0 items-start gap-2.5", s.soon && "opacity-60")}>
           <span

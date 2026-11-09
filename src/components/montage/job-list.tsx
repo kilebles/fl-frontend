@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { Download, FileText, Film, Loader2, Trash2, Type } from "lucide-react"
+import { Download, FileText, Film, Loader2, Sparkles, Trash2, Type } from "lucide-react"
 
 import { ProgressLine, TYPE_ICON, TYPE_SHORT, infographicsText, stepText } from "@/components/montage/parts"
 import { mkeys, useInfoJobs } from "@/components/montage/queries"
@@ -42,11 +42,11 @@ function Types({ j }: { j: InfoJob }) {
   return (
     <div className="flex flex-wrap gap-1">
       {types.map((t) => {
-        const Icon = TYPE_ICON[t as InfoType | "auto"]
+        const Icon = TYPE_ICON[t as InfoType | "auto"] ?? Sparkles
         return (
           <span key={t} className="flex items-center gap-1 rounded-[2px] bg-surface-2 px-1.5 py-0.5 text-[11px] text-foreground-2">
             <Icon className="size-3 text-muted-foreground" />
-            {TYPE_SHORT[t as InfoType | "auto"]}
+            {TYPE_SHORT[t as InfoType | "auto"] ?? t}
           </span>
         )
       })}

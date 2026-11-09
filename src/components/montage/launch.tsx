@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { Check, FileText, Loader2, Paperclip, Type, Wand2, X } from "lucide-react"
+import { Check, FileText, Loader2, Paperclip, Sparkles, Type, Wand2, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { StyleSwatch, TYPE_ICON } from "@/components/montage/parts"
@@ -129,6 +129,16 @@ export function LaunchPanel() {
   })
 
   const types = options?.types ?? []
+  /** Groups from the server («Инфографика», «Инфографика 2»); without them — one list as before. «auto» stays first. */
+  const groups = (() => {
+    const g = (options?.groups ?? [])
+      .map((x) => ({ label: x.label, types: x.types.map((v) => types.find((t) => t.value === v)).filter((t) => !!t) }))
+      .filter((x) => x.types.length)
+    if (!g.length) return [{ label: "", types }]
+    const inGroups = new Set(g.flatMap((x) => x.types.map((t) => t.value)))
+    const rest = types.filter((t) => !inGroups.has(t.value))
+    return rest.length ? [{ ...g[0], types: [...rest, ...g[0].types] }, ...g.slice(1)] : g
+  })()
   const meta =
     from === "text"
       ? text.trim()
@@ -260,32 +270,47 @@ export function LaunchPanel() {
           </div>
         </div>
 
-        <div className="md:col-span-2 xl:col-span-12">
-          <Label>Тип инфографики</Label>
-          <div className="grid grid-cols-2 gap-[3px] rounded-[3px] bg-surface-2 p-[3px] sm:grid-cols-4 xl:grid-cols-8">
-            {types.map((t) => {
-              const Icon = TYPE_ICON[t.value]
-              const on = type === t.value
-              return (
-                <button
-                  key={t.value}
-                  type="button"
-                  title={t.hint}
-                  onClick={() => {
-                    setType(t.value)
-                    remember({ type: t.value })
-                  }}
-                  className={cn(
-                    "flex min-w-0 flex-col items-center gap-1.5 rounded-[2px] px-2 py-3 text-center text-[13px] leading-tight transition-colors",
-                    on ? ON_BLUE : "text-foreground-2 hover:bg-elev/60 hover:text-foreground",
-                  )}
-                >
-                  <Icon className={cn("size-[18px]", on ? "" : "text-muted-foreground")} strokeWidth={1.75} />
-                  {t.label}
-                </button>
-              )
-            })}
-          </div>
+        <div className={cn("md:col-span-2 xl:col-span-12", groups.length > 1 && "flex flex-col gap-3 xl:flex-row")}>
+          {groups.map((g, gi) => (
+            <div key={g.label || gi} className={cn("min-w-0", groups.length > 1 && (gi === 0 ? "xl:flex-[8]" : "xl:flex-[3.6]"))}>
+              {gi === 0 ? (
+                <Label>Тип инфографики</Label>
+              ) : (
+                <Label>
+                  <span className="text-muted-foreground">{g.label}</span>
+                </Label>
+              )}
+              <div
+                className={cn(
+                  "grid grid-cols-2 gap-[3px] rounded-[3px] bg-surface-2 p-[3px] sm:grid-cols-4",
+                  groups.length === 1 ? "xl:grid-cols-8" : gi === 0 ? "xl:grid-cols-8" : "sm:grid-cols-3 xl:grid-cols-3",
+                )}
+              >
+                {g.types.map((t) => {
+                  const Icon = TYPE_ICON[t.value] ?? Sparkles
+                  const on = type === t.value
+                  return (
+                    <button
+                      key={t.value}
+                      type="button"
+                      title={t.hint}
+                      onClick={() => {
+                        setType(t.value)
+                        remember({ type: t.value })
+                      }}
+                      className={cn(
+                        "flex min-w-0 flex-col items-center gap-1.5 rounded-[2px] px-2 py-3 text-center text-[13px] leading-tight transition-colors",
+                        on ? ON_BLUE : "text-foreground-2 hover:bg-elev/60 hover:text-foreground",
+                      )}
+                    >
+                      <Icon className={cn("size-[18px]", on ? "" : "text-muted-foreground")} strokeWidth={1.75} />
+                      {t.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
         </div>
 
         <div className="xl:col-span-3">

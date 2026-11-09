@@ -53,6 +53,7 @@ export function FootageView() {
                 project.source.kind === "voice" ? `озвучка ${project.source.language.toUpperCase()}` : project.source.name,
                 `${project.source.paragraphs} абз.`,
                 project.options.format,
+                project.options.image_motion === "parallax" ? "параллакс" : "",
                 ENGINE_LABEL[project.options.engine] ?? project.options.engine,
                 project.options.min_score != null ? `порог ${project.options.min_score}` : "",
               ]

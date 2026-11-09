@@ -47,6 +47,7 @@ function Row({ p, now, onOpen, onDelete }: { p: FootageProject; now: number | nu
     `${p.source.paragraphs} абз.`,
     p.source.tracks ? "по озвучке" : "по тексту",
     p.options.format,
+    p.options.image_motion === "parallax" ? "параллакс" : "",
     ENGINE_LABEL[p.options.engine] ?? p.options.engine,
     p.options.min_score != null ? `порог ${p.options.min_score}` : "",
     now !== null ? timeAgo(p.created, now) : "",

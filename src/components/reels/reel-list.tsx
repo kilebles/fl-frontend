@@ -23,6 +23,7 @@ export function statusText(r: Reel, place?: number): string {
   if (pr.stage === "voice")
     return pr.step === "mix" ? "сводится базовая дорожка" : pr.total ? `озвучка базы · ${pr.done ?? 0} из ${pr.total}` : "озвучка базы"
   if (pr.stage === "materials") return pr.total ? `материалы · ${pr.done ?? 0} из ${pr.total} кадров` : "заказы модулям"
+  if (pr.stage === "review") return `${pr.step || "проверка кадров"}${pr.total ? ` · ${pr.done ?? 0} из ${pr.total}` : ""}`
   if (pr.stage === "music")
     return pr.step === "fit" ? `музыка · подгонка ${pr.done ?? 0} из ${pr.total ?? 0}` : pr.total ? `музыка · подбор ${pr.done ?? 0} из ${pr.total}` : "музыка · подбор"
   if (pr.stage === "sounds")

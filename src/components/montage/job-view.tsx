@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { AlertTriangle, Braces, Download, Loader2, Paintbrush, RotateCcw, Square, TriangleAlert } from "lucide-react"
+import { AlertTriangle, Braces, Download, Loader2, Paintbrush, RotateCcw, Sparkles, Square, TriangleAlert } from "lucide-react"
 import { toast } from "sonner"
 
 import { clock } from "@/components/footage/parts"
@@ -63,7 +63,7 @@ function Preview({ job, item }: { job: InfoJob; item: InfoItem }) {
 }
 
 function ItemCard({ job, item, label, onData }: { job: InfoJob; item: InfoItem; label: string; onData: () => void }) {
-  const Icon = TYPE_ICON[item.type]
+  const Icon = TYPE_ICON[item.type] ?? Sparkles
   return (
     <section className="flex min-w-0 flex-col gap-3 rounded-[4px] border border-line bg-surface p-3">
       <Preview job={job} item={item} />

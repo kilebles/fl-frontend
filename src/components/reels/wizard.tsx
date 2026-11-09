@@ -9,7 +9,7 @@ import { shareText, sharesSum } from "@/components/reels/parts"
 import { rkeys, useReelOptions, useReelVoiceSources } from "@/components/reels/queries"
 import { EMPTY, clearDraft, loadDraft, saveDraft, type Draft } from "@/components/reels/wizard-draft"
 import { footageBody, introBody, introOk } from "@/components/reels/wizard-advanced"
-import { allowedTypes, infoLookText, infoTypeList, infoTypesOk } from "@/components/reels/info-look"
+import { allowedTypes, infoLookText, infoShareOf, infoTypeList, infoTypesOk } from "@/components/reels/info-look"
 import {
   HostStep,
   MontageStep,
@@ -74,7 +74,7 @@ export function ReelWizard({ onCreated }: { onCreated: (id: string) => void }) {
     s.mode === "topic" ? !!s.topic.trim() && Number(s.minutes) > 0 : s.from === "voice" ? !!s.voiceJob : !!file,
     s.mode === "topic" ? !!d.voice.profile : true,
     !d.host.on || !!d.host.id,
-    sharesSum(d.storyboard.shares) === 100 && introOk(d) && (!options?.info || infoTypesOk(d.storyboard.shares.infographics, infoTypes)),
+    sharesSum(d.storyboard.shares) === 100 && introOk(d) && (!options?.info || infoTypesOk(infoShareOf(d.storyboard.shares.infographics, d.intro), infoTypes)),
     !!d.montage.style,
   ]
   const reachable = (i: number) => ok.slice(0, i).every(Boolean)
@@ -113,7 +113,10 @@ export function ReelWizard({ onCreated }: { onCreated: (id: string) => void }) {
             ...(options?.info ? { info_types: infoTypes as InfoType[] } : {}),
           },
           montage: options?.info ? d.montage : { ...d.montage, info: undefined },
-          footage: { video: footageBody(d.footage.video), history: footageBody(d.footage.history) },
+          footage: {
+            video: footageBody(d.footage.video, !!options?.image_motions?.length),
+            history: footageBody(d.footage.history, !!options?.image_motions?.length),
+          },
           intro: introBody(d.intro),
           format: d.format,
         },

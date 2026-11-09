@@ -276,9 +276,9 @@ export function LaunchPanel() {
           </div>
         </div>
 
-        <div className={cn("md:col-span-2 xl:col-span-12", groups.length > 1 && "flex flex-col gap-3 xl:flex-row")}>
+        <div className={cn("md:col-span-2 xl:col-span-12", groups.length > 1 && "flex flex-col gap-3")}>
           {groups.map((g, gi) => (
-            <div key={g.label || gi} className={cn("min-w-0", groups.length > 1 && (gi === 0 ? "xl:flex-[8]" : "xl:flex-[3.6]"))}>
+            <div key={g.label || gi} className="min-w-0">
               {gi === 0 ? (
                 <Label>Тип инфографики</Label>
               ) : (
@@ -289,7 +289,8 @@ export function LaunchPanel() {
               <div
                 className={cn(
                   "grid grid-cols-2 gap-[3px] rounded-[3px] bg-surface-2 p-[3px] sm:grid-cols-4",
-                  groups.length === 1 ? "xl:grid-cols-8" : gi === 0 ? "xl:grid-cols-8" : "sm:grid-cols-3 xl:grid-cols-3",
+                  // the second group on its own row in the same 8 columns: buttons as wide as the first row's
+                  gi === 0 ? "xl:grid-cols-8" : "sm:grid-cols-4 xl:grid-cols-8",
                 )}
               >
                 {g.types.map((t) => {
@@ -310,7 +311,7 @@ export function LaunchPanel() {
                       )}
                     >
                       <Icon className={cn("size-[18px]", on ? "" : "text-muted-foreground")} strokeWidth={1.75} />
-                      {t.label}
+                      <span className="w-full break-words hyphens-auto">{t.label}</span>
                     </button>
                   )
                 })}
@@ -416,8 +417,11 @@ export function LaunchPanel() {
         </div>
         {palettes.length > 0 && (
           <div className="md:col-span-1 xl:col-span-4">
-            <Label>Цвета</Label>
+            <Label>
+              <span id="montage-palette">Цвета</span>
+            </Label>
             <PalettePick
+              labelledBy="montage-palette"
               style={style}
               value={paletteNow}
               options={palettes}

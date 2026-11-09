@@ -3,7 +3,7 @@
 import { AlertTriangle, Check, ChevronDown } from "lucide-react"
 import { useState } from "react"
 
-import { GROUPS, GROUP_COLOR, GROUP_HINT, GROUP_LABEL, IMAGE_MOTIONS, MOTION_SHORT } from "@/components/footage/parts"
+import { GROUPS, GROUP_COLOR, GROUP_HINT, GROUP_LABEL, MOTION_SHORT } from "@/components/footage/parts"
 import { useFootageOptions } from "@/components/footage/queries"
 import { CAT_BG, CAT_LABEL, SharesAside, SharesRows, clock, savedShares, shareText, sharesSum, useCategories } from "@/components/reels/parts"
 import { useReelOptions } from "@/components/reels/queries"
@@ -29,7 +29,8 @@ const num = (v: string): number | null => {
 }
 const str = (v: number | null | undefined) => (v === null || v === undefined ? "" : String(v))
 
-export function footageBody(f: FootageDraft): ReelFootageSettings {
+/** motions — the brain knows «Оживление картинок» (`/options` image_motions); an older brain gets no key. */
+export function footageBody(f: FootageDraft, motions = true): ReelFootageSettings {
   return {
     min_score: num(f.score),
     groups: f.groups.length === ALL_GROUPS.length ? null : f.groups,
@@ -38,13 +39,16 @@ export function footageBody(f: FootageDraft): ReelFootageSettings {
     yt_first: f.ytFirst,
     yt_any: f.ytAny,
     film_risky: f.filmRisky,
-    image_motion: f.motion,
+    ...(motions ? { image_motion: f.motion } : {}),
   }
 }
 
-/** «Оживление картинок» of a category: the draft's choice or the brain's default ("" there — zoom). */
-export const motionOf = (cat: Real, f: FootageDraft, options?: ReelOptions): ImageMotion =>
-  f.motion || options?.image_motion_default?.[cat] || (cat === "history" ? "parallax" : "zoom")
+/** «Оживление картинок» of a category: the draft's choice or the brain's default ("" there — zoom); an older brain
+ *  without `image_motions` animates pictures by zoom only — undefined, nothing shown. */
+export const motionOf = (cat: Real, f: FootageDraft, options?: ReelOptions): ImageMotion | undefined =>
+  !options?.image_motions?.length
+    ? undefined
+    : f.motion || options.image_motion_default?.[cat] || (cat === "history" ? "parallax" : "zoom")
 
 export function introBody(i: IntroDraft): ReelIntroSettings {
   const lo = num(i.shot[0])
@@ -210,7 +214,7 @@ function Fold({
 function FootageCard({ cat, f, set }: { cat: Real; f: FootageDraft; set: (patch: Partial<FootageDraft>) => void }) {
   const { data: fo } = useFootageOptions()
   const { data: options } = useReelOptions()
-  const motions = options?.image_motions?.length ? options.image_motions : IMAGE_MOTIONS
+  const motions = options?.image_motions ?? []
   const motion = motionOf(cat, f, options)
   const defEngine = fo?.defaults?.vision_engine || fo?.defaults?.engine || "agy"
   const engine = f.engine || defEngine
@@ -257,16 +261,18 @@ function FootageCard({ cat, f, set }: { cat: Real; f: FootageDraft; set: (patch:
           })}
         </div>
       </div>
-      <div>
-        <Label aside={fo?.parallax && !fo.parallax.ready && motion !== "zoom" ? <span className="font-mono text-[11px] text-faint">нет модели глубины — наезд</span> : undefined}>
-          Оживление картинок
-        </Label>
-        <Seg
-          value={motion}
-          onChange={(v) => set({ motion: v as ImageMotion })}
-          options={motions.map((m) => [m.value, m.label, m.value === "mixed" ? "половина картинок параллаксом, половина наездом" : ""] as const)}
-        />
-      </div>
+      {motion && motions.length > 0 && (
+        <div>
+          <Label aside={fo?.parallax && !fo.parallax.ready && motion !== "zoom" ? <span className="font-mono text-[11px] text-faint">нет модели глубины — наезд</span> : undefined}>
+            Оживление картинок
+          </Label>
+          <Seg
+            value={motion}
+            onChange={(v) => set({ motion: v as ImageMotion })}
+            options={motions.map((m) => [m.value, m.label, m.value === "mixed" ? "половина картинок параллаксом, половина наездом" : ""] as const)}
+          />
+        </div>
+      )}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="min-w-0">
           <Label>Отбор кадров: движок</Label>

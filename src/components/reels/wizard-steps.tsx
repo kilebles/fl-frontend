@@ -22,7 +22,7 @@ import {
 } from "@/components/reels/parts"
 import { rkeys, useReelOptions, useReelVoiceSources } from "@/components/reels/queries"
 import { FootageSettings, IntroSettings, footageText, fromPreset, motionOf } from "@/components/reels/wizard-advanced"
-import { InfoLookPick, InfoTypesPick, allowedTypes, infoLookText, infoOffFrom, infoTypeList, infoTypesText } from "@/components/reels/info-look"
+import { InfoLookPick, InfoTypesPick, allowedTypes, infoLookText, infoOffFrom, infoShareOf, infoTypeList, infoTypesText } from "@/components/reels/info-look"
 import { flatModels, modelLabel } from "@/lib/voice-models"
 import { VoiceProfileDialog } from "@/components/reels/voice-profile-dialog"
 import { DEFAULT_FONT, DEFAULT_LOOK, DEFAULT_SOUNDS, EMPTY_PAUSES, pausesFrom, type Draft, type PauseMode } from "@/components/reels/wizard-draft"
@@ -686,7 +686,7 @@ export function StoryboardStep({ d, up }: StepProps) {
             <PausesPick d={d} up={up} />
           </div>
           <div className="mt-6">
-            <InfoTypesPick off={sb.infoOff} onChange={(infoOff) => set({ infoOff })} share={sb.shares.infographics} />
+            <InfoTypesPick off={sb.infoOff} onChange={(infoOff) => set({ infoOff })} share={infoShareOf(sb.shares.infographics, d.intro)} />
           </div>
         </div>
         <div className="space-y-5 xl:col-span-5">
@@ -948,7 +948,7 @@ export function MontageStep({ d, up }: StepProps) {
         value={d.montage.info}
         onChange={(info) => up((x) => ({ ...x, montage: { ...x.montage, info } }))}
         montageStyle={d.montage.style}
-        idle={!(d.storyboard.shares.infographics > 0)}
+        idle={!(infoShareOf(d.storyboard.shares.infographics, d.intro) > 0)}
       />
     </div>
   )
@@ -1079,7 +1079,7 @@ export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & {
       `${montageLabel} · шрифт: ${fontLabel(fonts, d.montage.font)} · 16:9 · ${qualityLabel(d.montage.quality)} · музыка: ${
         options?.music.find((m) => m.value === d.montage.music)?.label.toLowerCase() ?? d.montage.music
       } · ${soundsText(d.montage.sounds)}${
-        d.storyboard.shares.infographics > 0 && options?.info
+        infoShareOf(d.storyboard.shares.infographics, d.intro) > 0 && options?.info
           ? ` · инфографика: ${infoLookText(d.montage.info, options)}${infoTypes ? `, ${infoTypes}` : ""}`
           : ""
       }`,

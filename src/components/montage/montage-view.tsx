@@ -47,7 +47,9 @@ export function MontageView() {
   const look = s
     ? [
         options?.styles.find((x) => x.value === s.style)?.label ?? s.style,
-        s.palette && options?.palettes?.length ? (options.palettes.find((p) => p.value === s.palette)?.label ?? s.palette) : "",
+        s.palette && s.palette !== "default" && options?.palettes?.length
+          ? (options.palettes.find((p) => p.value === s.palette)?.label ?? s.palette)
+          : "",
       ]
         .filter(Boolean)
         .join(" · ")

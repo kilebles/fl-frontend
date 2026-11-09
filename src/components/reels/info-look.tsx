@@ -23,6 +23,10 @@ export const allowedTypes = (all: string[], off: string[]) => all.filter((t) => 
 /** With an infographics share at least one type must stay on (the brain answers 400 otherwise). */
 export const infoTypesOk = (share: number, allowed: string[]) => !(share > 0) || allowed.length > 0
 
+/** The infographics share that needs types and a look: the reel's or the intro's, when the intro is on. */
+export const infoShareOf = (main: number, intro?: { on: boolean; shares: Partial<Record<string, number>> }) =>
+  Math.max(Number(main) || 0, intro?.on ? Number(intro.shares.infographics) || 0 : 0)
+
 /** A preset's allowed list → the types switched off. */
 export const infoOffFrom = (list: string[] | undefined, all: string[]) => (list?.length ? all.filter((t) => !list.includes(t)) : [])
 
@@ -70,9 +74,9 @@ export function InfoTypesPick({ off, onChange, share }: { off: string[]; onChang
           </span>
         }
       >
-        Типы инфографики
+        <span id="info-types-label">Типы инфографики</span>
       </Label>
-      <div className={cn("space-y-1.5", idle && "pointer-events-none opacity-40")} aria-disabled={idle}>
+      <div role="group" aria-labelledby="info-types-label" className={cn("space-y-1.5", idle && "pointer-events-none opacity-40")} inert={idle}>
         {groups.map((g, gi) => (
           <div key={g.label} className="flex flex-wrap items-center gap-1.5">
             {gi > 0 && <span className="mr-1 text-xs text-muted-foreground">{g.label}</span>}
@@ -140,7 +144,8 @@ function Tile({ on, onClick, name, hint, children }: { on: boolean; onClick: () 
     <button
       type="button"
       title={hint}
-      aria-pressed={on}
+      role="radio"
+      aria-checked={on}
       onClick={onClick}
       className={cn(
         "group relative flex min-w-0 flex-col gap-1.5 rounded-[3px] border bg-background p-1.5 text-left transition-colors",
@@ -187,8 +192,8 @@ export function InfoLookPick({
       <Label aside={idle ? <span className="font-mono text-[11px] text-faint">доля инфографики 0</span> : undefined}>Инфографика</Label>
       <div className="space-y-3">
         <div>
-          <div className="mb-1.5 text-xs text-muted-foreground">Стиль</div>
-          <div className={grid}>
+          <div id="info-look-style" className="mb-1.5 text-xs text-muted-foreground">Стиль</div>
+          <div role="radiogroup" aria-labelledby="info-look-style" className={grid}>
             {info.styles.map((s) =>
               s.value === "auto" ? (
                 <Tile key="auto" on={value.style === "auto"} onClick={() => onChange({ ...value, style: "auto" })} name={s.label}>
@@ -210,8 +215,8 @@ export function InfoLookPick({
           </div>
         </div>
         <div>
-          <div className="mb-1.5 text-xs text-muted-foreground">Цвета</div>
-          <div className={grid}>
+          <div id="info-look-palette" className="mb-1.5 text-xs text-muted-foreground">Цвета</div>
+          <div role="radiogroup" aria-labelledby="info-look-palette" className={grid}>
             {info.palettes.map((p) =>
               p.value === "auto" ? (
                 <Tile key="auto" on={value.palette === "auto"} onClick={() => onChange({ ...value, palette: "auto" })} name={p.label}>

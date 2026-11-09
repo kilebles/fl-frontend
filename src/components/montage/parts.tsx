@@ -88,15 +88,17 @@ export function PalettePick({
   options,
   onChange,
   compact,
+  labelledBy,
 }: {
   style: InfoStyle
   value: InfoPalette
   options: InfoPaletteOption[]
   onChange: (p: InfoPalette) => void
   compact?: boolean
+  labelledBy?: string
 }) {
   return (
-    <div className={cn("grid grid-cols-2 gap-2", compact && "sm:grid-cols-4")}>
+    <div role="radiogroup" aria-labelledby={labelledBy} aria-label={labelledBy ? undefined : "Цвета"} className={cn("grid grid-cols-2 gap-2", compact && "sm:grid-cols-4")}>
       {options.map((p) => {
         const on = value === p.value
         return (
@@ -104,7 +106,8 @@ export function PalettePick({
             key={p.value}
             type="button"
             title={p.hint}
-            aria-pressed={on}
+            role="radio"
+            aria-checked={on}
             onClick={() => onChange(p.value)}
             className={cn(
               "flex min-w-0 items-center gap-2.5 rounded-[3px] border p-1.5 pr-2.5 text-left transition-colors",

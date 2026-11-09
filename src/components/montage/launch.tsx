@@ -5,16 +5,16 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Check, FileText, Loader2, Paperclip, Sparkles, Type, Wand2, X } from "lucide-react"
 import { toast } from "sonner"
 
-import { StyleSwatch, TYPE_ICON } from "@/components/montage/parts"
+import { PalettePick, StyleSwatch, TYPE_ICON } from "@/components/montage/parts"
 import { mkeys, useMontageOptions } from "@/components/montage/queries"
 import { BTN_PRIMARY, INPUT, Label, ON_BLUE, Pick, Seg } from "@/components/script/ui"
-import { montage, type InfoKind, type InfoSettings, type InfoStyle, type InfoType } from "@/lib/api"
+import { montage, type InfoKind, type InfoPalette, type InfoSettings, type InfoStyle, type InfoType } from "@/lib/api"
 import { useCurrentProject } from "@/lib/project"
 import { cn } from "@/lib/utils"
 
 const REMEMBER = "montage.infographics"
 
-type Remembered = Partial<Pick<InfoSettings, "type" | "kind" | "format" | "quality" | "style" | "alpha" | "language" | "model">> & {
+type Remembered = Partial<Pick<InfoSettings, "type" | "kind" | "format" | "quality" | "style" | "palette" | "alpha" | "language" | "model">> & {
   from?: "text" | "file"
   duration?: string
 }
@@ -59,6 +59,7 @@ export function LaunchPanel() {
   const [format, setFormat] = useState<InfoSettings["format"]>("16:9")
   const [quality, setQuality] = useState<InfoSettings["quality"]>("1080")
   const [style, setStyle] = useState<InfoStyle>("parchment")
+  const [palette, setPalette] = useState<InfoPalette>("default")
   const [duration, setDuration] = useState("")
   const [count, setCount] = useState("")
   const [alpha, setAlpha] = useState(false)
@@ -76,6 +77,7 @@ export function LaunchPanel() {
       if (r.format) setFormat(r.format)
       if (r.quality) setQuality(r.quality)
       if (r.style) setStyle(r.style)
+      if (r.palette) setPalette(r.palette)
       if (r.alpha !== undefined) setAlpha(r.alpha)
       if (r.language !== undefined) setLanguage(r.language)
       if (r.model !== undefined) setModel(r.model)
@@ -89,6 +91,9 @@ export function LaunchPanel() {
     } catch {}
   }
 
+  /** Palettes over the styles; an older module sends none — no control, nothing sent. */
+  const palettes = options?.palettes ?? []
+  const paletteNow = palettes.some((p) => p.value === palette) ? palette : (palettes[0]?.value ?? "default")
   const limits = options?.limits
   const maxAuto = options?.defaults.max_auto ?? 6
   const sec = Number(duration.replace(",", "."))
@@ -109,6 +114,7 @@ export function LaunchPanel() {
           format,
           quality,
           style,
+          ...(palettes.length ? { palette: paletteNow } : {}),
           alpha,
           language,
           model,
@@ -382,9 +388,9 @@ export function LaunchPanel() {
           />
         </div>
 
-        <div className="md:col-span-2 xl:col-span-8">
+        <div className={cn("md:col-span-2", palettes.length ? "xl:col-span-5" : "xl:col-span-8")}>
           <Label>Стиль</Label>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className={cn("grid grid-cols-2 gap-2", !palettes.length && "sm:grid-cols-4")}>
             {(options?.styles ?? []).map((s) => {
               const on = style === s.value
               return (
@@ -408,7 +414,21 @@ export function LaunchPanel() {
             })}
           </div>
         </div>
-        <div className="md:col-span-2 xl:col-span-4">
+        {palettes.length > 0 && (
+          <div className="md:col-span-1 xl:col-span-4">
+            <Label>Цвета</Label>
+            <PalettePick
+              style={style}
+              value={paletteNow}
+              options={palettes}
+              onChange={(p) => {
+                setPalette(p)
+                remember({ palette: p })
+              }}
+            />
+          </div>
+        )}
+        <div className={cn(palettes.length ? "md:col-span-1 xl:col-span-3" : "md:col-span-2 xl:col-span-4")}>
           <Label>Слой для монтажа</Label>
           <Toggle
             on={alpha}

@@ -6,11 +6,11 @@ import { AlertTriangle, Braces, Download, Loader2, Paintbrush, RotateCcw, Sparkl
 import { toast } from "sonner"
 
 import { clock } from "@/components/footage/parts"
-import { ProgressLine, StyleSwatch, TYPE_ICON, infographicsText, size, stepText } from "@/components/montage/parts"
+import { PalettePick, ProgressLine, StyleSwatch, TYPE_ICON, infographicsText, size, stepText } from "@/components/montage/parts"
 import { mkeys, useMontageOptions } from "@/components/montage/queries"
 import { TextDialog } from "@/components/script/parts"
 import { BTN_PRIMARY, BTN_SECONDARY, BTN_SMALL, Card, INPUT, Label, ON_BLUE, Seg } from "@/components/script/ui"
-import { montage, type InfoItem, type InfoJob, type InfoRerender, type InfoSettings, type InfoStyle } from "@/lib/api"
+import { montage, type InfoItem, type InfoJob, type InfoPalette, type InfoRerender, type InfoSettings, type InfoStyle } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
 const ACTIVE = ["queued", "running"]
@@ -107,14 +107,31 @@ function Rerender({ job }: { job: InfoJob }) {
   const { data: options } = useMontageOptions()
   const s = job.settings
   const [style, setStyle] = useState<InfoStyle>(s.style)
+  const [palette, setPalette] = useState<InfoPalette>(s.palette ?? "default")
+  const palettes = options?.palettes ?? []
   const [kind, setKind] = useState(s.kind)
   const [format, setFormat] = useState(s.format)
   const [quality, setQuality] = useState(s.quality)
   const [alpha, setAlpha] = useState(s.alpha)
   const [duration, setDuration] = useState(s.duration ? String(s.duration) : "")
   const sec = Number(duration.replace(",", "."))
-  const changes: InfoRerender = { style, kind, format, quality, alpha, duration: kind === "animated" && duration ? sec : null }
-  const same = style === s.style && kind === s.kind && format === s.format && quality === s.quality && alpha === s.alpha && (changes.duration ?? null) === (s.duration ?? null)
+  const changes: InfoRerender = {
+    style,
+    ...(palettes.length ? { palette } : {}),
+    kind,
+    format,
+    quality,
+    alpha,
+    duration: kind === "animated" && duration ? sec : null,
+  }
+  const same =
+    style === s.style &&
+    (!palettes.length || palette === (s.palette ?? "default")) &&
+    kind === s.kind &&
+    format === s.format &&
+    quality === s.quality &&
+    alpha === s.alpha &&
+    (changes.duration ?? null) === (s.duration ?? null)
   const go = useMutation({
     mutationFn: () => montage.rerender(job.id, changes),
     onSuccess: () => {
@@ -147,6 +164,12 @@ function Rerender({ job }: { job: InfoJob }) {
             ))}
           </div>
         </div>
+        {palettes.length > 0 && (
+          <div className="md:col-span-2 xl:col-span-12">
+            <Label>Цвета</Label>
+            <PalettePick style={style} value={palette} options={palettes} onChange={setPalette} compact />
+          </div>
+        )}
         <div className="xl:col-span-3">
           <Label>Вид</Label>
           <Seg value={kind} onChange={(v) => setKind(v as InfoSettings["kind"])} options={[["animated", "Анимированная"], ["static", "Статичная"]]} />

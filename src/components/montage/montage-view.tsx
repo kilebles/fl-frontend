@@ -9,7 +9,7 @@ import { EditView } from "@/components/montage/edit-view"
 import { JobList } from "@/components/montage/job-list"
 import { JobView } from "@/components/montage/job-view"
 import { LaunchPanel } from "@/components/montage/launch"
-import { useEditJob, useInfoJob, useMontageEvents, useMontageHealth } from "@/components/montage/queries"
+import { useEditJob, useInfoJob, useMontageEvents, useMontageHealth, useMontageOptions } from "@/components/montage/queries"
 import { setUrlParams, useUrlParam } from "@/components/script/queries"
 import { ScreenSwitch } from "@/components/script/ui"
 import { PageHeader } from "@/components/shell/page-header"
@@ -42,6 +42,16 @@ export function MontageView() {
   const { data: edit, isLoading: editLoading, error: editError } = useEditJob(openEdit ? eid : null)
   const s = job?.settings
   const es = edit?.settings
+  const { data: options } = useMontageOptions()
+  /** «Хроника · Королевская»; the palette only when the module sends palettes and the job has one. */
+  const look = s
+    ? [
+        options?.styles.find((x) => x.value === s.style)?.label ?? s.style,
+        s.palette && options?.palettes?.length ? (options.palettes.find((p) => p.value === s.palette)?.label ?? s.palette) : "",
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : ""
 
   return (
     <div className="px-4 pt-6 pb-24 sm:px-7">
@@ -76,6 +86,7 @@ export function MontageView() {
                 s.kind === "animated" ? "видео" : "картинки",
                 s.format,
                 s.quality === "2160" ? "4K" : `${s.quality}p`,
+                look,
               ]
                 .filter(Boolean)
                 .join(" · ")}

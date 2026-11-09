@@ -1355,8 +1355,9 @@ export interface FootageOptionsSet {
   min_score: number | null
   format: "16:9" | "9:16"
   plan_only: boolean
-  /** How found paintings and photos move: zoom (as before) | parallax (2.5D by a depth map); older servers: absent. */
-  image_motion?: "zoom" | "parallax"
+  /** How found paintings and photos move: zoom (as before) | parallax (2.5D by a depth map) | mixed (half and half);
+   *  older servers: absent. */
+  image_motion?: ImageMotion
 }
 
 /** Shots taken from one source group: video/photo split and which sites they came from. */
@@ -1420,7 +1421,7 @@ export interface FootageOptions {
   routing: Record<string, FootageGroup[]>
   voice_api: boolean
   /** «Оживление картинок» (older fl-footage: absent — no control). */
-  image_motions?: { value: "zoom" | "parallax"; label: string }[]
+  image_motions?: { value: ImageMotion; label: string }[]
   /** Parallax needs the depth model; not ready — pictures go with zoom, note says why. */
   parallax?: { ready: boolean; note: string }
 }
@@ -1483,7 +1484,7 @@ export const footage = {
 
 /* ------------------------------------------------------------------ reels (fl-reel, /api/reels/*) */
 
-export type ReelCategory = "ai" | "video" | "history" | "history2" | "graphics" | "infographics" | "infographics2" | "avatar"
+export type ReelCategory = "ai" | "video" | "history" | "graphics" | "infographics" | "avatar"
 export type ReelStatus = "queued" | "running" | "done" | "error" | "stopped"
 
 /** The brain's queue: up to limits.parallel reels at once; storyboard and assembly have their own places. */
@@ -1709,10 +1710,8 @@ export interface ReelShot {
   queries: { stock?: string[]; archive?: string[]; youtube?: string[] }
   ai: string
   card: { subject?: string; kind?: string; caption?: string }
-  /** Task for «Инфографика» (fl-montage): type and what to show. */
+  /** Task for «Инфографика» (fl-montage): type (one of the reel's allowed `info_types`) and what to show. */
   info?: { type?: string; brief?: string }
-  /** Task for «Инфографика 2» (fl-montage): a journey on a map, a grid of dots or a document. */
-  info2?: { type?: "journey" | "units" | "document"; brief?: string }
   avoid: string[]
   fallback: boolean
   executor: string
@@ -1771,10 +1770,14 @@ export interface ReelSettings {
     /** Silence after a paragraph while the picture goes on: off | chapters | every (~every_sec) | auto; sec — its length. */
     /** Several variants at once (fade — with a fade to black); older reels: {mode}. */
     pauses?: { modes?: { mode: "chapters" | "every" | "auto"; fade: boolean }[]; mode?: string; sec: number; every_sec: number }
+    /** Infographic types the storyboard may use (all by default; with an infographics share at least one). Older
+     *  reels: absent — all. */
+    info_types?: InfoType[]
   }
   /** font — the title font (`ReelFont.value`); "" — the montage style's font. */
   /** quality: "" — 1080p as before; "sharp" — 1080p + sharpening; "4k" — 2160p + sharpening. */
-  montage: { style: string; music: string; font?: string; quality?: string; sounds?: ReelSoundSettings }
+  /** info — the infographic look (fl-montage style and palette); auto — the film's brief picks, older reels: absent. */
+  montage: { style: string; music: string; font?: string; quality?: string; sounds?: ReelSoundSettings; info?: ReelInfoLook }
   /** «Поиск видео» for each real category; null / "" — as set on the module's server. */
   footage?: { video: ReelFootageSettings; history: ReelFootageSettings }
   /** The first minutes apart: own shares, shot length and category score floor. */
@@ -1790,6 +1793,17 @@ export interface ReelFootageSettings {
   yt_first: boolean
   yt_any: boolean
   film_risky: boolean
+  /** How found paintings and photos move; "" — the module's default (history: parallax on the brain). */
+  image_motion?: ImageMotion | ""
+}
+
+/** zoom «Наезд» | parallax «Параллакс (2.5D)» | mixed «50/50» — half of the pictures each way. */
+export type ImageMotion = "zoom" | "parallax" | "mixed"
+
+/** The infographic look of a reel: an fl-montage style and palette, or auto — by the era and mood of the film. */
+export interface ReelInfoLook {
+  style: "auto" | InfoStyle
+  palette: "auto" | InfoPalette
 }
 
 export interface ReelIntroSettings {
@@ -1841,6 +1855,17 @@ export interface ReelOptions {
     per_min: Record<string, number>
     transitions: Record<string, boolean>
   }
+  /** Infographics: allowed types in groups («Инфографика», «Инфографика 2»), the look — styles and palettes with
+   *  «Авто», and the style «Авто» falls back to per montage style. Older brains: absent — no controls. */
+  info?: {
+    types: { label: string; types: { value: InfoType; label: string }[] }[]
+    styles: { value: ReelInfoLook["style"]; label: string }[]
+    palettes: { value: ReelInfoLook["palette"]; label: string }[]
+    by_montage: Record<string, InfoStyle>
+  }
+  /** «Оживление картинок» per footage category; image_motion_default — "" means the module's (zoom). */
+  image_motions?: { value: ImageMotion; label: string }[]
+  image_motion_default?: Partial<Record<"video" | "history", ImageMotion | "">>
 }
 
 /** A title font of the reel; `available` — its file is on the server (preview and render use it). */
@@ -1912,6 +1937,8 @@ export const reels = {
 
 export type InfoType = "timeline" | "tree" | "table" | "chart" | "map" | "facts" | "battle" | "journey" | "units" | "document"
 export type InfoStyle = "parchment" | "cinematic" | "clean" | "chronicle"
+/** Colours over a style: default — the style's own. */
+export type InfoPalette = "default" | "royal" | "crimson" | "emerald"
 export type InfoKind = "animated" | "static"
 export type InfoStatus = "queued" | "running" | "done" | "error" | "stopped"
 
@@ -1921,6 +1948,8 @@ export interface InfoSettings {
   format: "16:9" | "9:16"
   quality: "720" | "1080" | "2160"
   style: InfoStyle
+  /** Older modules: absent — the style's colours. */
+  palette?: InfoPalette
   /** Seconds of every animated infographic; null — by the amount of data. */
   duration: number | null
   /** Second file with a transparent background (ProRes 4444 .mov / PNG). */
@@ -1978,6 +2007,8 @@ export interface InfoOptions {
   /** The types in groups («Инфографика», «Инфографика 2»); older servers: absent — one list. */
   groups?: { label: string; types: (InfoType | "auto")[] }[]
   styles: { value: InfoStyle; label: string; hint: string }[]
+  /** Palettes over the styles; swatches[style] — [side A, side B, accent, mark]. Older modules: absent — no control. */
+  palettes?: InfoPaletteOption[]
   formats: { value: "16:9" | "9:16"; label: string; width: number; height: number }[]
   qualities: { value: InfoSettings["quality"]; label: string }[]
   kinds: { value: InfoKind; label: string }[]
@@ -1996,7 +2027,14 @@ export interface InfoCreate extends Partial<InfoSettings> {
   text?: string
 }
 
-export type InfoRerender = Partial<Pick<InfoSettings, "kind" | "format" | "quality" | "style" | "duration" | "alpha">>
+export interface InfoPaletteOption {
+  value: InfoPalette
+  label: string
+  hint?: string
+  swatches?: Partial<Record<InfoStyle, string[]>>
+}
+
+export type InfoRerender = Partial<Pick<InfoSettings, "kind" | "format" | "quality" | "style" | "palette" | "duration" | "alpha">>
 
 /* «Монтаж» по описанию: videos, images, a voiceover and music → a montage up to 60 s (fl-montage /api/montage/edits). */
 

@@ -34,6 +34,8 @@ import { ReviewCard, reviewCaption } from "@/components/reels/review"
 import { fontLabel, useFontList } from "@/components/reels/fonts"
 import { pausesFrom } from "@/components/reels/wizard-draft"
 import { pausesText, qualityLabel, soundsText } from "@/components/reels/wizard-steps"
+import { infoLine } from "@/components/reels/info-look"
+import { MOTION_SHORT } from "@/components/footage/parts"
 import { AudioCard } from "@/components/reels/audio"
 import { TracksCard } from "@/components/reels/tracks"
 import { ConfirmDialog } from "@/components/script/parts"
@@ -48,7 +50,12 @@ function footageLine(r: Reel) {
   const f = r.settings.footage
   if (!f) return ""
   const one = (label: string, x: ReelFootageSettings) => {
-    const parts = [x.min_score !== null ? `порог ${x.min_score}` : "", x.vision_model, x.groups ? `${x.groups.length} ист.` : ""].filter(Boolean)
+    const parts = [
+      x.min_score !== null ? `порог ${x.min_score}` : "",
+      x.vision_model,
+      x.groups ? `${x.groups.length} ист.` : "",
+      x.image_motion && x.image_motion !== "zoom" ? MOTION_SHORT[x.image_motion] : "",
+    ].filter(Boolean)
     return parts.length ? `${label}: ${parts.join(", ")}` : ""
   }
   return [one("видео", f.video), one("история", f.history)].filter(Boolean).join(" · ")
@@ -275,6 +282,7 @@ export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number
               montage
                 ? `Монтаж: ${montage} · шрифт: ${fontLabel(fonts, r.settings.montage?.font)} · ${qualityLabel(r.settings.montage?.quality)} · ${soundsText(r.settings.montage?.sounds)}`
                 : "",
+              (r.settings.storyboard.shares.infographics ?? 0) > 0 ? infoLine(r.settings.montage?.info, r.settings.storyboard.info_types, options) : "",
               r.settings.storyboard.style ? `стиль: ${r.settings.storyboard.style}` : "",
               r.settings.avatar?.id ? `ведущий: ${r.settings.avatar.name || "аватар"}` : "",
               r.settings.voice?.targets?.length ? `переводы: ${r.settings.voice.targets.join(", ")}` : "",

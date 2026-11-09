@@ -8,14 +8,13 @@ import { toast } from "sonner"
 import { GROUPS, GROUP_COLOR, GROUP_HINT, GROUP_LABEL, clock, shotsText } from "@/components/footage/parts"
 import { fkeys, useFootageOptions, useVoiceSources } from "@/components/footage/queries"
 import { BTN_PRIMARY, BTN_SECONDARY, INPUT, Label, ON_BLUE, Pick, Seg } from "@/components/script/ui"
-import { footage, type FootageGroup } from "@/lib/api"
+import { footage, type FootageGroup, type ImageMotion } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
 const REMEMBER = "footage.launch"
 const PRESETS = ["6", "7", "8"]
 
 type Opts = { yt_first: boolean; yt_trusted: boolean; yt_any: boolean; film_risky: boolean }
-type Motion = "zoom" | "parallax"
 type Remembered = {
   from?: "voice" | "file"
   engine?: string
@@ -23,7 +22,7 @@ type Remembered = {
   opts?: Opts
   score?: string
   format?: "16:9" | "9:16"
-  motion?: Motion
+  motion?: ImageMotion
 }
 
 function loadRemembered(): Remembered {
@@ -144,7 +143,7 @@ export function LaunchPanel() {
   const [opts, setOpts] = useState<Opts>({ yt_first: false, yt_trusted: true, yt_any: false, film_risky: false })
   const [score, setScore] = useState("")
   const [format, setFormat] = useState<"16:9" | "9:16">("16:9")
-  const [motion, setMotion] = useState<Motion>("zoom")
+  const [motion, setMotion] = useState<ImageMotion>("zoom")
 
   useEffect(() => {
     const r = loadRemembered()
@@ -166,8 +165,9 @@ export function LaunchPanel() {
   }
 
   const def = options?.defaults
-  /** Older fl-footage sends no image_motions — no control, nothing sent. */
+  /** The server's list (zoom / parallax / 50/50); older fl-footage sends none — no control, nothing sent. */
   const motions = options?.image_motions ?? []
+  const motionNow = motions.some((m) => m.value === motion) ? motion : (motions[0]?.value ?? "zoom")
   const effScore = score || (def?.min_score != null ? String(def.min_score) : "7")
   const scoreNum = Number(effScore.replace(",", "."))
   const scoreOk = effScore !== "" && scoreNum >= 0 && scoreNum <= 10
@@ -181,7 +181,7 @@ export function LaunchPanel() {
           title: title.trim(),
           source: from,
           voice_job: from === "voice" && v ? v.id : undefined,
-          options: { engine, groups, ...opts, min_score: scoreNum, format, plan_only: planOnly, ...(motions.length ? { image_motion: motion } : {}) },
+          options: { engine, groups, ...opts, min_score: scoreNum, format, plan_only: planOnly, ...(motions.length ? { image_motion: motionNow } : {}) },
         },
         from === "file" ? script : null,
         from === "file" ? audio : null,
@@ -378,14 +378,14 @@ export function LaunchPanel() {
             <div className="md:col-span-2 xl:col-span-5">
               <Label>Оживление картинок</Label>
               <Seg
-                value={motion}
+                value={motionNow}
                 onChange={(m) => {
-                  setMotion(m as Motion)
-                  remember({ motion: m as Motion })
+                  setMotion(m as ImageMotion)
+                  remember({ motion: m as ImageMotion })
                 }}
-                options={motions.map((m) => [m.value, m.label] as const)}
+                options={motions.map((m) => [m.value, m.label, m.value === "mixed" ? "половина картинок параллаксом, половина наездом" : ""] as const)}
               />
-              {motion === "parallax" && options?.parallax && !options.parallax.ready && (
+              {motionNow !== "zoom" && options?.parallax && !options.parallax.ready && (
                 <p className="mt-1.5 text-xs text-faint" title={options.parallax.note || undefined}>
                   модель глубины не установлена — картинки пойдут наездом
                 </p>

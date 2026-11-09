@@ -3,13 +3,13 @@
 import { AlertTriangle, Check, ChevronDown } from "lucide-react"
 import { useState } from "react"
 
-import { GROUPS, GROUP_COLOR, GROUP_HINT, GROUP_LABEL } from "@/components/footage/parts"
+import { GROUPS, GROUP_COLOR, GROUP_HINT, GROUP_LABEL, IMAGE_MOTIONS, MOTION_SHORT } from "@/components/footage/parts"
 import { useFootageOptions } from "@/components/footage/queries"
 import { CAT_BG, CAT_LABEL, SharesAside, SharesRows, clock, savedShares, shareText, sharesSum, useCategories } from "@/components/reels/parts"
 import { useReelOptions } from "@/components/reels/queries"
 import { ALL_GROUPS, EMPTY, EMPTY_FOOTAGE, type Draft, type FootageDraft, type IntroDraft } from "@/components/reels/wizard-draft"
 import { INPUT, Label, ON_BLUE, Pick, Seg } from "@/components/script/ui"
-import type { FootageGroup, ReelFootageSettings, ReelIntroSettings, ReelSettings } from "@/lib/api"
+import type { FootageGroup, ImageMotion, ReelFootageSettings, ReelIntroSettings, ReelOptions, ReelSettings } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
 type Up = (fn: (d: Draft) => Draft) => void
@@ -38,8 +38,13 @@ export function footageBody(f: FootageDraft): ReelFootageSettings {
     yt_first: f.ytFirst,
     yt_any: f.ytAny,
     film_risky: f.filmRisky,
+    image_motion: f.motion,
   }
 }
+
+/** «Оживление картинок» of a category: the draft's choice or the brain's default ("" there — zoom). */
+export const motionOf = (cat: Real, f: FootageDraft, options?: ReelOptions): ImageMotion =>
+  f.motion || options?.image_motion_default?.[cat] || (cat === "history" ? "parallax" : "zoom")
 
 export function introBody(i: IntroDraft): ReelIntroSettings {
   const lo = num(i.shot[0])
@@ -65,6 +70,7 @@ export function fromPreset(p: Partial<ReelSettings>, x: Draft): Pick<Draft, "foo
           ytFirst: !!s.yt_first,
           ytAny: !!s.yt_any,
           filmRisky: !!s.film_risky,
+          motion: s.image_motion || "",
         }
       : EMPTY_FOOTAGE
   const i = p.intro
@@ -90,13 +96,14 @@ export function introOk(d: Draft) {
   return sharesSum(d.intro.shares) === 100 && shot
 }
 
-/** «Поиск видео» in one line for the summary: threshold, sources, model. */
-export function footageText(f: FootageDraft) {
+/** «Поиск видео» in one line for the summary: threshold, sources, model, picture motion other than zoom. */
+export function footageText(f: FootageDraft, motion?: ImageMotion) {
   const parts = [
     f.score ? `порог ${f.score}` : "",
     f.groups.length < ALL_GROUPS.length ? f.groups.map((g) => GROUP_LABEL[g]).join(", ") : "",
     f.model || (f.engine ? ENGINE_LABEL[f.engine] : ""),
     f.ytFirst ? "YouTube первым" : "",
+    motion && motion !== "zoom" ? MOTION_SHORT[motion] : "",
   ].filter(Boolean)
   return parts.join(" · ") || "как в «Поиске видео»"
 }
@@ -200,9 +207,11 @@ function Fold({
 
 /* ------------------------------------------------------------------ «Видео» и «История» */
 
-/** also — «История 2» searches with the history settings (its pictures only move with parallax). */
-function FootageCard({ cat, f, set, also }: { cat: Real; f: FootageDraft; set: (patch: Partial<FootageDraft>) => void; also?: boolean }) {
+function FootageCard({ cat, f, set }: { cat: Real; f: FootageDraft; set: (patch: Partial<FootageDraft>) => void }) {
   const { data: fo } = useFootageOptions()
+  const { data: options } = useReelOptions()
+  const motions = options?.image_motions?.length ? options.image_motions : IMAGE_MOTIONS
+  const motion = motionOf(cat, f, options)
   const defEngine = fo?.defaults?.vision_engine || fo?.defaults?.engine || "agy"
   const engine = f.engine || defEngine
   const models = fo?.vision_models?.[engine] ?? []
@@ -212,12 +221,6 @@ function FootageCard({ cat, f, set, also }: { cat: Real; f: FootageDraft; set: (
       <div className="flex items-center gap-2 text-sm font-medium">
         <span className={cn("size-2 rounded-full", CAT_BG[cat])} />
         {CAT_LABEL[cat]}
-        {also && (
-          <>
-            <span className={cn("ml-1 size-2 rounded-full", CAT_BG.history2)} />
-            {CAT_LABEL.history2}
-          </>
-        )}
       </div>
       <div>
         <Label aside={<span className="font-mono text-[11px] text-faint">ниже — кадр уходит в ИИ</span>}>Порог оценки найденного</Label>
@@ -253,6 +256,16 @@ function FootageCard({ cat, f, set, also }: { cat: Real; f: FootageDraft; set: (
             )
           })}
         </div>
+      </div>
+      <div>
+        <Label aside={fo?.parallax && !fo.parallax.ready && motion !== "zoom" ? <span className="font-mono text-[11px] text-faint">нет модели глубины — наезд</span> : undefined}>
+          Оживление картинок
+        </Label>
+        <Seg
+          value={motion}
+          onChange={(v) => set({ motion: v as ImageMotion })}
+          options={motions.map((m) => [m.value, m.label, m.value === "mixed" ? "половина картинок параллаксом, половина наездом" : ""] as const)}
+        />
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="min-w-0">
@@ -304,15 +317,20 @@ export function FootageSettings({ d, up }: { d: Draft; up: Up }) {
       ...x,
       footage: { ...x.footage, [cat]: { ...x.footage[cat], ...patch } },
     }))
-  const off = !d.storyboard.shares.video && !d.storyboard.shares.history && !d.storyboard.shares.history2
+  const { data: options } = useReelOptions()
+  const off = !d.storyboard.shares.video && !d.storyboard.shares.history
   return (
     <Fold
       title="Видео и исторические кадры"
-      summary={off ? "в ролике нет реальных кадров" : `видео: ${footageText(d.footage.video)} · история: ${footageText(d.footage.history)}`}
+      summary={
+        off
+          ? "в ролике нет реальных кадров"
+          : `видео: ${footageText(d.footage.video, motionOf("video", d.footage.video, options))} · история: ${footageText(d.footage.history, motionOf("history", d.footage.history, options))}`
+      }
     >
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
         <FootageCard cat="video" f={d.footage.video} set={set("video")} />
-        <FootageCard cat="history" f={d.footage.history} set={set("history")} also={d.storyboard.shares.history2 > 0} />
+        <FootageCard cat="history" f={d.footage.history} set={set("history")} />
       </div>
     </Fold>
   )

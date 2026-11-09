@@ -11,8 +11,6 @@ import { cn } from "@/lib/utils"
 
 type Filter = ReelCategory | "weak" | "all"
 const WEAK = 4
-/** Types of «Инфографика 2» (shot.info2.type). */
-const INFO2_LABEL: Record<string, string> = { journey: "Путь на карте", units: "Сетка точек", document: "Документ" }
 
 const clean = (s: string) => s.replace(/[\t\r\n]+/g, " ").trim()
 
@@ -47,7 +45,7 @@ function download(name: string, text: string) {
 function FitBars({ shot, host }: { shot: ReelShot; host: boolean }) {
   const cats = useCategories(host)
   return (
-    <div className={cn("grid gap-2", cats.length > 6 ? "grid-cols-3 sm:grid-cols-4" : cats.length > 5 ? "grid-cols-3 sm:grid-cols-6" : "grid-cols-5")}>
+    <div className={cn("grid gap-2", cats.length > 5 ? "grid-cols-3 sm:grid-cols-6" : "grid-cols-5")}>
       {cats.map((c) => (
         <div key={c} className="min-w-0">
           <div className="mb-1 flex justify-between font-mono text-[11px]">
@@ -107,7 +105,7 @@ function ShotRow({ shot, open, onToggle, host }: { shot: ReelShot; open: boolean
           <FitBars shot={shot} host={host} />
           {shot.category === "avatar" && <Detail label="Ведущий">произносит этот абзац в кадре сам; диктор на нём молчит</Detail>}
           {shot.category === "ai" && shot.ai && <Detail label="Задание ИИ">{shot.ai}</Detail>}
-          {(shot.category === "video" || shot.category === "history" || shot.category === "history2") &&
+          {(shot.category === "video" || shot.category === "history") &&
             q.map(([k, v]) => (
               <Detail key={k} label={`Запросы: ${k}`}>
                 <span className="font-mono text-[11px]">{v.join(" · ")}</span>
@@ -119,11 +117,6 @@ function ShotRow({ shot, open, onToggle, host }: { shot: ReelShot; open: boolean
           {shot.category === "infographics" && (
             <Detail label="Инфографика">
               {[TYPE_LABEL[shot.info?.type || "auto"] ?? shot.info?.type, shot.info?.brief].filter(Boolean).join(" — ")}
-            </Detail>
-          )}
-          {shot.category === "infographics2" && (
-            <Detail label="Инфографика 2">
-              {[INFO2_LABEL[shot.info2?.type ?? ""] ?? shot.info2?.type, shot.info2?.brief].filter(Boolean).join(" — ")}
             </Detail>
           )}
           {shot.category !== "ai" && shot.ai && <Detail label="Если на ИИ">{shot.ai}</Detail>}
@@ -188,10 +181,7 @@ export function StoryboardCard({ sb }: { sb: ReelStoryboard }) {
 
   const chips: [Filter, string, number][] = [
     ["all", "Все", sb.shots.length],
-    // the host and the second-kind categories only when the storyboard has their shots
-    ...CATEGORIES.filter((c) => !["avatar", "history2", "infographics2"].includes(c) || (sb.mix.shots[c] ?? 0) > 0).map(
-      (c) => [c, CAT_LABEL[c], sb.mix.shots[c] ?? 0] as [Filter, string, number],
-    ),
+    ...CATEGORIES.filter((c) => c !== "avatar" || (sb.mix.shots.avatar ?? 0) > 0).map((c) => [c, CAT_LABEL[c], sb.mix.shots[c] ?? 0] as [Filter, string, number]),
     ...(weak ? [["weak", "Слабые", weak] as [Filter, string, number]] : []),
   ]
 

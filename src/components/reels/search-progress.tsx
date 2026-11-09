@@ -23,8 +23,7 @@ type FootageExtras = {
   relaxed?: Partial<Record<ReelCategory, number>>
 }
 
-/** The categories «Поиск видео» works for: «История 2» is its own project (pictures with parallax). */
-const ORDER: ReelCategory[] = ["video", "history", "history2"]
+const ORDER: ReelCategory[] = ["video", "history"]
 
 function stepText(s: SearchState) {
   if (s.status === "queued") return "в очереди «Поиска видео»"

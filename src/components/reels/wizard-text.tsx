@@ -6,6 +6,7 @@ import { useScenarioOptions } from "@/components/script/queries"
 import { Label, Pick, Seg } from "@/components/script/ui"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { ReelSettings } from "@/lib/api"
+import { langCode } from "@/lib/langs"
 
 type Up = (fn: (d: Draft) => Draft) => void
 
@@ -49,7 +50,7 @@ export function textFromPreset(p: Partial<ReelSettings>): Pick<Draft, "text" | "
 
 /** «Надписи: EN, цифры и даты, главы · ИИ-кадры flash» — for the summary and the reel screen. */
 export function textLine(t: Partial<TextDraft> | undefined, ai: string | undefined, base: string, titles: boolean) {
-  const words = [`надписи ${t?.lang || base || "как у ролика"}`, t?.numbers === false ? "" : "цифры и даты", (t?.chapters ?? titles) ? "главы" : "без глав"]
+  const words = [`надписи ${langCode(t?.lang || base) || "как у ролика"}`, t?.numbers === false ? "" : "цифры и даты", (t?.chapters ?? titles) ? "главы" : "без глав"]
   return [words.filter(Boolean).join(", "), ai === "flash_i2v" ? "ИИ-кадры flash" : ""].filter(Boolean).join(" · ")
 }
 
@@ -80,9 +81,9 @@ export function TextPick({ d, up }: { d: Draft; up: Up }) {
   const names = new Map((so?.languages ?? []).map((l) => [code(l.code), l.name]))
   const own = [...new Set([base, ...d.voice.targets.map(code), code(t.lang)].filter(Boolean))]
   const options = [
-    { value: "", label: "Как у ролика", hint: base || "язык сценария" },
-    ...own.map((c) => ({ value: c, label: names.get(c) ?? c, hint: c === base ? `${c} · основной` : d.voice.targets.map(code).includes(c) ? `${c} · перевод` : c })),
-    ...[...names.keys()].filter((c) => !own.includes(c)).map((c) => ({ value: c, label: names.get(c)!, hint: c })),
+    { value: "", label: "Как у ролика", hint: langCode(base) || "язык сценария" },
+    ...own.map((c) => ({ value: c, label: names.get(c) ?? langCode(c), hint: c === base ? `${langCode(c)} · основной` : d.voice.targets.map(code).includes(c) ? `${langCode(c)} · перевод` : langCode(c) })),
+    ...[...names.keys()].filter((c) => !own.includes(c)).map((c) => ({ value: c, label: names.get(c)!, hint: langCode(c) })),
   ]
   return (
     <div>

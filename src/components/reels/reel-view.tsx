@@ -26,6 +26,7 @@ import {
 } from "@/components/reels/parts"
 import { statusText } from "@/components/reels/reel-list"
 import { SearchProgressCard } from "@/components/reels/search-progress"
+import { FilesRemovedCard, filesRemoved } from "@/components/reels/files-removed"
 import { rkeys, useReelOptions, useStoryboard } from "@/components/reels/queries"
 import { BriefCard, StoryboardCard } from "@/components/reels/storyboard"
 import { MaterialsCard, ResultCard } from "@/components/reels/result"
@@ -350,11 +351,11 @@ export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number
         </div>
       </section>
 
-      <ResultCard reel={r} />
+      {filesRemoved(r) ? <FilesRemovedCard at={filesRemoved(r)!} /> : <ResultCard reel={r} />}
       <SearchProgressCard reel={r} />
       <MaterialsCard reel={r} />
       <AudioCard reel={r} />
-      <TracksCard reel={r} />
+      {!filesRemoved(r) && <TracksCard reel={r} />}
 
       {done && sbError && <div className="py-6 text-center text-sm text-danger">{sbError.message}</div>}
       {done && sb && (

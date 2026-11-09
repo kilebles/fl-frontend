@@ -83,6 +83,8 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
 - Design tokens in `globals.css` (`--electric` #3d6bff accent, layered dark surfaces, faint grid backdrop `.panel-backdrop`, `.glow-electric`, `.shimmer`, `.bar-running`). References: whitenetwork.cloud (tokens) + rythm.fm (shell).
 - Check visually with Playwright (MCP) after UI changes; `npx next build` catches prerender errors.
 
+- Files removed by the modules' retention (fl-reel `files_removed`, `reels/files-removed.tsx` in place of «Готовый ролик» and
+  the tracks; fl-footage `files_removed` on the project) — a note instead of the download buttons; local types.
 - Client-facing: no accounts/strategy in the UI (internal), minimal copy — no slogans or explanatory subtitles. No logo/brand yet.
 - Single vs batch is not stored in the API: `isSingle(job)` = 1 row and not f2v (feed on Создать); everything else is a batch.
 - «Материалы» on the reel screen (`reels/result.tsx`): per planned category — found in it (`own`), where the rest went

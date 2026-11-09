@@ -136,6 +136,8 @@ export function ProjectView({ project: p }: { project: FootageProject }) {
   const pr = p.progress
   const running = p.status === "running" || p.status === "queued"
   const done = p.status === "done"
+  // fl-footage removed the project's files N days after it ended (output.keep_days, footage/cleanup.py)
+  const removedAt = (p as FootageProject & { files_removed?: string | null }).files_removed ?? null
   const planOnly = !!(s?.plan_only ?? p.options.plan_only)
   const ai = (s?.not_found ?? 0) + (s?.error ?? 0)
   const calls = aiCalls(p)
@@ -268,6 +270,11 @@ export function ProjectView({ project: p }: { project: FootageProject }) {
                 <Download className="size-3.5" />
                 Кадры .zip
               </a>
+            )}
+            {done && removedAt && (
+              <span className="text-xs text-faint" title="fl-footage: output.keep_days после конца проекта">
+                Файлы удалены по сроку хранения · {new Date(removedAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}
+              </span>
             )}
             <button
               type="button"

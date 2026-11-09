@@ -1293,6 +1293,8 @@ export const scenario = {
   removeNicheVideo: (slug: string, videoId: string) =>
     request<ScenarioNicheDetail>(`${nid(slug)}/videos/${encodeURIComponent(videoId)}`, { method: "DELETE" }),
   buildPassport: (slug: string) => request<ScenarioTask>(`${nid(slug)}/passport`, json("POST")),
+  /** The niche goes (passport, notes, settings); script projects of the niche stay. */
+  deleteNiche: (slug: string) => request<{ slug: string; deleted: boolean }>(nid(slug), { method: "DELETE" }),
 
   projects: () => request<ScenarioProject[]>("/api/scenario/projects"),
   project: (id: string) => request<ScenarioProject>(pid(id)),

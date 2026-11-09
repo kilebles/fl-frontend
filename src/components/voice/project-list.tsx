@@ -108,7 +108,8 @@ function currentStep(job: VoiceJob): string {
   const translating = langsIn(job, (l) => l.translate?.state === "running")
   if (translating.length) return `перевод · ${translating.join(", ")}`
   const voicing = job.languages.find((l) => l.voice.state === "running")
-  if (voicing) return `озвучка ${voicing.lang} · ${voicing.voice.done}/${voicing.voice.total}`
+  if (voicing)
+    return `озвучка ${voicing.lang} · ${voicing.voice.done}/${voicing.voice.total}` + (voicing.voice.note ? " · повтор Fish" : "")
   const mixing = job.languages.find((l) => l.mix?.state === "running")
   if (mixing) return "сведение"
   // between two saves of the worker's progress: name the next unfinished step (translate → voice → mix)

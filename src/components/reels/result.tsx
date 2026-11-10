@@ -7,6 +7,7 @@ import { CAT_BG, CAT_LABEL, CATEGORIES, MixBar, clock } from "@/components/reels
 import { BTN_PRIMARY, BTN_SECONDARY, Card } from "@/components/script/ui"
 import { reels, type Reel, type ReelCategory, type ReelShares } from "@/lib/api"
 import { bytes } from "@/lib/format"
+import { langCode } from "@/lib/langs"
 import { cn } from "@/lib/utils"
 
 const videoAudioGraph = new WeakMap<HTMLMediaElement, { ctx: AudioContext; gain: GainNode }>()
@@ -208,7 +209,7 @@ export function ResultCard({ reel: r }: { reel: Reel }) {
                     key={l}
                     type="button"
                     onClick={() => setSelectedLang(l)}
-                    title={l === baseLang ? `${l} (оригинал)` : `Смотреть с озвучкой ${l}`}
+                    title={l === baseLang ? `${langCode(l)} (оригинал)` : `Смотреть с озвучкой ${langCode(l)}`}
                     className={cn(
                       "h-6 rounded-[3px] border px-2 font-mono text-[11px] transition-colors",
                       on
@@ -216,13 +217,13 @@ export function ResultCard({ reel: r }: { reel: Reel }) {
                         : "border-line-strong bg-background text-muted-foreground hover:border-pick/40 hover:text-foreground",
                     )}
                   >
-                    {l}
+                    {langCode(l)}
                   </button>
                 )
               })}
             </>
           ) : (
-            langs[0] && <span className="font-mono text-[11px] text-faint">{langs[0]}</span>
+            langs[0] && <span className="font-mono text-[11px] text-faint">{langCode(langs[0])}</span>
           )}
         </div>
       }
@@ -264,12 +265,12 @@ export function ResultCard({ reel: r }: { reel: Reel }) {
         <div className="flex flex-col gap-2">
           <a href={reels.resultUrl(r.id, "mp4")} download className={BTN_PRIMARY}>
             <Download className="size-3.5" />
-            Ролик ({baseLang}) · {bytes(res.mp4.size)}
+            Ролик ({langCode(baseLang)}) · {bytes(res.mp4.size)}
           </a>
           {langs.length > 1 && (
             <a href={reels.trackUrl(r.id, activeLang)} download={trackMeta?.name ?? true} className={BTN_SECONDARY}>
               <Volume2 className="size-3.5" />
-              Озвучка {activeLang} (.mp3){trackMeta?.size ? ` · ${bytes(trackMeta.size)}` : ""}
+              Озвучка {langCode(activeLang)} (.mp3){trackMeta?.size ? ` · ${bytes(trackMeta.size)}` : ""}
             </a>
           )}
           <a href={reels.resultUrl(r.id, "montage")} download className={BTN_SECONDARY}>

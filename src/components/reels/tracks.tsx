@@ -9,6 +9,7 @@ import { rkeys, useReelTracks } from "@/components/reels/queries"
 import { BTN_PRIMARY, BTN_SECONDARY, Card } from "@/components/script/ui"
 import { reels, type Reel, type ReelTracksStatus } from "@/lib/api"
 import { bytes } from "@/lib/format"
+import { langCode } from "@/lib/langs"
 import { cn } from "@/lib/utils"
 
 /** YouTube language tracks: one mp3 per mixed language, as long as the reel, on the reel's common grid. */
@@ -69,7 +70,7 @@ export function TracksCard({ reel: r }: { reel: Reel }) {
                     ok ? "border-ok/40 bg-ok/15 text-ok" : "border-line-strong text-faint",
                   )}
                 >
-                  {l}
+                  {langCode(l)}
                   {l === base && <span className="text-[10px] opacity-70">база</span>}
                   {!ok && <span className="text-[10px]">не сведён</span>}
                 </span>
@@ -99,13 +100,13 @@ export function TracksCard({ reel: r }: { reel: Reel }) {
             <div className="overflow-hidden rounded-[3px] border border-line">
               {(st.files ?? []).map((f) => (
                 <div key={f.lang} className="flex items-center gap-3 border-b border-line px-3 py-2 text-sm last:border-b-0">
-                  <span className="w-10 font-mono text-xs text-ok">{f.lang}</span>
+                  <span className="w-10 font-mono text-xs text-ok">{langCode(f.lang)}</span>
                   <span className="min-w-0 flex-1 truncate text-foreground-2">{f.name}</span>
                   <span className="font-mono text-[11px] text-faint">{bytes(f.size)}</span>
                   <a
                     href={reels.trackUrl(r.id, f.lang)}
                     download={f.name}
-                    title={`Скачать ${f.lang} (.mp3)`}
+                    title={`Скачать ${langCode(f.lang)} (.mp3)`}
                     className="grid size-7 place-items-center rounded-[3px] text-muted-foreground hover:bg-elev hover:text-foreground"
                   >
                     <Download className="size-3.5" />
@@ -140,7 +141,7 @@ export function TracksCard({ reel: r }: { reel: Reel }) {
               )}
               {missing.map(([lang, ns]) => (
                 <p key={lang} className="text-warn">
-                  {lang}: нет дорожек абзацев {ns.join(", ")} — на их месте тишина.
+                  {langCode(lang)}: нет дорожек абзацев {ns.join(", ")} — на их месте тишина.
                 </p>
               ))}
             </div>

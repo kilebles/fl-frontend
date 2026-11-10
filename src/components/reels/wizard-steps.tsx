@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { AlertTriangle, Check, FileText, Loader2, Mic, Paperclip, Pencil, Plus, UserRound, UserRoundX, X } from "lucide-react"
 import { toast } from "sonner"
+import { langCode, langList } from "@/lib/langs"
 
 import {
   MixBar,
@@ -272,7 +273,7 @@ export function ScriptStep({ d, up, file, setFile }: StepProps) {
           </div>
           <div className="xl:col-span-3">
             <Label>Язык</Label>
-            <Pick value={s.language} onChange={(v) => set({ language: v })} options={(options?.languages ?? []).map((l) => ({ value: l.code, label: l.name, hint: l.code.toUpperCase() }))} />
+            <Pick value={s.language} onChange={(v) => set({ language: v })} options={(options?.languages ?? []).map((l) => ({ value: l.code, label: l.name, hint: langCode(l.code) }))} />
           </div>
           <div className="xl:col-span-3">
             <Label>Тон</Label>
@@ -333,7 +334,7 @@ export function ScriptStep({ d, up, file, setFile }: StepProps) {
                   value: String(v.id),
                   label: v.title,
                   hint: [
-                    v.language.toUpperCase(),
+                    langCode(v.language),
                     `${v.paragraphs} абз.`,
                     v.duration_sec ? clock(v.duration_sec) : "без озвучки",
                     v.translating ? "переводы идут" : v.base_ready === false ? "база не сведена" : "",
@@ -548,7 +549,7 @@ export function VoiceStep({ d, up }: StepProps) {
                       on ? "border-ok/40 bg-ok/15 font-medium text-ok" : "border-line-strong text-muted-foreground hover:border-faint hover:text-foreground",
                     )}
                   >
-                    <span className="font-mono text-xs">{l.code}</span>
+                    <span className="font-mono text-xs">{langCode(l.code)}</span>
                     <span className="hidden sm:inline">{l.native_name || l.name}</span>
                     {fromVoice && inProject.has(l.code) && <span className="font-mono text-[10px] text-faint">есть</span>}
                   </button>
@@ -566,7 +567,7 @@ export function VoiceStep({ d, up }: StepProps) {
             const chosen = d.voice.voices[code] ?? ""
             return (
               <div key={code} className="flex items-center gap-3 border-b border-line px-3 py-2 last:border-b-0">
-                <span className="w-10 font-mono text-xs text-ok">{code}</span>
+                <span className="w-10 font-mono text-xs text-ok">{langCode(code)}</span>
                 <div className="min-w-0 flex-1">
                   {list.length > 1 ? (
                     <Pick
@@ -1067,14 +1068,14 @@ export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & {
     [
       "Сценарий",
       s.mode === "topic"
-        ? `${s.topic} · ${s.minutes} мин · ${s.language.toUpperCase()}${s.notes ? " · есть дополнения" : ""}`
+        ? `${s.topic} · ${s.minutes} мин · ${langCode(s.language)}${s.notes ? " · есть дополнения" : ""}`
         : s.from === "voice"
           ? `из «Озвучки»: ${v?.title ?? "проект"}`
           : `файл ${file?.name ?? "—"}`,
     ],
     [
       "Озвучка",
-      `${s.mode === "ready" && s.from === "voice" ? "уже озвучено" : d.voice.name || "профиль не выбран"}${d.voice.targets.length ? ` · переводы: ${d.voice.targets.join(", ")}` : ""}${d.voice.targets.length && d.voice.model ? ` · ${modelLabel(d.voice.model, tms)}` : ""}`,
+      `${s.mode === "ready" && s.from === "voice" ? "уже озвучено" : d.voice.name || "профиль не выбран"}${d.voice.targets.length ? ` · переводы: ${langList(d.voice.targets)}` : ""}${d.voice.targets.length && d.voice.model ? ` · ${modelLabel(d.voice.model, tms)}` : ""}`,
     ],
     ["Ведущий", d.host.on ? `${d.host.name || "аватар не выбран"}${d.host.voice ? ` · ${d.host.voice}` : ""}` : "без ведущего"],
     [

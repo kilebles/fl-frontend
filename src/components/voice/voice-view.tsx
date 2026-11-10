@@ -60,6 +60,7 @@ import {
 } from "@/lib/api"
 import { clearHandoff, peekHandoff } from "@/lib/handoff"
 import { flatModels, modelLabel } from "@/lib/voice-models"
+import { langCode } from "@/lib/langs"
 import { cn } from "@/lib/utils"
 
 type ScreenTab = "workspace" | "profiles"
@@ -480,7 +481,7 @@ export function VoiceView() {
       void refreshJobs()
       try {
         const data = JSON.parse((ev as MessageEvent).data)
-        toast.warning(`Пропал голос «${data.voice_name}» для ${data.lang} — язык пропущен`)
+        toast.warning(`Пропал голос «${data.voice_name}» для ${langCode(data.lang)} — язык пропущен`)
       } catch {
         // ignore
       }
@@ -679,7 +680,7 @@ export function VoiceView() {
         norms: { [lang]: suggested },
       })
       setProfiles((prev) => prev.map((p) => (p.id === updatedProf.id ? updatedProf : p)))
-      toast.success(`Норма для ${lang} в профиле «${updatedProf.name}» обновлена до ${suggested[0]}–${suggested[1]}%`)
+      toast.success(`Норма для ${langCode(lang)} в профиле «${updatedProf.name}» обновлена до ${suggested[0]}–${suggested[1]}%`)
       void loadParagraphs()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Не удалось обновить норму")
@@ -963,7 +964,7 @@ export function VoiceView() {
                     options={scripts.map((sc) => ({
                       value: sc.script_id,
                       label: sc.title,
-                      hint: `${sc.source_lang} · ${sc.paragraphs_total} абз.`,
+                      hint: `${langCode(sc.source_lang)} · ${sc.paragraphs_total} абз.`,
                     }))}
                   />
                 </div>
@@ -1021,14 +1022,14 @@ export function VoiceView() {
                     >
                       {ALL_LANGS.map((l) => (
                         <option key={l} value={l}>
-                          {l}
+                          {langCode(l)}
                         </option>
                       ))}
                     </select>
                     <ChevronDown className="pointer-events-none absolute right-1 size-3 text-muted-foreground" />
                   </span>
                   {selectedScriptObj && launchSourceLang !== selectedScriptObj.source_lang && (
-                    <span className="text-[11px] text-warn">вместо {selectedScriptObj.source_lang}</span>
+                    <span className="text-[11px] text-warn">вместо {langCode(selectedScriptObj.source_lang)}</span>
                   )}
                 </span>
               </Label>
@@ -1046,14 +1047,14 @@ export function VoiceView() {
                       title={`${LANG_NAMES[lang]}${missing ? " — голос недоступен в Fish" : ""}`}
                       onClick={() => setLaunchTargets((prev) => (on ? prev.filter((x) => x !== lang) : [...prev, lang]))}
                       className={cn(
-                        "rounded-[2px] py-2 font-mono text-xs transition-colors",
+                        "rounded-[2px] py-2 font-mono text-[11px] tracking-tight transition-colors",
                         on
                           ? "bg-ok/20 font-medium text-ok ring-1 ring-ok/70 ring-inset"
                           : "text-foreground-2 hover:bg-elev/60 hover:text-foreground",
                         on && missing && "bg-danger/10 text-danger ring-danger/50"
                       )}
                     >
-                      {lang}
+                      {langCode(lang)}
                     </button>
                   )
                 }
@@ -1152,7 +1153,7 @@ export function VoiceView() {
                   const entry = voicesById[vid]
                   return (
                     <div key={lang} className="flex items-center gap-2 rounded-[3px] bg-surface-2 py-1 pr-1 pl-2.5">
-                      <span className="w-6 font-mono text-[11px] text-muted-foreground">{lang}</span>
+                      <span className="w-6 font-mono text-[11px] text-muted-foreground">{langCode(lang)}</span>
                       <select
                         value={vid}
                         onChange={(e) => setLaunchVoices((prev) => ({ ...prev, [lang]: e.target.value }))}
@@ -1322,7 +1323,7 @@ export function VoiceView() {
               <div className="flex flex-wrap items-center gap-2">
                 {skippedLangsOnSelectedJob.map((lang) => (
                   <div key={lang} className="flex items-center gap-1.5 text-xs">
-                    <span className="font-mono font-semibold">{lang}:</span>
+                    <span className="font-mono font-semibold">{langCode(lang)}:</span>
                     <select
                       value={replacementVoices[lang] ?? ""}
                       onChange={(e) =>
@@ -1370,7 +1371,7 @@ export function VoiceView() {
                       {applied.map((c, i) => (
                         <span key={c.lang}>
                           {i > 0 && " · "}
-                          <strong>{c.lang}</strong>{" "}
+                          <strong>{langCode(c.lang)}</strong>{" "}
                           <span className="font-mono">
                             {range(c.old)} → {range(c.new)}%
                           </span>
@@ -1388,7 +1389,7 @@ export function VoiceView() {
                         {pending.map((c, i) => (
                           <span key={c.lang}>
                             {i > 0 && " · "}
-                            <strong>{c.lang}</strong>{" "}
+                            <strong>{langCode(c.lang)}</strong>{" "}
                             <span className="font-mono">
                               {range(c.old)} → {range(c.new)}%
                             </span>
@@ -1404,7 +1405,7 @@ export function VoiceView() {
                           onClick={() => handleApplyNormSuggestion(c.lang, c.new)}
                           className="rounded-[3px] border border-warn/50 bg-surface px-2 py-1 text-[11px] font-medium text-warn hover:bg-elev"
                         >
-                          Применить {c.lang}
+                          Применить {langCode(c.lang)}
                         </button>
                       ))}
                     </div>
@@ -1454,7 +1455,7 @@ export function VoiceView() {
                     isSelected && "bg-electric-soft/40 shadow-[inset_2px_0_0_var(--electric)]"
                   )}
                 >
-                  <span className="font-mono text-[13px] font-semibold text-foreground">{l.lang}</span>
+                  <span className="font-mono text-[13px] font-semibold text-foreground">{langCode(l.lang)}</span>
                   <span className={cn("sm:order-none", status.tone)} title={l.voice.note ?? undefined}>
                     {(status.tone === "text-electric-text" || status.tone === "text-warn") && (
                       <Loader2 className="mr-1 inline size-3 animate-spin" />
@@ -1515,7 +1516,7 @@ export function VoiceView() {
                     const p = paragraphs.find((x) => x.n === activeParaN) ?? paragraphs[0]
                     if (!p) return
                     const url = trackMode === "source" ? p.source_audio_url : p.audio_url
-                    playAudioUrl(url, `#${p.n} (${trackMode === "source" ? selectedJob.source_lang : selectedLang})`)
+                    playAudioUrl(url, `#${p.n} (${langCode(trackMode === "source" ? selectedJob.source_lang : selectedLang)})`)
                   }}
                   className="flex size-9 items-center justify-center rounded-full bg-electric text-white transition-opacity hover:opacity-90"
                 >
@@ -1524,7 +1525,7 @@ export function VoiceView() {
                 <div>
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <span>
-                      Дорожка {selectedLang} ({LANG_NAMES[selectedLang]}) ↔ {selectedJob.source_lang} оригинал
+                      Дорожка {langCode(selectedLang)} ({LANG_NAMES[selectedLang]}) ↔ {langCode(selectedJob.source_lang)} оригинал
                     </span>
                     {playingLabel && (
                       <span className="rounded-[2px] bg-electric-soft px-1.5 py-0.5 font-mono text-[11px] text-electric-text">
@@ -1563,7 +1564,7 @@ export function VoiceView() {
                         : "text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    Оригинал ({selectedJob.source_lang})
+                    Оригинал ({langCode(selectedJob.source_lang)})
                   </button>
                 </div>
 
@@ -1791,12 +1792,12 @@ export function VoiceView() {
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation()
-                            playAudioUrl(p.source_audio_url, `#${p.n} ${selectedJob.source_lang}`)
+                            playAudioUrl(p.source_audio_url, `#${p.n} ${langCode(selectedJob.source_lang)}`)
                           }}
                           className="flex h-6 items-center gap-1 rounded-[2px] border border-line-strong bg-surface px-2 text-[11px] text-muted-foreground hover:text-foreground"
                         >
                           <Play className="size-2.5" />
-                          {selectedJob.source_lang}
+                          {langCode(selectedJob.source_lang)}
                         </button>
 
                         <button
@@ -1888,7 +1889,7 @@ export function VoiceView() {
                       {/* Source Paragraph */}
                       <div className="p-3.5 text-[13.5px] leading-relaxed text-foreground-2">
                         <div className="mb-1 flex items-center justify-between text-[11px] font-medium text-faint">
-                          <span>ОРИГИНАЛ ({selectedJob.source_lang})</span>
+                          <span>ОРИГИНАЛ ({langCode(selectedJob.source_lang)})</span>
                           {p.audio && <span className="font-mono">{p.audio.source_sec}с</span>}
                         </div>
                         <RichTaggedText text={p.source} />
@@ -2138,7 +2139,7 @@ export function VoiceView() {
                           <td className="py-2.5 pr-3">
                             <div className="flex items-center gap-2">
                               <span className="rounded-[2px] border border-line-strong bg-surface-2 px-1.5 py-0.5 font-mono font-semibold">
-                                {lang}
+                                {langCode(lang)}
                               </span>
                               <span className="font-medium">{LANG_NAMES[lang]}</span>
                             </div>
@@ -2172,7 +2173,7 @@ export function VoiceView() {
                               onClick={() =>
                                 playAudioUrl(
                                   vObj?.sample_url ?? `/api/voice/voices/${defVid}/sample`,
-                                  `${vObj?.name ?? defVid} (${lang})`
+                                  `${vObj?.name ?? defVid} (${langCode(lang)})`
                                 )
                               }
                               className="flex h-7 items-center gap-1 rounded-[3px] border border-line-strong bg-surface-2 px-2 text-xs hover:bg-elev"
@@ -2296,7 +2297,7 @@ export function VoiceView() {
                 >
                   {ALL_LANGS.map((l) => (
                     <option key={l} value={l}>
-                      {l} ({LANG_NAMES[l]})
+                      {langCode(l)} ({LANG_NAMES[l]})
                     </option>
                   ))}
                 </select>

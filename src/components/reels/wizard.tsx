@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { langCode } from "@/lib/langs"
 import { ArrowLeft, ArrowRight, Check, Clapperboard, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -82,7 +83,7 @@ export function ReelWizard({ onCreated }: { onCreated: (id: string) => void }) {
   const v = voices?.find((x) => String(x.id) === s.voiceJob)
   const summary = [
     d.nicheName || "не выбрана",
-    s.mode === "topic" ? (s.topic ? `${s.minutes} мин · ${s.language.toUpperCase()}` : "по теме") : fromVoice ? (v?.title ?? "из «Озвучки»") : (file?.name ?? "файл"),
+    s.mode === "topic" ? (s.topic ? `${s.minutes} мин · ${langCode(s.language)}` : "по теме") : fromVoice ? (v?.title ?? "из «Озвучки»") : (file?.name ?? "файл"),
     `${fromVoice ? "уже озвучено" : d.voice.name || "не выбран"}${d.voice.targets.length ? ` + ${d.voice.targets.length} яз.` : ""}`,
     d.host.on ? d.host.name || "не выбран" : "без ведущего",
     shareText(d.storyboard.shares, d.host.on) + (d.intro.on ? ` · вступление ${Math.round(d.intro.sec / 60)} мин` : ""),

@@ -158,7 +158,7 @@ function FeedCard({ job }: { job: JobStatus }) {
 
 /** Single generations of the current project, oldest first: the newest lands right above the composer. */
 export function Feed({ search }: { search: string }) {
-  const { data: jobs, error } = useJobs()
+  const { data: jobs, error, isLoading } = useJobs()
   const [projectId] = useCurrentProject()
   const [tab, setTab] = useState<Tab>("all")
   const end = useRef<HTMLDivElement>(null)
@@ -217,6 +217,8 @@ export function Feed({ search }: { search: string }) {
           <AlertTriangle className="size-4 shrink-0" />
           <span>Не удалось загрузить историю генераций: {error.message}</span>
         </div>
+      ) : isLoading ? (
+        <p className="py-16 text-center text-sm text-muted-foreground">Загружаю генерации…</p>
       ) : shown.length ? (
         <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2 xl:grid-cols-3">
           {shown.map((job) => (

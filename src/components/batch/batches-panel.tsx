@@ -297,7 +297,9 @@ export function BatchesPanel({ selected, onSelect }: { selected: string | null; 
         </div>
       )}
       {isLoading ? (
-        <div className="shimmer h-40 rounded-[4px]" />
+        <div className="shimmer flex h-40 items-center justify-center rounded-[4px] text-sm text-muted-foreground">
+          Загружаю пакеты…
+        </div>
       ) : error && !jobs ? (
         <div className="flex items-center gap-3 rounded-[4px] border border-danger/40 bg-danger/10 p-4 text-sm text-danger">
           <AlertTriangle className="size-4 shrink-0" />

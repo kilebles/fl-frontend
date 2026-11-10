@@ -120,16 +120,36 @@ function headers(extra?: HeadersInit): HeadersInit {
   }
 }
 
+/** A GET that hangs (network, proxy) fails after this long instead of waiting forever: React Query retries it and
+ *  polls again, so a list never stays stuck on its loading state until the page is reloaded. */
+const GET_TIMEOUT_MS = 30_000
+const SLOW_MESSAGE = "Сервер долго не отвечает — пробуем ещё раз"
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = (init?.method ?? "GET").toUpperCase()
+  const timeout = method === "GET" && !init?.signal ? new AbortController() : null
+  const timer = timeout ? setTimeout(() => timeout.abort(), GET_TIMEOUT_MS) : undefined
+  try {
+    return await send<T>(path, init, timeout?.signal)
+  } catch (e) {
+    if (timeout?.signal.aborted && !(e instanceof ApiError && e.status > 0)) throw new ApiError(0, SLOW_MESSAGE)
+    throw e
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function send<T>(path: string, init: RequestInit | undefined, signal: AbortSignal | undefined): Promise<T> {
   let res: Response
   try {
     res = await fetch(`${apiBase()}${path}`, {
       ...init,
+      ...(signal ? { signal } : {}),
       credentials: "include",
       headers: headers(init?.headers),
     })
   } catch {
-    throw new ApiError(0, "Сервер временно недоступен — пробуем переподключиться")
+    throw new ApiError(0, signal?.aborted ? SLOW_MESSAGE : "Сервер временно недоступен — пробуем переподключиться")
   }
   if (!res.ok) {
     let message =
@@ -149,7 +169,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     }
     throw new ApiError(res.status, message, errCode, errEmail)
   }
-  return res.status === 204 ? (undefined as T) : res.json()
+  return res.status === 204 ? (undefined as T) : await res.json()  // the body is under the same deadline
 }
 
 /** POST a multipart form with upload progress (fetch has none): big montage uploads show how far they got. */

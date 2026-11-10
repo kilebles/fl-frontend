@@ -897,7 +897,7 @@ export function VoiceView() {
         title={screen === "workspace" && selectedJob ? selectedJob.title : "Озвучка и перевод"}
         subtitle={
           screen === "workspace" && selectedJob
-            ? `${selectedJob.targets.length} яз. · ${selectedJob.paragraphs_total} абз. · основа ${langCode(selectedJob.source_lang)} · ${formatDuration(selectedJob.source_duration_sec)} · профиль «${selectedJob.profile_name}» · ${selectedJob.voice_model === "drama-3" ? "Fish Drama 3" : "Fish S2.1"}`
+            ? `${selectedJob.targets.length} яз. · ${selectedJob.paragraphs_total} абз. · основа ${selectedJob.source_lang} · ${formatDuration(selectedJob.source_duration_sec)} · профиль «${selectedJob.profile_name}» · ${selectedJob.voice_model === "drama-3" ? "Fish Drama 3" : "Fish S2.1"}`
             : undefined
         }
         actions={

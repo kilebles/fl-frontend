@@ -6,6 +6,7 @@ import { toast } from "sonner"
 
 import { clock } from "@/components/reels/parts"
 import { rkeys, useReelTracks } from "@/components/reels/queries"
+import { workRemoved } from "@/components/reels/files-removed"
 import { BTN_PRIMARY, BTN_SECONDARY, Card } from "@/components/script/ui"
 import { reels, type Reel, type ReelTracksStatus } from "@/lib/api"
 import { bytes } from "@/lib/format"
@@ -35,7 +36,8 @@ export function TracksCard({ reel: r }: { reel: Reel }) {
   const base = info?.base ?? r.source.language.toUpperCase()
   const pending = info?.pending ?? []
   const building = st.state === "building" || build.isPending
-  const canBuild = mixed.includes(base) && !building
+  const workGone = !!workRemoved(r)
+  const canBuild = mixed.includes(base) && !building && !workGone
   const hostSilent = st.state === "done" && !!st.host?.length
   const missing = Object.entries(st.missing ?? {})
   const waiting = st.state === "done" ? (st.waiting ?? []) : []
@@ -124,7 +126,9 @@ export function TracksCard({ reel: r }: { reel: Reel }) {
                 </p>
               )}
               {stale.length > 0 && (
-                <p className="text-warn">Сведены после сборки дорожек: {stale.join(", ")} — «Собрать заново»</p>
+                <p className="text-warn">
+                  Сведены после сборки дорожек: {stale.join(", ")} — {workGone ? "собрать заново уже нельзя" : "«Собрать заново»"}
+                </p>
               )}
               {lost.length > 0 && <p className="text-warn">«Озвучка» закончила без: {lost.join(", ")}</p>}
             </div>
@@ -153,22 +157,26 @@ export function TracksCard({ reel: r }: { reel: Reel }) {
                 Скачать{st.size ? ` · ${bytes(st.size)}` : ""}
               </a>
             )}
-            <button
-              type="button"
-              disabled={!canBuild}
-              onClick={() => build.mutate()}
-              className={cn(st.state === "done" ? BTN_SECONDARY : BTN_PRIMARY, "disabled:opacity-50")}
-            >
-              {building ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : st.state === "none" ? (
-                <Rows3 className="size-3.5" />
-              ) : (
-                <RotateCcw className="size-3.5" />
-              )}
-              {st.state === "none" ? "Собрать дорожки" : "Собрать заново"}
-            </button>
-            <span className="text-xs text-faint">по mp3 на язык, длина каждой — ровно как у ролика</span>
+            {!workGone && (
+              <button
+                type="button"
+                disabled={!canBuild}
+                onClick={() => build.mutate()}
+                className={cn(st.state === "done" ? BTN_SECONDARY : BTN_PRIMARY, "disabled:opacity-50")}
+              >
+                {building ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : st.state === "none" ? (
+                  <Rows3 className="size-3.5" />
+                ) : (
+                  <RotateCcw className="size-3.5" />
+                )}
+                {st.state === "none" ? "Собрать дорожки" : "Собрать заново"}
+              </button>
+            )}
+            <span className="text-xs text-faint">
+              {workGone ? "рабочие файлы ролика удалены через сутки после готовности — собрать дорожки заново нельзя" : "по mp3 на язык, длина каждой — ровно как у ролика"}
+            </span>
           </div>
         </div>
       )}

@@ -823,6 +823,8 @@ export interface VoiceJob {
   voice_model: VoiceModelId
   carry_mood: boolean
   turbo?: boolean
+  /** silence after every paragraph in the mix, seconds */
+  pause_sec?: number | null
   status: VoiceJobStatus
   paragraphs_total: number
   emotion_tags_count: number
@@ -993,6 +995,7 @@ export const voice = {
     carry_mood: boolean
     split_by_language?: boolean
     turbo?: boolean
+    pause_sec?: number
   }): Promise<VoiceJob[]> => {
     const res = await request<{ jobs: VoiceJob[] } | VoiceJob>("/api/voice/jobs", json("POST", body))
     return "jobs" in res ? res.jobs : [res]

@@ -90,6 +90,10 @@ const EXTRA_LANGS = ["JA", "AR", "KO", "NL", "TR", "SV", "NO", "DA", "CS"]
 const ALL_LANGS = [...MAIN_LANGS, ...EXTRA_LANGS]
 const allTargets = (src: string) => ALL_LANGS.filter((l) => l !== src)
 
+// silence after every paragraph in the mix: presets, or one's own value (0–10 s)
+const PAUSES = ["0.5", "1", "1.5", "2"]
+const secText = (v: number) => String(v).replace(".", ",")
+
 // the voice profile picked last time on this device (falls back to «p2», then the first one)
 const PROFILE_KEY = "voice.launchProfile"
 const savedProfile = (): string | null => {
@@ -316,6 +320,11 @@ export function VoiceView() {
   const [launchVoiceModel, setLaunchVoiceModel] = useState<VoiceModelId>("s2.1")
   const [launchCarryMood, setLaunchCarryMood] = useState<boolean>(true)
   const [launchTurbo, setLaunchTurbo] = useState<boolean>(false)
+  const [launchPause, setLaunchPause] = useState<string>("0.5") // a preset or "custom"
+  const [launchPauseCustom, setLaunchPauseCustom] = useState<string>("")
+  const pauseSec = Number((launchPause === "custom" ? launchPauseCustom : launchPause).replace(",", "."))
+  const pauseValid = (launchPause !== "custom" || launchPauseCustom.trim() !== "") && pauseSec >= 0 && pauseSec <= 10
+  const mixes = launchMode === "all" || launchMode === "mix"
   const [launchTitle, setLaunchTitle] = useState<string>("")
   const [estimate, setEstimate] = useState<VoiceEstimateResponse | null>(null)
   const [submittingJob, setSubmittingJob] = useState(false)
@@ -713,6 +722,10 @@ export function VoiceView() {
       toast.error("Выберите хотя бы один целевой язык")
       return
     }
+    if (mixes && !pauseValid) {
+      toast.error("Пауза после абзаца — число секунд от 0 до 10")
+      return
+    }
     setSubmittingJob(true)
     try {
       const createdJobs = await voice.createJobs({
@@ -727,6 +740,7 @@ export function VoiceView() {
         carry_mood: launchVoiceModel === "drama-3" ? launchCarryMood : false,
         turbo: launchTurbo && launchTargets.length > 1,
         title: launchTitle.trim() || undefined,
+        pause_sec: mixes ? pauseSec : undefined,
       })
       setLaunchTitle("")
       const [jobsRes, scriptsRes] = await Promise.all([voice.jobs(), voice.scripts()])
@@ -896,7 +910,8 @@ export function VoiceView() {
         title={screen === "workspace" && selectedJob ? selectedJob.title : "Озвучка и перевод"}
         subtitle={
           screen === "workspace" && selectedJob
-            ? `${selectedJob.targets.length} яз. · ${selectedJob.paragraphs_total} абз. · основа ${selectedJob.source_lang} · ${formatDuration(selectedJob.source_duration_sec)} · профиль «${selectedJob.profile_name}» · ${selectedJob.voice_model === "drama-3" ? "Fish Drama 3" : "Fish S2.1"}`
+            ? `${selectedJob.targets.length} яз. · ${selectedJob.paragraphs_total} абз. · основа ${selectedJob.source_lang} · ${formatDuration(selectedJob.source_duration_sec)} · профиль «${selectedJob.profile_name}» · ${selectedJob.voice_model === "drama-3" ? "Fish Drama 3" : "Fish S2.1"}` +
+              (selectedJob.pause_sec != null ? ` · пауза ${secText(selectedJob.pause_sec)} с` : "")
             : undefined
         }
         actions={
@@ -1141,6 +1156,40 @@ export function VoiceView() {
                   onChange={(v) => setLaunchVoiceModel(v as VoiceModelId)}
                   options={voiceModels.map((vm) => [vm.id, vm.label.replace(/^Fish /, ""), vm.description])}
                 />
+              </div>
+            </div>
+
+            <div className="xl:col-span-4">
+              <Label>Пауза после абзаца</Label>
+              <div className={cn("flex items-center gap-2", !mixes && "pointer-events-none opacity-50")}>
+                <div className="min-w-0 flex-1">
+                  <Tabs
+                    value={launchPause}
+                    onChange={setLaunchPause}
+                    options={[
+                      ...PAUSES.map((v) => [v, `${secText(Number(v))} с`, "Тишина после каждого абзаца при сведении"] as const),
+                      ["custom", "Своё", "Своё значение, от 0 до 10 с"] as const,
+                    ]}
+                  />
+                </div>
+                {launchPause === "custom" && (
+                  <label
+                    className={cn(
+                      "flex h-[42px] shrink-0 items-center gap-1 rounded-[3px] border bg-surface-2 px-2 text-sm",
+                      pauseValid ? "border-line-strong" : "border-danger"
+                    )}
+                  >
+                    <input
+                      autoFocus
+                      inputMode="decimal"
+                      value={launchPauseCustom}
+                      onChange={(e) => setLaunchPauseCustom(e.target.value)}
+                      placeholder="0,8"
+                      className="w-12 bg-transparent text-right font-mono text-foreground outline-none"
+                    />
+                    <span className="text-muted-foreground">с</span>
+                  </label>
+                )}
               </div>
             </div>
 

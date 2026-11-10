@@ -100,6 +100,11 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
 
 - «Ролики» list header: brain queue (`QueueControl`) — running / waiting, «одновременно» 1/2/3/5 (`PUT /api/reels/queue/limits`);
   waiting reels show their place (`queue.queued`).
+- «Ролики», step 5 (`reels/wizard-text.tsx`): «Модель ИИ-кадров» (`ai.mode`: i2v | flash_i2v, `/options` `ai_modes`, the
+  host keeps its own model), «Язык надписей» («Как у ролика» = the reel's base language, then the reel's languages, then
+  «Сценарий» languages) with «Цифры и даты» → `text = {lang, numbers, chapters}`; under «Паузы» chapter pauses take their
+  own length (`storyboard.pauses.modes[].sec`, «общая» — none) and «Надписи глав» (`text.chapters`, null — as the montage
+  style's `titles`). The brain picks the numbers and dates and their look; the summary and the reel's settings line show `textLine`.
 - Projects (ролики): the current project lives in localStorage; screens filter by it and new jobs/runs carry `project_id`.
   The project's style line is appended to every prompt (composer, batch, «В производство», avatar scene).
 - Credits/balance are a UI stub (`— кр.`) — no billing yet.

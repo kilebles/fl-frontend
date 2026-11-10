@@ -94,6 +94,7 @@ function NicheCard({ slug }: { slug: string }) {
   const [settings, setSettings] = useState(false)
   const [text, setText] = useState<{ title: string; text: string } | null>(null)
   const [delNote, setDelNote] = useState<number | null>(null)
+  const [delNiche, setDelNiche] = useState(false)
 
   const update = (data: ScenarioNicheDetail) => {
     qc.setQueryData(skeys.niche(slug), data)
@@ -147,6 +148,15 @@ function NicheCard({ slug }: { slug: string }) {
             >
               {busy || passport.isPending ? <Loader2 className="size-3 animate-spin" /> : <Sparkles className="size-3" />}
               {busy ? (busy.step || "в очереди") : "Собрать паспорт"}
+            </button>
+            <button
+              type="button"
+              title={busy ? "У ниши идёт задача — удалить можно после неё" : "Удалить нишу"}
+              disabled={!!busy}
+              onClick={() => setDelNiche(true)}
+              className="grid size-8 place-items-center rounded-[3px] text-faint hover:bg-elev hover:text-danger disabled:opacity-40"
+            >
+              <Trash2 className="size-3.5" />
             </button>
           </div>
         </div>
@@ -307,6 +317,20 @@ function NicheCard({ slug }: { slug: string }) {
         text="Паспорт учтёт это при следующей сборке."
         onClose={() => setDelNote(null)}
         onConfirm={async () => update(await scenario.deleteNicheNote(slug, delNote!))}
+      />
+      <ConfirmDialog
+        open={delNiche}
+        title={`Удалить нишу «${n.name}»?`}
+        text="Уйдут паспорт, заметки, список роликов и настройки ниши. Проекты сценариев и готовые сценарии останутся."
+        onClose={() => setDelNiche(false)}
+        onConfirm={async () => {
+          await scenario.deleteNiche(slug)
+          qc.removeQueries({ queryKey: skeys.niche(slug) })
+          qc.invalidateQueries({ queryKey: skeys.niches })
+          qc.invalidateQueries({ queryKey: skeys.options })
+          setUrlParams({ niche: null }, true)
+          toast.success(`Ниша «${n.name}» удалена`)
+        }}
       />
     </div>
   )

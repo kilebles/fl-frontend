@@ -7,8 +7,6 @@ import { AlertTriangle, Check, FileText, Loader2, Mic, Paperclip, Pencil, Plus, 
 import { toast } from "sonner"
 
 import {
-  BASE_CATEGORIES,
-  CATEGORIES,
   MixBar,
   STYLES,
   STYLE_LABEL,
@@ -17,19 +15,22 @@ import {
   clock,
   isRealistic,
   savedShares,
+  shareText,
   sharesSum,
   shotsText,
+  useCategories,
 } from "@/components/reels/parts"
-import { useReelOptions, useReelVoiceSources } from "@/components/reels/queries"
-import { FootageSettings, IntroSettings, footageText, fromPreset } from "@/components/reels/wizard-advanced"
+import { rkeys, useReelOptions, useReelVoiceSources } from "@/components/reels/queries"
+import { FootageSettings, IntroSettings, footageText, fromPreset, motionOf } from "@/components/reels/wizard-advanced"
+import { InfoLookPick, InfoTypesPick, allowedTypes, infoLookText, infoOffFrom, infoShareOf, infoTypeList, infoTypesText } from "@/components/reels/info-look"
 import { flatModels, modelLabel } from "@/lib/voice-models"
 import { VoiceProfileDialog } from "@/components/reels/voice-profile-dialog"
-import { DEFAULT_FONT, DEFAULT_SOUNDS, EMPTY_PAUSES, pausesFrom, type Draft, type PauseMode } from "@/components/reels/wizard-draft"
+import { DEFAULT_FONT, DEFAULT_LOOK, DEFAULT_SOUNDS, EMPTY_PAUSES, pausesFrom, type Draft, type PauseMode } from "@/components/reels/wizard-draft"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { FontPick, fontLabel, useFontList } from "@/components/reels/fonts"
 import { skeys, useNiches, useScenarioOptions } from "@/components/script/queries"
 import { BTN_PRIMARY, BTN_SECONDARY, INPUT, Label, ON_BLUE, Pick, Seg } from "@/components/script/ui"
-import { reels, scenario, voice, type ReelSettings, type ReelShares, type ScenarioNiche } from "@/lib/api"
+import { reels, scenario, voice, type ReelOptions, type ReelSettings, type ScenarioNiche } from "@/lib/api"
 import { useAvatars } from "@/lib/queries"
 import { cn } from "@/lib/utils"
 
@@ -125,6 +126,7 @@ export function NicheStep({ d, up }: StepProps) {
           engine: preset.storyboard.engine ?? "",
           model: preset.storyboard.model ?? "",
           pauses: preset.storyboard.pauses ? pausesFrom(preset.storyboard.pauses) : EMPTY_PAUSES,
+          infoOff: infoOffFrom(preset.storyboard.info_types, infoTypeList(qc.getQueryData<ReelOptions>(rkeys.options))),
         }
         next.montage = {
           style: preset.montage?.style || "classic",
@@ -132,6 +134,7 @@ export function NicheStep({ d, up }: StepProps) {
           font: preset.montage?.font ?? DEFAULT_FONT,
           quality: preset.montage?.quality ?? "",
           sounds: { ...DEFAULT_SOUNDS, ...(preset.montage?.sounds ?? {}) },
+          info: { ...DEFAULT_LOOK, ...(preset.montage?.info ?? {}) },
         }
         Object.assign(next, fromPreset(preset, x))
         next.format = preset.format === "9:16" ? "9:16" : "16:9"
@@ -669,7 +672,7 @@ export function StoryboardStep({ d, up }: StepProps) {
   const realistic = isRealistic(sb.style)
   const clash = !realistic && (sb.shares.video > 0 || sb.shares.history > 0)
   const preset = STYLES.findIndex((s) => s.value === sb.style.trim())
-  const cats = d.host.on ? CATEGORIES : BASE_CATEGORIES
+  const cats = useCategories(d.host.on)
   const defEngine = options?.engines.find((e) => e.value === options?.defaults.engine)
   const defaultModel = defEngine ? (options?.models?.find((m) => m.engine === defEngine.value && m.model === defEngine.model)?.label ?? defEngine.model) : ""
   return (
@@ -681,6 +684,9 @@ export function StoryboardStep({ d, up }: StepProps) {
           {sharesSum(sb.shares) !== 100 && <p className="mt-2 text-xs text-danger">Доли должны давать 100% — сейчас {sharesSum(sb.shares)}%.</p>}
           <div className="mt-6">
             <PausesPick d={d} up={up} />
+          </div>
+          <div className="mt-6">
+            <InfoTypesPick off={sb.infoOff} onChange={(infoOff) => set({ infoOff })} share={infoShareOf(sb.shares.infographics, d.intro)} />
           </div>
         </div>
         <div className="space-y-5 xl:col-span-5">
@@ -938,6 +944,12 @@ export function MontageStep({ d, up }: StepProps) {
         </div>
       </div>
       <SoundsPick d={d} up={up} />
+      <InfoLookPick
+        value={d.montage.info}
+        onChange={(info) => up((x) => ({ ...x, montage: { ...x.montage, info } }))}
+        montageStyle={d.montage.style}
+        idle={!(infoShareOf(d.storyboard.shares.infographics, d.intro) > 0)}
+      />
     </div>
   )
 }
@@ -1011,9 +1023,6 @@ export function soundsText(s: { on?: boolean; density?: string; veo?: string } |
 
 /* ------------------------------------------------------------------ сводка */
 
-export function shareText(s: ReelShares, host: boolean) {
-  return (host ? CATEGORIES : BASE_CATEGORIES).map((c) => Math.round(s[c] ?? 0)).join(" · ")
-}
 
 export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & { onJump: (i: number) => void; montageLabel: string }) {
   const fonts = useFontList()
@@ -1024,6 +1033,7 @@ export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & {
   const { data: vm } = useQuery({ queryKey: ["reels", "voice-models"], queryFn: voice.models, staleTime: 5 * 60_000 })
   const tms = vm?.translation_models ?? []
   const sbModel = options?.models?.find((m) => m.engine === d.storyboard.engine && m.model === d.storyboard.model)?.label ?? d.storyboard.engine
+  const infoTypes = infoTypesText(allowedTypes(infoTypeList(options), d.storyboard.infoOff), options)
   const rows: [string, React.ReactNode][] = [
     ["Ниша", d.nicheName],
     [
@@ -1058,7 +1068,8 @@ export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & {
         )}
         {(d.storyboard.shares.video > 0 || d.storyboard.shares.history > 0) && (
           <span className="text-muted-foreground">
-            видео: {footageText(d.footage.video)} · история: {footageText(d.footage.history)}
+            видео: {footageText(d.footage.video, motionOf("video", d.footage.video, options))} · история:{" "}
+            {footageText(d.footage.history, motionOf("history", d.footage.history, options))}
           </span>
         )}
       </span>,
@@ -1067,7 +1078,11 @@ export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & {
       "Монтаж",
       `${montageLabel} · шрифт: ${fontLabel(fonts, d.montage.font)} · 16:9 · ${qualityLabel(d.montage.quality)} · музыка: ${
         options?.music.find((m) => m.value === d.montage.music)?.label.toLowerCase() ?? d.montage.music
-      } · ${soundsText(d.montage.sounds)}`,
+      } · ${soundsText(d.montage.sounds)}${
+        infoShareOf(d.storyboard.shares.infographics, d.intro) > 0 && options?.info
+          ? ` · инфографика: ${infoLookText(d.montage.info, options)}${infoTypes ? `, ${infoTypes}` : ""}`
+          : ""
+      }`,
     ],
   ]
   return (

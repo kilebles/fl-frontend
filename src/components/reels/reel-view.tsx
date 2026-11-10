@@ -6,8 +6,6 @@ import { AlertTriangle, Clock, Loader2, RotateCcw, Square, Trash2, TriangleAlert
 import { toast } from "sonner"
 
 import {
-  BASE_CATEGORIES,
-  CATEGORIES,
   CAT_BG,
   CAT_LABEL,
   ENGINE_LABEL,
@@ -21,7 +19,9 @@ import {
   sameShares,
   sharesSum,
   shotsText,
+  shareText,
   spentText,
+  useCategories,
   useSpent,
 } from "@/components/reels/parts"
 import { statusText } from "@/components/reels/reel-list"
@@ -30,9 +30,12 @@ import { FilesRemovedCard, filesRemoved } from "@/components/reels/files-removed
 import { rkeys, useReelOptions, useStoryboard } from "@/components/reels/queries"
 import { BriefCard, StoryboardCard } from "@/components/reels/storyboard"
 import { MaterialsCard, ResultCard } from "@/components/reels/result"
+import { ReviewCard, reviewCaption } from "@/components/reels/review"
 import { fontLabel, useFontList } from "@/components/reels/fonts"
 import { pausesFrom } from "@/components/reels/wizard-draft"
 import { pausesText, qualityLabel, soundsText } from "@/components/reels/wizard-steps"
+import { infoLine } from "@/components/reels/info-look"
+import { MOTION_SHORT } from "@/components/footage/parts"
 import { AudioCard } from "@/components/reels/audio"
 import { TracksCard } from "@/components/reels/tracks"
 import { ConfirmDialog } from "@/components/script/parts"
@@ -47,7 +50,12 @@ function footageLine(r: Reel) {
   const f = r.settings.footage
   if (!f) return ""
   const one = (label: string, x: ReelFootageSettings) => {
-    const parts = [x.min_score !== null ? `порог ${x.min_score}` : "", x.vision_model, x.groups ? `${x.groups.length} ист.` : ""].filter(Boolean)
+    const parts = [
+      x.min_score !== null ? `порог ${x.min_score}` : "",
+      x.vision_model,
+      x.groups ? `${x.groups.length} ист.` : "",
+      x.image_motion && x.image_motion !== "zoom" ? MOTION_SHORT[x.image_motion] : "",
+    ].filter(Boolean)
     return parts.length ? `${label}: ${parts.join(", ")}` : ""
   }
   return [one("видео", f.video), one("история", f.history)].filter(Boolean).join(" · ")
@@ -75,7 +83,7 @@ function MixCard({ reel, sb }: { reel: Reel; sb: ReelStoryboard }) {
   const qc = useQueryClient()
   const plan = roundShares(reel.settings.storyboard.shares)
   const host = !!reel.settings.avatar?.id
-  const cats = host ? CATEGORIES : BASE_CATEGORIES
+  const cats = useCategories(host)
   const [draft, setDraft] = useState<ReelShares>(plan)
   const changed = !sameShares(draft, plan)
   const mix = sb.mix
@@ -183,6 +191,7 @@ export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number
     voice: now("voice") ? statusText(r) : r.source.timed ? `${r.source.language.toUpperCase()} · ${r.source.timed} дорожек` : "",
     storyboard: done && s ? shotsText(s.shots) : now("storyboard") ? statusText(r) : "",
     materials: now("materials") ? statusText(r) : r.materials?.total ? `${r.materials.done} из ${r.materials.total} кадров` : "",
+    review: now("review") ? statusText(r) : reviewCaption(r.review),
     music: now("music")
       ? statusText(r)
       : r.music?.status === "done"
@@ -273,13 +282,14 @@ export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number
               montage
                 ? `Монтаж: ${montage} · шрифт: ${fontLabel(fonts, r.settings.montage?.font)} · ${qualityLabel(r.settings.montage?.quality)} · ${soundsText(r.settings.montage?.sounds)}`
                 : "",
+              (r.settings.storyboard.shares.infographics ?? 0) > 0 ? infoLine(r.settings.montage?.info, r.settings.storyboard.info_types, options) : "",
               r.settings.storyboard.style ? `стиль: ${r.settings.storyboard.style}` : "",
               r.settings.avatar?.id ? `ведущий: ${r.settings.avatar.name || "аватар"}` : "",
               r.settings.voice?.targets?.length ? `переводы: ${r.settings.voice.targets.join(", ")}` : "",
               r.settings.intro?.on
-                ? `первые ${Math.round(r.settings.intro.sec / 60)} мин: ${(r.settings.avatar?.id ? CATEGORIES : BASE_CATEGORIES)
-                    .map((c) => Math.round(r.settings.intro?.shares[c] ?? 0))
-                    .join("·")}${s?.intro ? `, кадр ${s.intro.shot_sec.join("–")} с` : ""}`
+                ? `первые ${Math.round(r.settings.intro.sec / 60)} мин: ${shareText(r.settings.intro.shares, !!r.settings.avatar?.id)}${
+                    s?.intro ? `, кадр ${s.intro.shot_sec.join("–")} с` : ""
+                  }`
                 : "",
               footageLine(r),
               r.settings.storyboard.pauses && pausesFrom(r.settings.storyboard.pauses).modes.length
@@ -354,6 +364,7 @@ export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number
       {filesRemoved(r) ? <FilesRemovedCard at={filesRemoved(r)!} /> : <ResultCard reel={r} />}
       <SearchProgressCard reel={r} />
       <MaterialsCard reel={r} />
+      <ReviewCard reel={r} />
       <AudioCard reel={r} />
       {!filesRemoved(r) && <TracksCard reel={r} />}
 

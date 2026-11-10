@@ -26,7 +26,7 @@ src/components/     shell/ (nav sidebar, logo, theme, project-picker, page-heade
                     infographics/, jobs/ (job page, result card, lightbox, state, menu),
                     script/ (fl-scenario: launch panel, project list/view, niches, analytics, queries + SSE, send)
                     footage/ (fl-footage: launch panel, project list/view, sources, queries + SSE)
-                    reels/ (fl-reel: «Новый ролик» wizard + draft, reel list/view, storyboard + brief, materials + result, YouTube tracks, queries + SSE)
+                    reels/ (fl-reel: «Новый ролик» wizard + draft, reel list/view, storyboard + brief, materials + review + result, YouTube tracks, queries + SSE)
                     montage/ (fl-montage: «Монтаж» edit-launch/-list/-view/-parts; «Инфографика» launch panel, job list/view with previews and «Перерисовать», queries + SSE)
 src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), project.ts (current project, withStyle),
                     draft.ts (composer text shared with the feed), modes.ts, format.ts,
@@ -37,18 +37,24 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
   invalidates the `["scenario", …]` queries. Selection is the logo blue in both themes (`--pick*` tokens), languages green.
 - «Поиск видео» talks to fl-footage at `/api/footage/*` (Caddy → Windows :8030); SSE `/api/footage/events` invalidates
   `["footage", …]`. The script comes from a «Озвучка» project (fl-footage reads it from the voice API) or a file;
-  results are downloaded as zips — shots are not previewed on the page.
-  A reel's search while it runs: `reels/search-progress.tsx` reads fl-reel `materials.search` (module step, counter, found
-  so far) and `materials.relaxed` (shots taken with the threshold lowered by 1) — local types, older brains send neither.
+  results are downloaded as zips — shots are not previewed on the page. «Оживление картинок» in the launch panel
+  (`options.image_motion`: zoom «Наезд» | parallax «Параллакс (2.5D)» | mixed «50/50») is drawn from `/options`
+  `image_motions` (not hard-coded); parallax / 50/50 without the depth model (`parallax.ready` false) shows a muted note;
+  older servers send no list — no control. Local fallback list: `footage/parts.tsx` `IMAGE_MOTIONS`.
+  A reel's search while it runs: `reels/search-progress.tsx` reads fl-reel `materials.search` per category (video /
+  history — module step, counter, found so far) and `materials.relaxed` (shots taken with the threshold lowered by 1) — local types, older brains send neither.
 - «Промпты» talk to fl-prompts at `/api/prompts/*` (Caddy → Windows :8040): niche master prompts (обычный / аватар),
   projects brief → prompts → check → done, result rows; SSE `/api/prompts/events` invalidates `["prompts", …]`.
   «Генерации пакетом» take finished prompts from there too (`/batch?prompts=<id>&mode=i2i2v`).
 - «Монтаж» talks to fl-montage at `/api/montage/*` (Caddy → Windows :8060); SSE `/api/montage/events` invalidates
   `["montage", …]`. «Инфографика»: text or a .docx/.txt/.md file → type (auto / timeline / tree / table / chart / map /
-  facts / battle), animated (mp4) or static (png), 16:9 / 9:16, 720p / 1080p / 4K, duration, visual style (parchment /
-  cinematic / clean / chronicle), optional transparent layer; the job page previews every file (animated ones with the
-  `poster` jpg) and «Перерисовать» re-renders with another style / format / quality without the model. «Ролики» order
-  infographics there too (category `infographics`, shot `info: {type, brief}`, colour in `reels/parts.tsx`).
+  facts / battle; «Инфографика 2»: journey / units / document — the picker is grouped by `/options` `groups` when sent), animated (mp4) or static (png), 16:9 / 9:16, 720p / 1080p / 4K, duration, visual style (parchment /
+  cinematic / clean / chronicle) and «Цвета» — a palette over it (`/options` `palettes`: default / royal / crimson /
+  emerald, `swatches[style]` = side A, side B, accent, mark → `PaletteSwatch`; `PalettePick` in `montage/launch.tsx`, sent
+  as `palette`; older modules send none — no control), optional transparent layer; the job page previews every file
+  (animated ones with the `poster` jpg), its header names style · palette, and «Перерисовать» re-renders with another
+  style / palette / format / quality without the model (`changes.palette`). «Ролики» order infographics there too
+  (category `infographics`, shot `info: {type, brief}` — any of the reel's allowed types; colour in `reels/parts.tsx`).
   «Монтаж» (by description, up to 60 s; `/api/montage/edits`): videos and images (up to 30, live previews), an optional
   voiceover (sets the length) and music (none / own file / Epidemic picked by the module), format, quality, duration,
   one of six montage styles (the same names as «Ролики»), model, and the description with «Кисть» (`edits.brush` — the
@@ -60,7 +66,9 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
   loads the niche preset from fl-reel) → script (by topic — the brain orders it from «Сценарий», then «Озвучка»; or ready
   from «Озвучка» / a file) → voice profile + translation languages with a voice each → host (fl-api avatar + Veo voice) → storyboard (shares, picture style, details) → montage
   style + music; the draft lives in localStorage. A reel's storyboard gives every shot a category (ИИ / видео /
-  исторические / графика / ведущий — the host takes whole paragraphs; colours in `reels/parts.tsx`); new shares
+  исторические / графика / инфографика / ведущий — the host takes whole paragraphs; order, labels and colours in
+  `reels/parts.tsx`, `useCategories` takes the brain's list from `/options` `categories`, the local list is the
+  fallback); new shares
   re-allocate a finished storyboard on the server at once. «Дорожки для YouTube» on the reel screen: fl-reel builds one
   mp3 per language mixed in «Озвучка», each exactly as long as the reel (`/api/reels/{id}/tracks`); translations mixed after
   assembly: `status.waiting` (the brain refreshes tracks itself), languages mixed later than the tracks — a hint to rebuild. After the
@@ -69,12 +77,23 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
   Step 3: the translation model on top — one list of family × level (`flatModels` in `lib/voice-models.ts`, same list in
   «Озвучка»), voice profiles created and edited in place (`reels/voice-profile-dialog.tsx`). Step 5: the storyboard model —
   one list «engine:model» from fl-reel (`options.models`); «Паузы» under the shares — several variants at once (chapter ends /
-  ~every N s at a fitting place / auto), each with an optional «Затухание», hints on hover; pause length; «Первые N минуты отдельно» (intro: own shares, shorter shots and a category score floor) and «Видео и исторические кадры» (threshold, sources, engine and model of picking per category —
+  ~every N s at a fitting place / auto), each with an optional «Затухание», hints on hover; pause length; «Типы инфографики»
+  (`reels/info-look.tsx` `InfoTypesPick`: chips grouped by `/options` `info.types`, «Инфографика 2» — journey / units /
+  document; all on by default — the draft keeps the switched-off ones, `storyboard.infoOff`, and sends the allowed
+  `storyboard.info_types`; muted at infographics share 0; share > 0 and none on — «Далее» is blocked with a line); «Первые N
+  минуты отдельно» (intro: own shares, shorter shots and a category score floor) and «Видео и исторические кадры» (threshold,
+  sources, engine and model of picking and «Оживление картинок» per category — `footage.<cat>.image_motion` from `/options`
+  `image_motions` (zoom / parallax / mixed 50/50), default `image_motion_default` (history → parallax, video → zoom) —
   `reels/wizard-advanced.tsx`). Work time: `reel.timing` (reel and each stage, queue/idle not counted), ticked live by
   `useSpent` from the query's `dataUpdatedAt`. Step 6 «Шрифт титров» (`reels/fonts.tsx`): Constantia (default), Constantine, oSerif, SatyrSP or
   the style's font; previews of «Your vision. Our production.» load the file from `/api/reels/fonts/{value}` (else a local font).
   «Качество» there: 1080p as before / 1080p + sharpening / 4K + sharpening (`montage.quality`: "" | sharp | 4k).
-  «Звуки» there too (`montage.sounds = {on, density: low|normal|high, veo: mute|keep}`, `SoundsPick`); music and sounds come
+  «Звуки» there too (`montage.sounds = {on, density: low|normal|high, veo: mute|keep}`, `SoundsPick`). «Инфографика» there
+  (`InfoLookPick`): «Стиль» (Авто + 4) and «Цвета» (Авто + 4) from `/options` `info.styles` / `info.palettes` →
+  `montage.info = {style, palette}`; previews `public/infographics/looks/<style>-<palette>.jpg` (480×270), a missing file —
+  fl-montage `palettes[].swatches[style]`, then the names; with style «Авто» the colour previews use
+  `info.by_montage[montage style]`. The summary step and the reel's settings line show the look and «N из 10 типов» when
+  not all are allowed (`infoLine`); older brains without `info` — no controls, nothing sent. Music and sounds come
   from Epidemic Sound through fl-reel (stages `music` and `sounds` after materials). The reel screen shows «Музыка и звуки»
   (`reels/audio.tsx`): tracks by chapter, ambience by paragraphs, spot sounds by shot and the chapter transition, each with
   the Epidemic preview in one shared player.
@@ -98,3 +117,7 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
 - «Материалы» on the reel screen (`reels/result.tsx`): per planned category — found in it (`own`), where the rest went
   (`moved`: second round / AI), and the shares by the storyboard vs in the reel (`materials.mix`); the list's mix bar uses
   `materials.mix` when the brain sends it.
+- «Проверка кадров» on the reel screen (`reels/review.tsx`, under «Материалы»): fl-reel stage `review` («проверка»,
+  between materials and music — the steps line comes from the brain's `steps`) and `reel.review` — summary (checked /
+  flagged / replaced / left) and the flagged shots: timecode, id, category dot, problems (red ones marked), action
+  (заменён / оставлен / осталась проблема); `failed` / `off` — one muted line with the note; older reels — nothing.

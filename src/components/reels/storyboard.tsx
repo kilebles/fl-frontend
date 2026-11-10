@@ -4,7 +4,7 @@ import { Fragment, useMemo, useState } from "react"
 import { ChevronDown, Copy, Download, TriangleAlert } from "lucide-react"
 import { toast } from "sonner"
 
-import { BASE_CATEGORIES, CATEGORIES, CAT_BG, CAT_LABEL, CAT_SHORT, CAT_TEXT, TYPE_LABEL, clock, shotsText } from "@/components/reels/parts"
+import { CATEGORIES, CAT_BG, CAT_LABEL, CAT_SHORT, CAT_TEXT, TYPE_LABEL, clock, shotsText, useCategories } from "@/components/reels/parts"
 import { Card } from "@/components/script/ui"
 import type { ReelBrief, ReelCategory, ReelParagraph, ReelShot, ReelStoryboard } from "@/lib/api"
 import { cn } from "@/lib/utils"
@@ -43,7 +43,7 @@ function download(name: string, text: string) {
 }
 
 function FitBars({ shot, host }: { shot: ReelShot; host: boolean }) {
-  const cats = host ? CATEGORIES : BASE_CATEGORIES
+  const cats = useCategories(host)
   return (
     <div className={cn("grid gap-2", cats.length > 5 ? "grid-cols-3 sm:grid-cols-6" : "grid-cols-5")}>
       {cats.map((c) => (

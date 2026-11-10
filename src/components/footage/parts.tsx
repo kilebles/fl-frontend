@@ -3,7 +3,7 @@
 import { Check, X } from "lucide-react"
 
 import { plural } from "@/lib/format"
-import type { FootageGroup, FootageGroupStat, FootageProject, FootageStage, FootageStageKey } from "@/lib/api"
+import type { FootageGroup, FootageGroupStat, FootageProject, FootageStage, FootageStageKey, ImageMotion } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
 export const GROUPS: FootageGroup[] = ["archive", "youtube", "films", "stock"]
@@ -33,6 +33,14 @@ export const TYPE_LABEL: Record<string, string> = {
 }
 
 export const ENGINE_LABEL: Record<string, string> = { agy: "agy (Gemini)", claude: "Claude Code", gemini_api: "Gemini API", "": "" }
+
+/** «Оживление картинок» — local fallback of the servers' `image_motions` (their list wins); short — for summary lines. */
+export const IMAGE_MOTIONS: { value: ImageMotion; label: string }[] = [
+  { value: "zoom", label: "Наезд" },
+  { value: "parallax", label: "Параллакс (2.5D)" },
+  { value: "mixed", label: "50/50" },
+]
+export const MOTION_SHORT: Record<string, string> = { zoom: "наезд", parallax: "параллакс", mixed: "параллакс 50/50" }
 
 /** 1 кадр, 3 кадра, 12 кадров. */
 export const shotsText = (n: number) => `${n} ${plural(n, "кадр", "кадра", "кадров")}`

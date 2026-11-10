@@ -3,16 +3,19 @@
 import {
   BarChart3,
   CalendarRange,
+  Grip,
   IdCard,
   Map as MapIcon,
   Network,
+  Route,
+  ScrollText,
   Sparkles,
   Swords,
   Table2,
   type LucideIcon,
 } from "lucide-react"
 
-import type { InfoJob, InfoStyle, InfoType } from "@/lib/api"
+import type { InfoJob, InfoPalette, InfoPaletteOption, InfoStyle, InfoType } from "@/lib/api"
 import { plural } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
@@ -25,6 +28,9 @@ export const TYPE_ICON: Record<InfoType | "auto", LucideIcon> = {
   map: MapIcon,
   facts: IdCard,
   battle: Swords,
+  journey: Route,
+  units: Grip,
+  document: ScrollText,
 }
 
 /** Short names for chips and rows (the full ones come from /options). */
@@ -37,6 +43,9 @@ export const TYPE_SHORT: Record<InfoType | "auto", string> = {
   map: "карта",
   facts: "факты",
   battle: "схема боя",
+  journey: "путь",
+  units: "точки",
+  document: "документ",
 }
 
 /** A small preview of each visual style (the same colours as renderer/src/theme.ts in fl-montage). */
@@ -48,16 +57,69 @@ export const STYLE_SWATCH: Record<InfoStyle, { bg: string; ink: string; accent: 
 }
 
 export function StyleSwatch({ style, className }: { style: InfoStyle; className?: string }) {
-  const s = STYLE_SWATCH[style]
+  return <PaletteSwatch style={style} className={className} />
+}
+
+/** The style's paper and type with a palette's colours (`/options` palettes[].swatches[style]: side A, side B, accent,
+ *  mark); without colours — the style's own. large — for a big tile (bigger letters). */
+export function PaletteSwatch({ style, colors = [], className, large }: { style: InfoStyle; colors?: string[]; className?: string; large?: boolean }) {
+  const s = STYLE_SWATCH[style] ?? STYLE_SWATCH.parchment
+  const [a = s.a, b = s.b, accent = s.accent, mark] = colors
   return (
     <span className={cn("relative block overflow-hidden rounded-[2px]", className)} style={{ background: s.bg }}>
-      <span className="absolute top-[18%] left-[10%] text-[13px] leading-none font-bold" style={{ color: s.ink, fontFamily: s.font, textTransform: s.upper ? "uppercase" : "none" }}>
+      <span
+        className={cn("absolute top-[18%] left-[10%] leading-none font-bold", large ? "text-[28px]" : "text-[13px]")}
+        style={{ color: s.ink, fontFamily: s.font, textTransform: s.upper ? "uppercase" : "none" }}
+      >
         Аа
       </span>
-      <span className="absolute top-[46%] left-[10%] h-[2px] w-[28%]" style={{ background: s.accent }} />
-      <span className="absolute right-[10%] bottom-[18%] h-[30%] w-[12%] rounded-[1px]" style={{ background: s.a }} />
-      <span className="absolute right-[26%] bottom-[18%] h-[48%] w-[12%] rounded-[1px]" style={{ background: s.b }} />
+      <span className={cn("absolute left-[10%] h-[2px] w-[28%]", large ? "top-[56%]" : "top-[46%]")} style={{ background: accent }} />
+      {mark && <span className={cn("absolute left-[10%] aspect-square w-[6%] rounded-full", large ? "top-[66%]" : "top-[58%]")} style={{ background: mark }} />}
+      <span className="absolute right-[10%] bottom-[18%] h-[30%] w-[12%] rounded-[1px]" style={{ background: a }} />
+      <span className="absolute right-[26%] bottom-[18%] h-[48%] w-[12%] rounded-[1px]" style={{ background: b }} />
     </span>
+  )
+}
+
+/** «Цвета»: palettes of fl-montage over the chosen style (`swatches[style]`); the same picker in «Перерисовать». */
+export function PalettePick({
+  style,
+  value,
+  options,
+  onChange,
+  compact,
+  labelledBy,
+}: {
+  style: InfoStyle
+  value: InfoPalette
+  options: InfoPaletteOption[]
+  onChange: (p: InfoPalette) => void
+  compact?: boolean
+  labelledBy?: string
+}) {
+  return (
+    <div role="radiogroup" aria-labelledby={labelledBy} aria-label={labelledBy ? undefined : "Цвета"} className={cn("grid grid-cols-2 gap-2", compact && "sm:grid-cols-4")}>
+      {options.map((p) => {
+        const on = value === p.value
+        return (
+          <button
+            key={p.value}
+            type="button"
+            title={p.hint}
+            role="radio"
+            aria-checked={on}
+            onClick={() => onChange(p.value)}
+            className={cn(
+              "flex min-w-0 items-center gap-2.5 rounded-[3px] border p-1.5 pr-2.5 text-left transition-colors",
+              on ? "border-pick/60 bg-pick-soft" : "border-line-strong hover:border-faint",
+            )}
+          >
+            <PaletteSwatch style={style} colors={p.swatches?.[style]} className={cn("shrink-0", compact ? "h-8 w-12" : "h-10 w-16")} />
+            <span className={cn("min-w-0 truncate text-[13px] leading-tight", on ? "font-medium text-pick-text" : "text-foreground-2")}>{p.label}</span>
+          </button>
+        )
+      })}
+    </div>
   )
 }
 

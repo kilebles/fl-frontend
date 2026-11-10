@@ -1,6 +1,6 @@
 "use client"
 
-import type { FootageGroup, ReelShares, ReelSoundSettings } from "@/lib/api"
+import type { FootageGroup, ImageMotion, ReelInfoLook, ReelShares, ReelSoundSettings } from "@/lib/api"
 import { PRESETS, STYLES, savedShares } from "@/components/reels/parts"
 
 /** «Поиск видео» settings of one real category; empty strings — as set on the module's server. */
@@ -12,6 +12,8 @@ export type FootageDraft = {
   ytFirst: boolean
   ytAny: boolean
   filmRisky: boolean
+  /** «Оживление картинок»; "" — the brain's default for the category (history: parallax, video: zoom). */
+  motion: ImageMotion | ""
 }
 
 /** The first minutes apart; empty strings — the defaults (shot length from the montage style, any category score). */
@@ -29,6 +31,8 @@ export type PausesDraft = { modes: { mode: PauseMode; fade: boolean }[]; sec: nu
 /** The title font of a new reel. */
 export const DEFAULT_FONT = "constantia"
 export const DEFAULT_SOUNDS: ReelSoundSettings = { on: true, density: "normal", veo: "mute" }
+/** Infographic look: style and colours chosen by the film's brief. */
+export const DEFAULT_LOOK: ReelInfoLook = { style: "auto", palette: "auto" }
 
 export const EMPTY_PAUSES: PausesDraft = { modes: [], sec: 1.5, everySec: 60 }
 
@@ -44,7 +48,7 @@ export function pausesFrom(raw: unknown): PausesDraft {
 }
 
 export const ALL_GROUPS: FootageGroup[] = ["archive", "youtube", "films", "stock"]
-export const EMPTY_FOOTAGE: FootageDraft = { score: "", groups: ALL_GROUPS, engine: "", model: "", ytFirst: false, ytAny: false, filmRisky: false }
+export const EMPTY_FOOTAGE: FootageDraft = { score: "", groups: ALL_GROUPS, engine: "", model: "", ytFirst: false, ytAny: false, filmRisky: false, motion: "" }
 
 /** Everything the six steps of «Новый ролик» collect; kept in the browser so the menu survives a trip to «Аватар». */
 export type Draft = {
@@ -69,11 +73,13 @@ export type Draft = {
   voice: { profile: string; name: string; targets: string[]; voices: Record<string, string>; model: string }
   host: { on: boolean; id: string; name: string; voice: string }
   /** engine + model: the storyboard model («agy» + «gemini-4-argon-high»); "" — from the brain's settings.
-   *  pauses: chapters (end of each chapter) / every (~every N s, at a fitting place) / auto (the model decides), with or without fade. */
-  storyboard: { shares: ReelShares; style: string; notes: string; engine: string; model: string; pauses: PausesDraft }
+   *  pauses: chapters (end of each chapter) / every (~every N s, at a fitting place) / auto (the model decides), with or without fade.
+   *  infoOff — infographic types switched off (a type the brain adds later is on); sent as the allowed `info_types`. */
+  storyboard: { shares: ReelShares; style: string; notes: string; engine: string; model: string; pauses: PausesDraft; infoOff: string[] }
   /** font — the title font; "" — the montage style's font. quality: "" (1080p as before) | "sharp" | "4k". */
-  /** sounds — background, short sounds of shots and transitions from Epidemic; veo: mute | keep the Veo clips' sound. */
-  montage: { style: string; music: string; font: string; quality: string; sounds: ReelSoundSettings }
+  /** sounds — background, short sounds of shots and transitions from Epidemic; veo: mute | keep the Veo clips' sound.
+   *  info — the infographic look (fl-montage style and palette, or auto). */
+  montage: { style: string; music: string; font: string; quality: string; sounds: ReelSoundSettings; info: ReelInfoLook }
   footage: { video: FootageDraft; history: FootageDraft }
   intro: IntroDraft
   format: "16:9" | "9:16"
@@ -88,8 +94,8 @@ export const EMPTY: Draft = {
   script: { mode: "topic", topic: "", minutes: "20", language: "en", tone: "", model: "", notes: "", from: "voice", voiceJob: "" },
   voice: { profile: "", name: "", targets: [], voices: {}, model: "" },
   host: { on: false, id: "", name: "", voice: "" },
-  storyboard: { shares: PRESETS[0].shares, style: STYLES[0].value, notes: "", engine: "", model: "", pauses: EMPTY_PAUSES },
-  montage: { style: "classic", music: "chapters", font: DEFAULT_FONT, quality: "", sounds: DEFAULT_SOUNDS },
+  storyboard: { shares: PRESETS[0].shares, style: STYLES[0].value, notes: "", engine: "", model: "", pauses: EMPTY_PAUSES, infoOff: [] },
+  montage: { style: "classic", music: "chapters", font: DEFAULT_FONT, quality: "", sounds: DEFAULT_SOUNDS, info: DEFAULT_LOOK },
   footage: { video: EMPTY_FOOTAGE, history: EMPTY_FOOTAGE },
   intro: { on: false, sec: 120, shares: PRESETS[0].shares, shot: ["", ""], minFit: "" },
   format: "16:9",
@@ -113,8 +119,14 @@ export function loadDraft(): Draft {
         shares: savedShares(EMPTY.storyboard.shares, raw.storyboard?.shares),
         model: raw.storyboard?.model ?? "",
         pauses: pausesFrom(raw.storyboard?.pauses),
+        infoOff: Array.isArray(raw.storyboard?.infoOff) ? raw.storyboard.infoOff.filter((t: unknown) => typeof t === "string") : [],
       },
-      montage: { ...EMPTY.montage, ...raw.montage, sounds: { ...DEFAULT_SOUNDS, ...(raw.montage?.sounds ?? {}) } },
+      montage: {
+        ...EMPTY.montage,
+        ...raw.montage,
+        sounds: { ...DEFAULT_SOUNDS, ...(raw.montage?.sounds ?? {}) },
+        info: { ...DEFAULT_LOOK, ...(raw.montage?.info ?? {}) },
+      },
       footage: {
         video: { ...EMPTY_FOOTAGE, ...raw.footage?.video },
         history: { ...EMPTY_FOOTAGE, ...raw.footage?.history },

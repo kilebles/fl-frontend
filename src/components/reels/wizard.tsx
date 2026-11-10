@@ -5,10 +5,11 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { ArrowLeft, ArrowRight, Check, Clapperboard, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
-import { sharesSum } from "@/components/reels/parts"
+import { shareText, sharesSum } from "@/components/reels/parts"
 import { rkeys, useReelOptions, useReelVoiceSources } from "@/components/reels/queries"
 import { EMPTY, clearDraft, loadDraft, saveDraft, type Draft } from "@/components/reels/wizard-draft"
 import { footageBody, introBody, introOk } from "@/components/reels/wizard-advanced"
+import { allowedTypes, infoLookText, infoShareOf, infoTypeList, infoTypesOk } from "@/components/reels/info-look"
 import {
   HostStep,
   MontageStep,
@@ -17,11 +18,10 @@ import {
   StoryboardStep,
   SummaryStep,
   VoiceStep,
-  shareText,
   type StepProps,
 } from "@/components/reels/wizard-steps"
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/components/script/ui"
-import { reels } from "@/lib/api"
+import { reels, type InfoType } from "@/lib/api"
 import { useCurrentProject } from "@/lib/project"
 import { cn } from "@/lib/utils"
 
@@ -67,12 +67,14 @@ export function ReelWizard({ onCreated }: { onCreated: (id: string) => void }) {
   const up: StepProps["up"] = (fn) => setD((x) => fn(x))
   const s = d.script
   const fromVoice = s.mode === "ready" && s.from === "voice"
+  /** Older brains send no info list — nothing to choose and nothing sent. */
+  const infoTypes = allowedTypes(infoTypeList(options), d.storyboard.infoOff)
   const ok = [
     !!d.niche,
     s.mode === "topic" ? !!s.topic.trim() && Number(s.minutes) > 0 : s.from === "voice" ? !!s.voiceJob : !!file,
     s.mode === "topic" ? !!d.voice.profile : true,
     !d.host.on || !!d.host.id,
-    sharesSum(d.storyboard.shares) === 100 && introOk(d),
+    sharesSum(d.storyboard.shares) === 100 && introOk(d) && (!options?.info || infoTypesOk(infoShareOf(d.storyboard.shares.infographics, d.intro), infoTypes)),
     !!d.montage.style,
   ]
   const reachable = (i: number) => ok.slice(0, i).every(Boolean)
@@ -84,7 +86,7 @@ export function ReelWizard({ onCreated }: { onCreated: (id: string) => void }) {
     `${fromVoice ? "уже озвучено" : d.voice.name || "не выбран"}${d.voice.targets.length ? ` + ${d.voice.targets.length} яз.` : ""}`,
     d.host.on ? d.host.name || "не выбран" : "без ведущего",
     shareText(d.storyboard.shares, d.host.on) + (d.intro.on ? ` · вступление ${Math.round(d.intro.sec / 60)} мин` : ""),
-    montageLabel,
+    montageLabel + (options?.info && d.storyboard.shares.infographics > 0 ? ` · инфографика ${infoLookText(d.montage.info, options)}` : ""),
   ]
 
   const go = (i: number) => up((x) => ({ ...x, step: i }))
@@ -102,12 +104,19 @@ export function ReelWizard({ onCreated }: { onCreated: (id: string) => void }) {
           voice: d.voice,
           avatar: d.host.on ? { id: d.host.id, name: d.host.name, voice: d.host.voice } : { id: "" },
           storyboard: {
-            ...d.storyboard,
+            shares: d.storyboard.shares,
+            style: d.storyboard.style,
+            notes: d.storyboard.notes,
+            engine: d.storyboard.engine,
             model: d.storyboard.engine ? d.storyboard.model : "",
             pauses: { modes: d.storyboard.pauses.modes, sec: d.storyboard.pauses.sec, every_sec: d.storyboard.pauses.everySec },
+            ...(options?.info ? { info_types: infoTypes as InfoType[] } : {}),
           },
-          montage: d.montage,
-          footage: { video: footageBody(d.footage.video), history: footageBody(d.footage.history) },
+          montage: options?.info ? d.montage : { ...d.montage, info: undefined },
+          footage: {
+            video: footageBody(d.footage.video, !!options?.image_motions?.length),
+            history: footageBody(d.footage.history, !!options?.image_motions?.length),
+          },
           intro: introBody(d.intro),
           format: d.format,
         },

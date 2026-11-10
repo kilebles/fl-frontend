@@ -3,13 +3,13 @@
 import { AlertTriangle, Check, ChevronDown } from "lucide-react"
 import { useState } from "react"
 
-import { GROUPS, GROUP_COLOR, GROUP_HINT, GROUP_LABEL } from "@/components/footage/parts"
+import { GROUPS, GROUP_COLOR, GROUP_HINT, GROUP_LABEL, MOTION_SHORT } from "@/components/footage/parts"
 import { useFootageOptions } from "@/components/footage/queries"
-import { BASE_CATEGORIES, CATEGORIES, CAT_BG, CAT_LABEL, SharesAside, SharesRows, clock, savedShares, sharesSum } from "@/components/reels/parts"
+import { CAT_BG, CAT_LABEL, SharesAside, SharesRows, clock, savedShares, shareText, sharesSum, useCategories } from "@/components/reels/parts"
 import { useReelOptions } from "@/components/reels/queries"
 import { ALL_GROUPS, EMPTY, EMPTY_FOOTAGE, type Draft, type FootageDraft, type IntroDraft } from "@/components/reels/wizard-draft"
 import { INPUT, Label, ON_BLUE, Pick, Seg } from "@/components/script/ui"
-import type { FootageGroup, ReelFootageSettings, ReelIntroSettings, ReelSettings } from "@/lib/api"
+import type { FootageGroup, ImageMotion, ReelFootageSettings, ReelIntroSettings, ReelOptions, ReelSettings } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
 type Up = (fn: (d: Draft) => Draft) => void
@@ -29,7 +29,8 @@ const num = (v: string): number | null => {
 }
 const str = (v: number | null | undefined) => (v === null || v === undefined ? "" : String(v))
 
-export function footageBody(f: FootageDraft): ReelFootageSettings {
+/** motions — the brain knows «Оживление картинок» (`/options` image_motions); an older brain gets no key. */
+export function footageBody(f: FootageDraft, motions = true): ReelFootageSettings {
   return {
     min_score: num(f.score),
     groups: f.groups.length === ALL_GROUPS.length ? null : f.groups,
@@ -38,8 +39,16 @@ export function footageBody(f: FootageDraft): ReelFootageSettings {
     yt_first: f.ytFirst,
     yt_any: f.ytAny,
     film_risky: f.filmRisky,
+    ...(motions ? { image_motion: f.motion } : {}),
   }
 }
+
+/** «Оживление картинок» of a category: the draft's choice or the brain's default ("" there — zoom); an older brain
+ *  without `image_motions` animates pictures by zoom only — undefined, nothing shown. */
+export const motionOf = (cat: Real, f: FootageDraft, options?: ReelOptions): ImageMotion | undefined =>
+  !options?.image_motions?.length
+    ? undefined
+    : f.motion || options.image_motion_default?.[cat] || (cat === "history" ? "parallax" : "zoom")
 
 export function introBody(i: IntroDraft): ReelIntroSettings {
   const lo = num(i.shot[0])
@@ -65,6 +74,7 @@ export function fromPreset(p: Partial<ReelSettings>, x: Draft): Pick<Draft, "foo
           ytFirst: !!s.yt_first,
           ytAny: !!s.yt_any,
           filmRisky: !!s.film_risky,
+          motion: s.image_motion || "",
         }
       : EMPTY_FOOTAGE
   const i = p.intro
@@ -90,13 +100,14 @@ export function introOk(d: Draft) {
   return sharesSum(d.intro.shares) === 100 && shot
 }
 
-/** «Поиск видео» in one line for the summary: threshold, sources, model. */
-export function footageText(f: FootageDraft) {
+/** «Поиск видео» in one line for the summary: threshold, sources, model, picture motion other than zoom. */
+export function footageText(f: FootageDraft, motion?: ImageMotion) {
   const parts = [
     f.score ? `порог ${f.score}` : "",
     f.groups.length < ALL_GROUPS.length ? f.groups.map((g) => GROUP_LABEL[g]).join(", ") : "",
     f.model || (f.engine ? ENGINE_LABEL[f.engine] : ""),
     f.ytFirst ? "YouTube первым" : "",
+    motion && motion !== "zoom" ? MOTION_SHORT[motion] : "",
   ].filter(Boolean)
   return parts.join(" · ") || "как в «Поиске видео»"
 }
@@ -202,6 +213,9 @@ function Fold({
 
 function FootageCard({ cat, f, set }: { cat: Real; f: FootageDraft; set: (patch: Partial<FootageDraft>) => void }) {
   const { data: fo } = useFootageOptions()
+  const { data: options } = useReelOptions()
+  const motions = options?.image_motions ?? []
+  const motion = motionOf(cat, f, options)
   const defEngine = fo?.defaults?.vision_engine || fo?.defaults?.engine || "agy"
   const engine = f.engine || defEngine
   const models = fo?.vision_models?.[engine] ?? []
@@ -247,6 +261,18 @@ function FootageCard({ cat, f, set }: { cat: Real; f: FootageDraft; set: (patch:
           })}
         </div>
       </div>
+      {motion && motions.length > 0 && (
+        <div>
+          <Label aside={fo?.parallax && !fo.parallax.ready && motion !== "zoom" ? <span className="font-mono text-[11px] text-faint">нет модели глубины — наезд</span> : undefined}>
+            Оживление картинок
+          </Label>
+          <Seg
+            value={motion}
+            onChange={(v) => set({ motion: v as ImageMotion })}
+            options={motions.map((m) => [m.value, m.label, m.value === "mixed" ? "половина картинок параллаксом, половина наездом" : ""] as const)}
+          />
+        </div>
+      )}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="min-w-0">
           <Label>Отбор кадров: движок</Label>
@@ -297,11 +323,16 @@ export function FootageSettings({ d, up }: { d: Draft; up: Up }) {
       ...x,
       footage: { ...x.footage, [cat]: { ...x.footage[cat], ...patch } },
     }))
+  const { data: options } = useReelOptions()
   const off = !d.storyboard.shares.video && !d.storyboard.shares.history
   return (
     <Fold
       title="Видео и исторические кадры"
-      summary={off ? "в ролике нет реальных кадров" : `видео: ${footageText(d.footage.video)} · история: ${footageText(d.footage.history)}`}
+      summary={
+        off
+          ? "в ролике нет реальных кадров"
+          : `видео: ${footageText(d.footage.video, motionOf("video", d.footage.video, options))} · история: ${footageText(d.footage.history, motionOf("history", d.footage.history, options))}`
+      }
     >
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
         <FootageCard cat="video" f={d.footage.video} set={set("video")} />
@@ -319,12 +350,12 @@ export function IntroSettings({ d, up }: { d: Draft; up: Up }) {
   const set = (patch: Partial<IntroDraft>) => up((x) => ({ ...x, intro: { ...x.intro, ...patch } }))
   const defShot = options?.intro?.shot_sec[d.montage.style] ?? [3, 5]
   const mainShot = options?.montage.find((m) => m.value === d.montage.style)?.shot_sec
-  const cats = d.host.on ? CATEGORIES : BASE_CATEGORIES
+  const cats = useCategories(d.host.on)
   const min = i.sec / 60
   const summary = i.on
     ? [
         `${clock(i.sec)}`,
-        cats.map((c) => Math.round(i.shares[c] ?? 0)).join(" · "),
+        shareText(i.shares, d.host.on),
         `кадр ${i.shot[0] || defShot[0]}–${i.shot[1] || defShot[1]} с`,
         i.minFit ? `оценка ≥ ${i.minFit}` : "",
       ]

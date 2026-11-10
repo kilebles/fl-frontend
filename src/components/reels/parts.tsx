@@ -2,14 +2,16 @@
 
 import { Check, Minus, Plus, Timer, X } from "lucide-react"
 
+import { useReelOptions } from "@/components/reels/queries"
 import { useNow } from "@/components/script/parts"
 import { plural } from "@/lib/format"
 import type { ReelCategory, ReelShares, ReelStep, ReelStepKey, ReelTiming } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
+/** Local fallback in the brain's order; the brain's own list (`/options` categories) wins — `useCategories`. */
 export const CATEGORIES: ReelCategory[] = ["ai", "video", "history", "graphics", "infographics", "avatar"]
 /** Categories without the host: the host shows only when the reel has an avatar. */
-export const BASE_CATEGORIES: ReelCategory[] = ["ai", "video", "history", "graphics", "infographics"]
+export const BASE_CATEGORIES: ReelCategory[] = CATEGORIES.filter((c) => c !== "avatar")
 export const CAT_LABEL: Record<ReelCategory, string> = {
   ai: "ИИ-генерации",
   video: "Подбор видео",
@@ -31,7 +33,7 @@ export const CAT_HINT: Record<ReelCategory, string> = {
   video: "Поиск видео: стоки, YouTube",
   history: "Поиск видео: архивы и музеи",
   graphics: "Графика: карточки",
-  infographics: "Монтаж: таймлайн, древо, таблица, график, карта, факты, схема боя",
+  infographics: "Монтаж: таймлайн, древо, таблица, график, карта, факты, схема боя, путь, точки, документ",
   avatar: "говорит в кадре сам, берёт абзацы целиком",
 }
 /** One hue per category, the same in both themes (graphics is not the light theme's terracotta accent). */
@@ -52,6 +54,15 @@ export const CAT_TEXT: Record<ReelCategory, string> = {
   avatar: "text-[#d06a35]",
 }
 
+/** The brain's categories in its order (`GET /api/reels/options`), only those the site can draw; before the options
+ *  come (or a brain without the list) — the local one. Without the host the avatar is left out. */
+export function useCategories(host: boolean): ReelCategory[] {
+  const { data } = useReelOptions()
+  const known = (data?.categories ?? []).map((c) => c.value).filter((c): c is ReelCategory => c in CAT_BG)
+  const list = known.length ? known : CATEGORIES
+  return host ? list : list.filter((c) => c !== "avatar")
+}
+
 export const TYPE_LABEL: Record<string, string> = {
   ai_video: "ИИ-сцена",
   location: "место",
@@ -69,6 +80,9 @@ export const TYPE_LABEL: Record<string, string> = {
   map: "карта",
   facts: "факты",
   battle: "схема боя",
+  journey: "путь на карте",
+  units: "сетка точек",
+  document: "документ",
   auto: "инфографика",
   avatar: "ведущий",
 }
@@ -131,11 +145,19 @@ export function useSpent(timing: ReelTiming | undefined, updatedAt: number) {
 }
 
 /** Saved shares (a draft, a niche preset) over the defaults. A category the saved set does not have (added after it
- *  was saved, like «Инфографика») gets 0 — otherwise its default share would push the sum over 100%. */
-export const savedShares = (base: ReelShares, saved?: Partial<ReelShares> | null): ReelShares =>
+ *  was saved, like «Инфографика») gets 0 — otherwise its default share would push the sum over 100%; keys the site
+ *  does not know (a category since removed) are dropped. */
+export const savedShares = (base: ReelShares, saved?: Partial<Record<string, number>> | null): ReelShares =>
   saved && Object.keys(saved).length
-    ? { ...(Object.fromEntries(CATEGORIES.map((c) => [c, 0])) as ReelShares), ...saved }
+    ? (Object.fromEntries(CATEGORIES.map((c) => [c, Number(saved[c]) || 0])) as ReelShares)
     : base
+
+/** «ИИ 40 · видео 30 · история 15»: only the categories that have a share (too many for bare numbers). */
+export function shareText(s: Partial<ReelShares>, host: boolean) {
+  return CATEGORIES.filter((c) => (host || c !== "avatar") && Math.round(s[c] ?? 0) > 0)
+    .map((c) => `${CAT_SHORT[c]} ${Math.round(s[c] ?? 0)}`)
+    .join(" · ")
+}
 
 export const sharesSum = (s: ReelShares) => CATEGORIES.reduce((a, c) => a + (Number(s[c]) || 0), 0)
 export const sameShares = (a: ReelShares, b: ReelShares) => CATEGORIES.every((c) => Math.round(a[c]) === Math.round(b[c]))
@@ -309,10 +331,10 @@ export function MixBar({ shares, className }: { shares: Partial<ReelShares>; cla
 
 const stepCaption = (s: ReelStep) => (s.state === "skipped" && s.key === "voice" ? "по тексту" : s.soon ? "скоро" : "")
 
-/** Compact line for a reel row: five bars with captions. */
+/** Compact line for a reel row: a bar with a caption per stage (the stages come from the brain). */
 export function StepBars({ steps }: { steps: ReelStep[] }) {
   return (
-    <div className="grid grid-cols-5 gap-1.5">
+    <div className={cn("grid gap-1.5", steps.length > 7 ? "grid-cols-4" : "grid-cols-5")}>
       {steps.map((s) => {
         const part = s.state === "active" && s.total ? Math.max(0.06, (s.done ?? 0) / s.total) : null
         return (
@@ -362,7 +384,7 @@ export function StepSteps({
   times?: Partial<Record<string, string>>
 }) {
   return (
-    <ol className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+    <ol className={cn("grid grid-cols-2 gap-3", steps.length > 7 ? "sm:grid-cols-4" : "sm:grid-cols-5")}>
       {steps.map((s, i) => (
         <li key={s.key} className={cn("flex min-w-0 items-start gap-2.5", s.soon && "opacity-60")}>
           <span

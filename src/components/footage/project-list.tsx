@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Download, Loader2, Mic, Paperclip, Trash2 } from "lucide-react"
 
-import { ENGINE_LABEL, StageBars, shotsText } from "@/components/footage/parts"
+import { ENGINE_LABEL, MOTION_SHORT, StageBars, shotsText } from "@/components/footage/parts"
 import { fkeys, useFootageProjects } from "@/components/footage/queries"
 import { ConfirmDialog, useNow } from "@/components/script/parts"
 import { footage, type FootageProject } from "@/lib/api"
@@ -47,6 +47,7 @@ function Row({ p, now, onOpen, onDelete }: { p: FootageProject; now: number | nu
     `${p.source.paragraphs} абз.`,
     p.source.tracks ? "по озвучке" : "по тексту",
     p.options.format,
+    p.options.image_motion && p.options.image_motion !== "zoom" ? MOTION_SHORT[p.options.image_motion] : "",
     ENGINE_LABEL[p.options.engine] ?? p.options.engine,
     p.options.min_score != null ? `порог ${p.options.min_score}` : "",
     now !== null ? timeAgo(p.created, now) : "",

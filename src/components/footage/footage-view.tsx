@@ -3,7 +3,7 @@
 import { ArrowLeft, FolderKanban, Loader2, Radar } from "lucide-react"
 
 import { LaunchPanel } from "@/components/footage/launch-panel"
-import { ENGINE_LABEL } from "@/components/footage/parts"
+import { ENGINE_LABEL, MOTION_SHORT } from "@/components/footage/parts"
 import { ProjectList } from "@/components/footage/project-list"
 import { ProjectView } from "@/components/footage/project-view"
 import { useFootageEvents, useFootageHealth, useFootageProject } from "@/components/footage/queries"
@@ -53,6 +53,7 @@ export function FootageView() {
                 project.source.kind === "voice" ? `озвучка ${project.source.language.toUpperCase()}` : project.source.name,
                 `${project.source.paragraphs} абз.`,
                 project.options.format,
+                project.options.image_motion && project.options.image_motion !== "zoom" ? MOTION_SHORT[project.options.image_motion] : "",
                 ENGINE_LABEL[project.options.engine] ?? project.options.engine,
                 project.options.min_score != null ? `порог ${project.options.min_score}` : "",
               ]

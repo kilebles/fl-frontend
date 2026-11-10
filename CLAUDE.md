@@ -117,6 +117,8 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
 
 - Files removed by the modules' retention (fl-reel `files_removed`, `reels/files-removed.tsx` in place of «Готовый ролик» and
   the tracks; fl-footage `files_removed` on the project) — a note instead of the download buttons; local types.
+  fl-reel `work_removed` (a day after done: working files gone, mp4 / project / tracks stay) — the tracks card hides
+  «Собрать заново» and says why (`workRemoved`).
 - Client-facing: no accounts/strategy in the UI (internal), minimal copy — no slogans or explanatory subtitles. No logo/brand yet.
 - Batch archive menu (`jobs/job-menu.tsx`): download, and «Скопировать ссылку» — fl-api signs a link to that archive that
   opens without signing in for 7 days (`api.zipLink` → `/api/jobs/{id}/zip/shared`); the clipboard gets a promise (Safari).

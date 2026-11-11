@@ -70,7 +70,7 @@ export function useJobFiles(id: string, live: boolean) {
     useQuery({
       queryKey: keys.files(id),
       queryFn: () => api.files(id),
-      refetchInterval: live ? 15_000 : false,
+      refetchInterval: live ? FILES_REFRESH_MS : false,  // events refresh it too (filesDue)
       placeholderData: keepPreviousData,
       retry: transientRetry,
     }),
@@ -151,6 +151,20 @@ export function useJobActions() {
  * Subscribes to the API's server-sent events and merges every job update into the
  * query cache, so lists, the top bar and the job page update live.
  */
+/** A big running batch finishes a frame every few seconds, and its file list is heavy (~1 MB for 1000+ rows, seconds to
+ *  sign on the server): refresh it on progress at most this often. Small jobs (the feed) refresh on every frame. */
+const FILES_REFRESH_MS = 30_000
+const FILES_EVERY_FRAME_ROWS = 20
+const filesRefreshedAt = new Map<string, number>()
+
+function filesDue(status: JobStatus): boolean {
+  if (status.progress.total <= FILES_EVERY_FRAME_ROWS) return true
+  const now = Date.now()
+  if (now - (filesRefreshedAt.get(status.id) ?? 0) < FILES_REFRESH_MS) return false
+  filesRefreshedAt.set(status.id, now)
+  return true
+}
+
 export function useJobEvents(enabled = true) {
   const qc = useQueryClient()
 
@@ -182,7 +196,8 @@ export function useJobEvents(enabled = true) {
         qc.setQueryData<JobDetail>(keys.job(status.id), { ...previous, ...status })
         const p = previous.progress
         const changed = p.images_done !== status.progress.images_done || p.videos_done !== status.progress.videos_done || p.skipped !== status.progress.skipped
-        if (changed || (isFinished(status.state) && !isFinished(previous.state))) {
+        const finished = isFinished(status.state) && !isFinished(previous.state)
+        if (finished || (changed && filesDue(status))) {
           qc.invalidateQueries({ queryKey: keys.files(status.id) })
         }
         if (status.state !== previous.state) qc.invalidateQueries({ queryKey: keys.job(status.id) })

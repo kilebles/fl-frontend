@@ -30,13 +30,16 @@ function saveJson(data: ReelYoutube, name: string) {
 export function YoutubeCard({ reel: r }: { reel: Reel }) {
   const qc = useQueryClient()
   const yt = r.youtube
-  const saved = r.settings.youtube?.title ?? ""
+  // the title is the reel's topic (step «Сценарий»); one typed here wins over it
+  const topic = r.settings.script.mode === "topic" ? (r.settings.script.topic ?? "") : ""
+  const saved = r.settings.youtube?.title || topic
   const [title, setTitle] = useState(saved)
   const state = yt?.state ?? "none"
   const has = !!yt && (yt.langs.length > 0 || state === "done")
   const { data, isLoading } = useReelYoutube(r.id, has, yt?.generated)
   const make = useMutation({
-    mutationFn: () => reels.makeYoutube(r.id, title.trim()),
+    // the topic itself goes as "" — the brain takes the topic, a typed title wins over it
+    mutationFn: () => reels.makeYoutube(r.id, title.trim() === topic.trim() ? "" : title.trim()),
     onSuccess: (res) => {
       if (res.state === "none") toast.success("Название сохранено — описания сделает ролик")
       qc.invalidateQueries({ queryKey: rkeys.reel(r.id) })

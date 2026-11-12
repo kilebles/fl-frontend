@@ -1131,28 +1131,14 @@ export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & {
           </li>
         ))}
       </ol>
-      <div className="grid max-w-3xl gap-4 sm:grid-cols-2">
-        <div>
-          <Label>Название ролика</Label>
-          <input
-            value={d.title}
-            onChange={(e) => up((x) => ({ ...x, title: e.target.value }))}
-            placeholder={s.mode === "topic" ? s.topic || "по теме" : (v?.title ?? file?.name.replace(/\.[^.]+$/, "")) || "из сценария"}
-            className={INPUT}
-          />
-        </div>
-        <div>
-          <Label aside={d.youtube.title.length > 80 ? <span className="font-mono text-[11px] text-faint">{d.youtube.title.length}/100</span> : undefined}>
-            Название для YouTube
-          </Label>
-          <input
-            value={d.youtube.title}
-            maxLength={100}
-            onChange={(e) => up((x) => ({ ...x, youtube: { title: e.target.value.replace(/[<>]/g, "") } }))}
-            placeholder="пусто — по сценарию"
-            className={INPUT}
-          />
-        </div>
+      <div className="max-w-xl">
+        <Label>Название ролика</Label>
+        <input
+          value={d.title}
+          onChange={(e) => up((x) => ({ ...x, title: e.target.value }))}
+          placeholder={s.mode === "topic" ? s.topic || "по теме" : (v?.title ?? file?.name.replace(/\.[^.]+$/, "")) || "из сценария"}
+          className={INPUT}
+        />
       </div>
     </div>
   )

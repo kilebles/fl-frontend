@@ -122,7 +122,6 @@ export function ReelWizard({ onCreated }: { onCreated: (id: string) => void }) {
           format: d.format,
           text: d.text,
           ai: d.ai,
-          youtube: { title: d.youtube.title.trim() },
         },
         s.mode === "ready" && s.from === "file" ? file : null,
       ),

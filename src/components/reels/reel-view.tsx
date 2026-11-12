@@ -39,6 +39,7 @@ import { infoLine } from "@/components/reels/info-look"
 import { MOTION_SHORT } from "@/components/footage/parts"
 import { AudioCard } from "@/components/reels/audio"
 import { TracksCard } from "@/components/reels/tracks"
+import { YoutubeCard } from "@/components/reels/youtube"
 import { ConfirmDialog } from "@/components/script/parts"
 import { setUrlParams } from "@/components/script/queries"
 import { BTN_PRIMARY, BTN_SECONDARY, Card } from "@/components/script/ui"
@@ -377,6 +378,7 @@ export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number
       <ReviewCard reel={r} />
       <AudioCard reel={r} />
       {!filesRemoved(r) && <TracksCard reel={r} />}
+      <YoutubeCard reel={r} />
 
       {done && sbError && <div className="py-6 text-center text-sm text-danger">{sbError.message}</div>}
       {done && sb && (

@@ -1679,6 +1679,9 @@ export interface Reel {
   music?: ReelMusic | null
   /** Sounds from Epidemic Sound: background per place, short sounds of shots, transition (stage «звуки»). */
   sounds?: ReelSounds | null
+  /** Titles and descriptions for YouTube in every voiced language, without the texts (GET …/youtube has them);
+   *  null — not made yet; older brains: absent. */
+  youtube?: ReelYoutubeView | null
   /** The assembled reel: mp4 and the montage project for DaVinci. */
   result?: {
     mp4: { name: string; size: number }
@@ -1694,6 +1697,37 @@ export interface Reel {
     music?: number
     sounds?: { ambience?: number; spots?: number; transitions?: number; veo?: number }
   } | null
+}
+
+export type ReelYoutubeState = "none" | "building" | "done" | "error"
+
+/** On the reel: the state of its YouTube titles and descriptions (fl-reel reel/youtube.py). */
+export interface ReelYoutubeView {
+  state: ReelYoutubeState
+  /** The producer's title; "" — the model wrote one from the script (title_source "generated"). */
+  title: string
+  title_source: "" | "settings" | "generated"
+  base: string
+  langs: string[]
+  missing: string[]
+  error: string
+  generated?: string | null
+  started?: string | null
+}
+
+/** GET /api/reels/{id}/youtube: per voiced language (the codes of the YouTube tracks) — title and description;
+ *  hl — YouTube's language code. */
+export interface ReelYoutube {
+  state: ReelYoutubeState
+  base: string
+  default_language?: string
+  title_source?: "settings" | "generated"
+  title: string
+  languages: Record<string, { hl: string; name: string; title: string; description: string }>
+  missing: string[]
+  error: string
+  generated?: string
+  reel: { id: string; title: string }
 }
 
 export type ReelReviewKind = "offensive" | "anachronism" | "mismatch" | "artifact" | "watermark" | "broken"
@@ -1894,6 +1928,8 @@ export interface ReelSettings {
   text?: ReelTextSettings
   /** The model of AI shots (the host always goes i2i2v); older reels: absent — i2v. */
   ai?: { mode: ReelAiMode }
+  /** For uploading to the channels: the YouTube title (adapted to every voiced language; "" — written from the script). */
+  youtube?: { title: string }
   format: "16:9" | "9:16"
 }
 
@@ -2055,6 +2091,10 @@ export const reels = {
   tracksZipUrl: (id: string) => withToken(`${rid(id)}/tracks/zip`),
   trackUrl: (id: string, lang: string) => withToken(`${rid(id)}/tracks/${encodeURIComponent(lang.toUpperCase())}`),
   resultUrl: (id: string, kind: "mp4" | "montage") => withToken(`${rid(id)}/result/${kind}`),
+  youtube: (id: string) => request<ReelYoutube>(`${rid(id)}/youtube`),
+  /** Make the titles and descriptions again; title — a new one (absent — the same). A queued reel only keeps it. */
+  makeYoutube: (id: string, title?: string) =>
+    request<ReelYoutubeView>(`${rid(id)}/youtube`, json("POST", title === undefined ? {} : { title })),
   eventsUrl: () => withToken("/api/reels/events"),
 }
 

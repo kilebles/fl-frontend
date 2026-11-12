@@ -101,8 +101,9 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
   the Epidemic preview in one shared player.
 
 - «Названия и описания» on the reel screen (`reels/youtube.tsx`, under the tracks): fl-reel makes a YouTube title and a short
-  description in every voiced language (for uploading to the channels); the title is «Название для YouTube» on the wizard's
-  summary step (`settings.youtube.title`, adapted per language; empty — written from the script). The reel carries only
+  description in every voiced language (for uploading to the channels); the title is the reel's topic (step «Сценарий»,
+  `settings.script.topic`) or one typed on the card (`settings.youtube.title`, wins over the topic), adapted per language;
+  neither — written from the script. The reel carries only
   `youtube` state (`ReelYoutubeView`), the texts — `GET …/youtube`; «Сделать заново» posts a new title, «Скачать JSON»
   saves it; older brains send no `youtube` — no card.
 

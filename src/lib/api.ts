@@ -1704,9 +1704,9 @@ export type ReelYoutubeState = "none" | "building" | "done" | "error"
 /** On the reel: the state of its YouTube titles and descriptions (fl-reel reel/youtube.py). */
 export interface ReelYoutubeView {
   state: ReelYoutubeState
-  /** The producer's title; "" — the model wrote one from the script (title_source "generated"). */
+  /** The title used: typed on the reel screen (settings), the reel's topic (topic) or "" — the model wrote one (generated). */
   title: string
-  title_source: "" | "settings" | "generated"
+  title_source: "" | "settings" | "topic" | "generated"
   base: string
   langs: string[]
   missing: string[]
@@ -1721,7 +1721,7 @@ export interface ReelYoutube {
   state: ReelYoutubeState
   base: string
   default_language?: string
-  title_source?: "settings" | "generated"
+  title_source?: "settings" | "topic" | "generated"
   title: string
   languages: Record<string, { hl: string; name: string; title: string; description: string }>
   missing: string[]
@@ -1928,7 +1928,8 @@ export interface ReelSettings {
   text?: ReelTextSettings
   /** The model of AI shots (the host always goes i2i2v); older reels: absent — i2v. */
   ai?: { mode: ReelAiMode }
-  /** For uploading to the channels: the YouTube title (adapted to every voiced language; "" — written from the script). */
+  /** For uploading to the channels: a YouTube title typed on the reel screen — wins over the topic (both are adapted to
+   *  every voiced language; neither — written from the script). */
   youtube?: { title: string }
   format: "16:9" | "9:16"
 }

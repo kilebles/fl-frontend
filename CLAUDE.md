@@ -20,6 +20,7 @@ src/app/            / (Генерации: вручную — feed + composer), 
                     script/ (Сценарий: projects ?p=, niches ?tab=niches), analytics/ (topic picks ?a=), voice/,
                     footage/ (Поиск видео: projects ?p=, sources ?tab=sources), videos/ (Ролики: reels ?p=),
                     edit/ (Монтаж: «Монтаж» by description — montages ?e=, the default; «Инфографика» ?tab=infographics, jobs ?j=),
+                    admin/ (Админ, только admin: «Лимиты» — default, «Пользователи» ?tab=users; /account?tab=admin ведёт сюда),
                     music, library, history — DevStub pages
 src/components/     shell/ (nav sidebar, logo, theme, project-picker, page-header + DevStub), create/ (composer, feed,
                     generations-bar, form-parts, dropzone), batch/ (batch-form, batches-panel), avatars/, prompts/,
@@ -27,6 +28,7 @@ src/components/     shell/ (nav sidebar, logo, theme, project-picker, page-heade
                     script/ (fl-scenario: launch panel, project list/view, niches, analytics, queries + SSE, send)
                     footage/ (fl-footage: launch panel, project list/view, sources, queries + SSE)
                     reels/ (fl-reel: «Новый ролик» wizard + draft, reel list/view, storyboard + brief, materials + review + result, YouTube tracks, queries + SSE)
+                    admin/ (admin-view, limits-tab — квоты fl-limits, users-tab — пользователи fl-api)
                     montage/ (fl-montage: «Монтаж» edit-launch/-list/-view/-parts; «Инфографика» launch panel, job list/view with previews and «Перерисовать», queries + SSE)
 src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), project.ts (current project, withStyle),
                     draft.ts (composer text shared with the feed), modes.ts, format.ts,
@@ -97,6 +99,12 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
   from Epidemic Sound through fl-reel (stages `music` and `sounds` after materials). The reel screen shows «Музыка и звуки»
   (`reels/audio.tsx`): tracks by chapter, ambience by paragraphs, spot sounds by shot and the chapter transition, each with
   the Epidemic preview in one shared player.
+
+- «Админ → Лимиты» talks to fl-limits at `/api/limits/*` (Caddy → Windows :8070, admins only — fl-limits checks the
+  role in `X-Fl-Gateway-Auth`): quotas of agy (per Windows login) and Claude Code — buckets week / 5 h with left %,
+  reset, forecast («кончится раньше сброса»), who used each bucket by module and by reel (an estimate by the time of
+  their model processes; «Не видно на сервере» — used from another computer), live calls, collectors, recent alerts
+  (Telegram). Module colours — `MODULE_COLOR` in `admin/limits-tab.tsx`; the chart is plain SVG (no chart library).
 
 - «Ролики» list header: brain queue (`QueueControl`) — running / waiting, «одновременно» 1/2/3/5 (`PUT /api/reels/queue/limits`);
   waiting reels show their place (`queue.queued`).

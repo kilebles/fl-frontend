@@ -74,7 +74,9 @@ const BOTTOM: NavItem[] = [
   { href: "/library", label: "Библиотека", icon: Folder, dev: true },
   { href: "/history", label: "История", icon: History, dev: true },
 ]
-export const NAV = [...TOP, ...TOOLS, ...BOTTOM]
+/** Admins only: limits of the model subscriptions and users. */
+const ADMIN: NavItem = { href: "/admin", label: "Админ", icon: Shield }
+export const NAV = [...TOP, ...TOOLS, ...BOTTOM, ADMIN]
 
 export function isActive(pathname: string, item: Pick<NavItem, "href" | "also">) {
   if (item.href === "/") return pathname === "/" || !!item.also?.some((p) => pathname.startsWith(p))
@@ -201,9 +203,9 @@ function AccountMenu({ collapsed, pathname, onNavigate }: { collapsed: boolean; 
           Документация MCP
         </DropdownMenuItem>
         {user?.role === "admin" && (
-          <DropdownMenuItem render={<Link href="/account?tab=admin" onClick={onNavigate} />} className="cursor-pointer rounded-[3px] px-2 py-1.5">
+          <DropdownMenuItem render={<Link href="/admin" onClick={onNavigate} />} className="cursor-pointer rounded-[3px] px-2 py-1.5">
             <Shield className="size-4 text-muted-foreground" />
-            Пользователи
+            Админ
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
@@ -225,6 +227,7 @@ function AccountMenu({ collapsed, pathname, onNavigate }: { collapsed: boolean; 
 
 function SidebarBody({ collapsed, onCollapse, onNavigate }: { collapsed: boolean; onCollapse?: () => void; onNavigate?: () => void }) {
   const pathname = usePathname()
+  const { user } = useAuth()
   return (
     <div className="flex h-full flex-col gap-1 px-3 py-4">
       <div className={cn("mb-4 flex items-center gap-2.5 px-1", collapsed && "flex-col")}>
@@ -253,6 +256,7 @@ function SidebarBody({ collapsed, onCollapse, onNavigate }: { collapsed: boolean
       {BOTTOM.map((item) => (
         <Item key={item.href} item={item} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
       ))}
+      {user?.role === "admin" && <Item item={ADMIN} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />}
 
       {!collapsed ? (
         <>

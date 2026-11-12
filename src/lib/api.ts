@@ -357,6 +357,87 @@ export const admin = {
     request<AdminUser>(`/api/admin/users/${encodeURIComponent(id)}`, json("PATCH", body)),
 }
 
+/* ---------------------------------------------------------------- fl-limits (Админ → Лимиты, /api/limits) */
+
+export interface LimitShare {
+  id: string
+  title: string
+  pct: number
+  minutes?: number
+}
+
+export interface LimitBucket {
+  key: string
+  label: string
+  kind: "week" | "short"
+  used: number | null
+  left: number | null
+  resets_at: string | null
+  level: "ok" | "warn" | "crit" | "unknown"
+  forecast: { rate_per_hour: number; exhaust_at: string | null; before_reset: boolean } | null
+  /** Who used this bucket since the window began — an estimate by the time of their model processes. */
+  usage: { from: string | null; total: number; modules: LimitShare[]; reels: { reel: string; pct: number; modules: LimitShare[] }[] }
+}
+
+export interface LimitActive {
+  module: string
+  title: string
+  job: string
+  reel: string
+  model: string
+  login: string
+  since: string | null
+}
+
+export interface LimitAccount {
+  id: string
+  title: string
+  engine: "agy" | "claude"
+  note: string
+  poll_as: string
+  polled_at: string | null
+  last_ok_at: string | null
+  ok: boolean
+  error: string | null
+  stale: boolean
+  buckets: LimitBucket[]
+  active: LimitActive[]
+}
+
+export interface LimitAlert {
+  at: string
+  account: string
+  bucket: string
+  rule: "low" | "forecast" | "out" | "back" | "poll" | "collector"
+  level: "ok" | "warn" | "crit"
+  text: string
+  telegram?: string
+}
+
+export interface LimitsStatus {
+  now: string
+  tz: string
+  accounts: LimitAccount[]
+  collectors: { login: string; at: string | null; online: boolean; sampler: boolean }[]
+  sampler: { at: string | null; online: boolean }
+  alerts: LimitAlert[]
+}
+
+export interface LimitHistory {
+  account: string
+  bucket: string
+  points: { t: string; used: number }[]
+  resets: string[]
+}
+
+export const limits = {
+  status: () => request<LimitsStatus>("/api/limits/status"),
+  history: (account: string, bucket: string, hours = 168) =>
+    request<LimitHistory>(
+      `/api/limits/history?account=${encodeURIComponent(account)}&bucket=${encodeURIComponent(bucket)}&hours=${hours}`
+    ),
+}
+
 export const FINISHED: JobState[] = ["done", "stopped", "failed", "cancelled"]
 export const isFinished = (state: JobState) => FINISHED.includes(state)
 

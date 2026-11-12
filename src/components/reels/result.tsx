@@ -273,10 +273,12 @@ export function ResultCard({ reel: r }: { reel: Reel }) {
               Озвучка {langCode(activeLang)} (.mp3){trackMeta?.size ? ` · ${bytes(trackMeta.size)}` : ""}
             </a>
           )}
-          <a href={reels.resultUrl(r.id, "montage")} download className={BTN_SECONDARY}>
-            <FolderArchive className="size-3.5" />
-            Проект для DaVinci · {bytes(res.montage.size)}
-          </a>
+          {!res.montage_removed && (
+            <a href={reels.resultUrl(r.id, "montage")} download className={BTN_SECONDARY}>
+              <FolderArchive className="size-3.5" />
+              Проект для DaVinci · {bytes(res.montage.size)}
+            </a>
+          )}
           <div className="mt-2 space-y-1.5 text-[13px] text-muted-foreground">
             <p className="flex items-start gap-2">
               <Film className="mt-0.5 size-3.5 shrink-0 text-faint" />
@@ -291,9 +293,11 @@ export function ResultCard({ reel: r }: { reel: Reel }) {
                 {renderNote}
               </p>
             )}
-            {res.fallbacks > 0 && <p>Запасной ход у {res.fallbacks} кадр. — подробности в report.json проекта</p>}
+            {res.fallbacks > 0 && <p>Запасной ход у {res.fallbacks} кадр.{res.montage_removed ? "" : " — подробности в report.json проекта"}</p>}
             {res.failed > 0 && <p className="text-warn">Не вышло {res.failed} кадр. — их время отдано соседним</p>}
-            <p className="text-faint">В проекте: клипы, голос каждого языка, reel.xml для DaVinci (File → Import → Timeline), EDL, атрибуция футажей.</p>
+            {!res.montage_removed && (
+              <p className="text-faint">В проекте: клипы, голос каждого языка, reel.xml для DaVinci (File → Import → Timeline), EDL, атрибуция футажей.</p>
+            )}
           </div>
         </div>
       </div>

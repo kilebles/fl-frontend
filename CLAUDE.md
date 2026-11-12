@@ -100,6 +100,12 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
   (`reels/audio.tsx`): tracks by chapter, ambience by paragraphs, spot sounds by shot and the chapter transition, each with
   the Epidemic preview in one shared player.
 
+- «Названия и описания» on the reel screen (`reels/youtube.tsx`, under the tracks): fl-reel makes a YouTube title and a short
+  description in every voiced language (for uploading to the channels); the title is «Название для YouTube» on the wizard's
+  summary step (`settings.youtube.title`, adapted per language; empty — written from the script). The reel carries only
+  `youtube` state (`ReelYoutubeView`), the texts — `GET …/youtube`; «Сделать заново» posts a new title, «Скачать JSON»
+  saves it; older brains send no `youtube` — no card.
+
 - «Админ → Лимиты» talks to fl-limits at `/api/limits/*` (Caddy → Windows :8070, admins only — fl-limits checks the
   role in `X-Fl-Gateway-Auth`): quotas of agy (per Windows login) and Claude Code — buckets week / 5 h with left %,
   reset, forecast («кончится раньше сброса»), who used each bucket by module and by reel (an estimate by the time of

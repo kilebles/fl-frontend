@@ -17,6 +17,7 @@ export const rkeys = {
   reel: (id: string) => ["reels", "reel", id] as const,
   storyboard: (id: string) => ["reels", "storyboard", id] as const,
   tracks: (id: string) => ["reels", "tracks", id] as const,
+  youtube: (id: string) => ["reels", "youtube", id] as const,
 }
 
 function ready<T>(q: T & { data?: unknown; isLoading: boolean }, ok: boolean): T {
@@ -63,6 +64,14 @@ export function useReel(id: string | null) {
 export function useStoryboard(id: string | null, done: boolean) {
   return ready(
     useQuery({ queryKey: rkeys.storyboard(id ?? ""), queryFn: () => reels.storyboard(id!), enabled: !!id && done, retry: false }),
+    useHydrated(),
+  )
+}
+
+/** YouTube titles and descriptions of the reel; `generated` refetches them when the brain makes new ones. */
+export function useReelYoutube(id: string, enabled: boolean, generated?: string | null) {
+  return ready(
+    useQuery({ queryKey: [...rkeys.youtube(id), generated ?? ""], queryFn: () => reels.youtube(id), enabled, retry: false }),
     useHydrated(),
   )
 }

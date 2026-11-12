@@ -94,6 +94,8 @@ export type Draft = {
   text: TextDraft
   /** The model of AI shots; the host always goes «картинка → видео» with the avatar. */
   ai: { mode: AiMode }
+  /** The YouTube title, adapted by the brain to every voiced language ("" — written from the script). */
+  youtube: { title: string }
 }
 
 export const EMPTY: Draft = {
@@ -112,6 +114,7 @@ export const EMPTY: Draft = {
   format: "16:9",
   text: DEFAULT_TEXT,
   ai: { mode: "i2v" },
+  youtube: { title: "" },
 }
 
 const KEY = "reels.draft"
@@ -124,6 +127,7 @@ export function loadDraft(): Draft {
       ...EMPTY,
       ...raw,
       script: { ...EMPTY.script, ...raw.script },
+      youtube: { ...EMPTY.youtube, ...raw.youtube },
       voice: { ...EMPTY.voice, ...raw.voice },
       host: { ...EMPTY.host, ...raw.host },
       storyboard: {

@@ -127,6 +127,7 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
   the tracks; fl-footage `files_removed` on the project) — a note instead of the download buttons; local types.
   fl-reel `work_removed` (a day after done: working files gone, mp4 / project / tracks stay) — the tracks card hides
   «Собрать заново» and says why (`workRemoved`).
+  `result.montage_removed` (the DaVinci project archive deleted to free the disk) — the reel card hides «Проект для DaVinci».
 - Client-facing: no accounts/strategy in the UI (internal), minimal copy — no slogans or explanatory subtitles. No logo/brand yet.
 - Batch archive menu (`jobs/job-menu.tsx`): download, and «Скопировать ссылку» — fl-api signs a link to that archive that
   opens without signing in for 7 days (`api.zipLink` → `/api/jobs/{id}/zip/shared`); the clipboard gets a promise (Safari).

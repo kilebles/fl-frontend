@@ -1683,6 +1683,8 @@ export interface Reel {
   result?: {
     mp4: { name: string; size: number }
     montage: { name: string; size: number }
+    /** The DaVinci project archive was deleted to free the disk (only the mp4 and the tracks are kept). */
+    montage_removed?: string
     sec: number
     renderer: "remotion" | "ffmpeg"
     languages: string[]

@@ -152,12 +152,6 @@ export function TracksCard({ reel: r }: { reel: Reel }) {
           )}
 
           <div className="flex flex-wrap items-center gap-2 border-t border-line pt-4">
-            {st.state === "done" && st.zip && (
-              <a href={reels.tracksZipUrl(r.id)} className={BTN_PRIMARY} download>
-                <Download className="size-3.5" />
-                Скачать{st.size ? ` · ${bytes(st.size)}` : ""}
-              </a>
-            )}
             {!workGone && (
               <button
                 type="button"
@@ -176,7 +170,9 @@ export function TracksCard({ reel: r }: { reel: Reel }) {
               </button>
             )}
             <span className="text-xs text-faint">
-              {workGone ? "рабочие файлы ролика удалены через сутки после готовности — собрать дорожки заново нельзя" : "по mp3 на язык, длина каждой — ровно как у ролика"}
+              {workGone
+                ? "рабочие файлы ролика удалены — собрать дорожки заново нельзя"
+                : "по mp3 на язык, длина каждой — ровно как у ролика"}
             </span>
           </div>
         </div>

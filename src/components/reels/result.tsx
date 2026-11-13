@@ -121,7 +121,7 @@ function MixRow({ label, shares }: { label: string; shares: Partial<ReelShares> 
   )
 }
 
-/** The assembled reel: player, mp4 and the montage project for DaVinci. */
+/** The assembled reel: player, mp4, every language's voice (the YouTube tracks zip) and the montage project for DaVinci. */
 export function ResultCard({ reel: r }: { reel: Reel }) {
   const res = r.result
   // why Remotion did not render (fl-reel stages.assembly.renderer_note: the gist of its error, or «не установлен»)
@@ -191,7 +191,9 @@ export function ResultCard({ reel: r }: { reel: Reel }) {
     }
   }
 
-  const trackMeta = r.tracks?.files?.find((f) => f.lang.toUpperCase() === activeLang)
+  // the YouTube tracks of every language in one zip (fl-reel GET …/tracks/zip) — moved up here from «Дорожки для YouTube»
+  const tracks = r.tracks
+  const voicesZip = tracks?.state === "done" && tracks.zip ? tracks : null
 
   return (
     <Card
@@ -267,10 +269,11 @@ export function ResultCard({ reel: r }: { reel: Reel }) {
             <Download className="size-3.5" />
             Ролик ({langCode(baseLang)}) · {bytes(res.mp4.size)}
           </a>
-          {langs.length > 1 && (
-            <a href={reels.trackUrl(r.id, activeLang)} download={trackMeta?.name ?? true} className={BTN_SECONDARY}>
+          {voicesZip && (
+            <a href={reels.tracksZipUrl(r.id)} download className={BTN_SECONDARY}>
               <Volume2 className="size-3.5" />
-              Озвучка {langCode(activeLang)} (.mp3){trackMeta?.size ? ` · ${bytes(trackMeta.size)}` : ""}
+              Озвучки{voicesZip.files?.length ? ` (${voicesZip.files.length} яз.)` : ""}
+              {voicesZip.size ? ` · ${bytes(voicesZip.size)}` : ""}
             </a>
           )}
           {!res.montage_removed && (

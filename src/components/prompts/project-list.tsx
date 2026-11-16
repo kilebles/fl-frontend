@@ -6,7 +6,7 @@ import { Download, Loader2, Trash2 } from "lucide-react"
 
 import { CopyAllButton, MODE_NAME, StageBars } from "@/components/prompts/parts"
 import { pkeys, usePgProjects } from "@/components/prompts/queries"
-import { ConfirmDialog, useNow } from "@/components/script/parts"
+import { ConfirmDialog, LIST_STEP, ShowMore, useNow } from "@/components/script/parts"
 import { pgActive, promptgen, type PgProject } from "@/lib/api"
 import { plural, timeAgo } from "@/lib/format"
 import { useCurrentProject } from "@/lib/project"
@@ -99,6 +99,7 @@ export function ProjectList({ onOpen }: { onOpen: (id: string) => void }) {
   const { data, isLoading, error } = usePgProjects(projectId)
   const now = useNow()
   const [del, setDel] = useState<PgProject | null>(null)
+  const [shown, setShown] = useState(LIST_STEP)
   if (isLoading)
     return (
       <div className="flex justify-center py-10">
@@ -110,10 +111,11 @@ export function ProjectList({ onOpen }: { onOpen: (id: string) => void }) {
   return (
     <>
       <div className="overflow-hidden rounded-[4px] border border-line bg-surface">
-        {data.map((p) => (
+        {data.slice(0, shown).map((p) => (
           <Row key={p.id} p={p} now={now} onOpen={() => onOpen(p.id)} onDelete={() => setDel(p)} />
         ))}
       </div>
+      {data.length > shown && <ShowMore left={data.length - shown} onClick={() => setShown((n) => n + LIST_STEP)} />}
       <ConfirmDialog
         open={del !== null}
         title={`Удалить «${del?.title || "проект"}»?`}

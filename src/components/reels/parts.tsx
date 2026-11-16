@@ -297,7 +297,7 @@ export function SharesRows({
 export function SharesAside({ value, onChange, host }: { value: ReelShares; onChange: (s: ReelShares) => void; host?: boolean }) {
   const sum = sharesSum(value)
   return (
-    <span className="flex items-center gap-2 text-xs">
+    <span className="flex min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-1 text-xs">
       {(host ? HOST_PRESETS : PRESETS).map((p) => (
         <button
           key={p.label}

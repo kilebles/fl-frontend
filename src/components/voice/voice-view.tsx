@@ -8,16 +8,9 @@ import {
   ChevronDown,
   Check,
   CheckCircle2,
-  Clock,
   Download,
   Edit3,
-  FileAudio,
-  FileText,
-  Filter,
-  FolderArchive,
-  Layers,
   Loader2,
-  Mic,
   Pause,
   Play,
   Plus,
@@ -118,11 +111,6 @@ function formatDuration(sec: number | null | undefined): string {
   return `${mins}:${secs.toString().padStart(2, "0")}`
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} Б`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} КБ`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`
-}
 
 /** Render paragraph text with highlighted Drama 3 emotion tags: [calm, ...] and <emphasis>...</emphasis>. */
 function RichTaggedText({ text }: { text: string }) {
@@ -255,7 +243,7 @@ export function VoiceView() {
   const [scripts, setScripts] = useState<VoiceScriptInfo[]>([])
   const [translationModels, setTranslationModels] = useState<TranslationModelInfo[]>([])
   const [voiceModels, setVoiceModels] = useState<VoiceModelInfo[]>([])
-  const [languagesInfo, setLanguagesInfo] = useState<VoiceLanguageInfo[]>([])
+  const [, setLanguagesInfo] = useState<VoiceLanguageInfo[]>([])
   const [, setQueueStatus] = useState<VoiceQueueStatus | null>(null)
 
   // Active workspace state
@@ -406,6 +394,7 @@ export function VoiceView() {
   }, [launchScriptId, changeSource])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads the page's data on mount; the setters run after the awaits
     void loadInitialData()
   }, [loadInitialData])
 
@@ -413,6 +402,7 @@ export function VoiceView() {
   useEffect(() => {
     const p = profiles.find((x) => x.id === editingProfileId)
     if (!p) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the editor's drafts follow the profile picked for editing
     setProfileNameDraft(p.name)
     setProfileChannelsDraft(p.channels.join(", "))
     setProfileDefaultDraft({ ...p.default })
@@ -456,6 +446,7 @@ export function VoiceView() {
   }, [selectedJob, selectedLang, paraFilter])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reloads the paragraphs when the job, language or filter changes
     void loadParagraphs()
   }, [loadParagraphs])
 

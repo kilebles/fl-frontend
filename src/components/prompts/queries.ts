@@ -5,6 +5,7 @@ import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-quer
 
 import { pgActive, promptgen, type PgMode } from "@/lib/api"
 import { useHydrated } from "@/lib/queries"
+import { REFETCH_MS, throttler } from "@/lib/throttle"
 
 export { setUrlParams, useUrlParam } from "@/components/script/queries"
 
@@ -95,6 +96,7 @@ export function usePgEvents() {
   const qc = useQueryClient()
   useEffect(() => {
     const es = new EventSource(promptgen.eventsUrl(), { withCredentials: true })
+    const { soon, clear } = throttler()
     const on = (event: string, fn: (data: Record<string, unknown>) => void) =>
       es.addEventListener(event, (ev) => {
         try {
@@ -103,13 +105,18 @@ export function usePgEvents() {
           fn({})
         }
       })
+    // a running project changes its record on every row: the list (hundreds of KB) and the open project are
+    // refetched once per window, not on every event
     on("project.changed", (d) => {
-      qc.invalidateQueries({ queryKey: pkeys.projectsAll })
-      if (typeof d.id === "string") {
-        qc.invalidateQueries({ queryKey: pkeys.project(d.id) })
-        qc.invalidateQueries({ queryKey: pkeys.log(d.id) })
-        qc.invalidateQueries({ queryKey: pkeys.brief(d.id) })
-        qc.invalidateQueries({ queryKey: pkeys.result(d.id) })
+      soon("projects", REFETCH_MS.list, () => qc.invalidateQueries({ queryKey: pkeys.projectsAll }))
+      const id = d.id
+      if (typeof id === "string") {
+        soon(`project:${id}`, REFETCH_MS.item, () => {
+          qc.invalidateQueries({ queryKey: pkeys.project(id) })
+          qc.invalidateQueries({ queryKey: pkeys.log(id) })
+          qc.invalidateQueries({ queryKey: pkeys.brief(id) })
+          qc.invalidateQueries({ queryKey: pkeys.result(id) })
+        })
       }
     })
     on("template.changed", (d) => {
@@ -118,6 +125,9 @@ export function usePgEvents() {
         qc.invalidateQueries({ queryKey: pkeys.template(d.niche, d.kind) })
     })
     on("worker.changed", () => qc.invalidateQueries({ queryKey: pkeys.health }))
-    return () => es.close()
+    return () => {
+      clear()
+      es.close()
+    }
   }, [qc])
 }

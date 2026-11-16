@@ -33,7 +33,7 @@ import { BriefCard, StoryboardCard } from "@/components/reels/storyboard"
 import { MaterialsCard, ResultCard } from "@/components/reels/result"
 import { ReviewCard, reviewCaption } from "@/components/reels/review"
 import { fontLabel, useFontList } from "@/components/reels/fonts"
-import { pausesFrom } from "@/components/reels/wizard-draft"
+import { pausesFrom, shortShares } from "@/components/reels/wizard-draft"
 import { pausesText, qualityLabel, shortText, soundsText } from "@/components/reels/wizard-steps"
 import { infoLine } from "@/components/reels/info-look"
 import { MOTION_SHORT } from "@/components/footage/parts"
@@ -86,8 +86,11 @@ function MixCard({ reel, sb }: { reel: Reel; sb: ReelStoryboard }) {
   const qc = useQueryClient()
   const plan = roundShares(reel.settings.storyboard.shares)
   const host = !!reel.settings.avatar?.id
-  const cats = useCategories(host)
-  const [draft, setDraft] = useState<ReelShares>(plan)
+  const short = reel.settings.format === "9:16"
+  // 9:16 has no «Графика» (its cards are 16:9 only): no row, and the presets move its share to AI, as in the wizard
+  const cats = useCategories(host).filter((c) => !(short && c === "graphics"))
+  const [draft, setDraftRaw] = useState<ReelShares>(plan)
+  const setDraft = (v: ReelShares) => setDraftRaw(short ? shortShares(v) : v)
   const changed = !sameShares(draft, plan)
   const mix = sb.mix
   const apply = useMutation({
@@ -142,7 +145,7 @@ function MixCard({ reel, sb }: { reel: Reel; sb: ReelStoryboard }) {
           </ul>
         </div>
         <div className="flex flex-col p-4">
-          <div className="mb-2 flex items-center justify-between gap-2 text-[13px] text-muted-foreground">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-[13px] text-muted-foreground">
             <span>Новые доли</span>
             <SharesAside value={draft} onChange={setDraft} host={host} />
           </div>
@@ -223,7 +226,9 @@ export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number
     }),
   )
   const more = !active && r.steps.some((x) => x.key === "materials" && x.state === "todo") && done
-  const total = s?.total_sec ?? 0
+  // the finished reel can be longer than the storyboard: the host's lines in Veo run past the voiceover
+  const total = (r.status === "done" && r.result?.sec) || s?.total_sec || 0
+  const longer = !!s?.total_sec && total - s.total_sec > 0.5
 
   return (
     <div className="space-y-5">
@@ -260,7 +265,11 @@ export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number
             value={r.source.paragraphs || "—"}
             sub={r.source.timed ? `по озвучке · ${r.source.timed} дорожек` : r.source.paragraphs ? "длительность по тексту" : ""}
           />
-          <Tile label="Длительность" value={total ? clock(total) : "—"} sub={total ? "с паузами после абзацев" : ""} />
+          <Tile
+            label="Длительность"
+            value={total ? clock(total) : "—"}
+            sub={!total ? "" : longer ? `с репликами ведущего · по раскадровке ${clock(s?.total_sec ?? 0)}` : "с паузами после абзацев"}
+          />
           <Tile label="Кадров" value={s?.shots ?? "—"} sub={s?.shots ? `в среднем ${(total / s.shots).toFixed(1)} с` : ""} />
           <Tile
             label="Слабые попадания"

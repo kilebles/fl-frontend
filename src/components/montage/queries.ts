@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { edits, montage } from "@/lib/api"
 import { useHydrated } from "@/lib/queries"
+import { REFETCH_MS, throttler } from "@/lib/throttle"
 
 export const mkeys = {
   all: ["montage"] as const,
@@ -65,18 +66,26 @@ export function useMontageEvents() {
   const qc = useQueryClient()
   useEffect(() => {
     const es = new EventSource(montage.eventsUrl(), { withCredentials: true })
+    const { soon, clear } = throttler()
     es.addEventListener("job.changed", (ev) => {
-      qc.invalidateQueries({ queryKey: mkeys.jobs })
-      qc.invalidateQueries({ queryKey: mkeys.edits })
+      soon("jobs", REFETCH_MS.list, () => {
+        qc.invalidateQueries({ queryKey: mkeys.jobs })
+        qc.invalidateQueries({ queryKey: mkeys.edits })
+      })
       try {
         const d = JSON.parse((ev as MessageEvent).data || "{}")
         if (typeof d.id === "string") {
-          qc.invalidateQueries({ queryKey: mkeys.job(d.id) })
-          qc.invalidateQueries({ queryKey: mkeys.edit(d.id) })
+          soon(`job:${d.id}`, REFETCH_MS.item, () => {
+            qc.invalidateQueries({ queryKey: mkeys.job(d.id) })
+            qc.invalidateQueries({ queryKey: mkeys.edit(d.id) })
+          })
         }
       } catch {}
     })
     es.addEventListener("worker.changed", () => qc.invalidateQueries({ queryKey: mkeys.health }))
-    return () => es.close()
+    return () => {
+      es.close()
+      clear()
+    }
   }, [qc])
 }

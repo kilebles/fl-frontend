@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { reels } from "@/lib/api"
 import { useHydrated } from "@/lib/queries"
+import { REFETCH_MS, throttler } from "@/lib/throttle"
 
 export const rkeys = {
   all: ["reels"] as const,
@@ -84,25 +85,31 @@ export function useReelTracks(id: string, enabled: boolean) {
   )
 }
 
-/** /api/reels/events (SSE): refetch exactly what changed. */
+/** /api/reels/events (SSE): refetch exactly what changed — lists not more often than REFETCH_MS (lib/throttle). */
 export function useReelEvents() {
   const qc = useQueryClient()
   useEffect(() => {
     const es = new EventSource(reels.eventsUrl(), { withCredentials: true })
+    const { soon, clear } = throttler()
     es.addEventListener("reel.changed", (ev) => {
-      qc.invalidateQueries({ queryKey: rkeys.queue })
-      qc.invalidateQueries({ queryKey: rkeys.list })
+      soon("queue", REFETCH_MS.small, () => qc.invalidateQueries({ queryKey: rkeys.queue }))
+      soon("list", REFETCH_MS.list, () => qc.invalidateQueries({ queryKey: rkeys.list }))
       try {
         const d = JSON.parse((ev as MessageEvent).data || "{}")
         if (typeof d.id === "string") {
-          qc.invalidateQueries({ queryKey: rkeys.reel(d.id) })
-          qc.invalidateQueries({ queryKey: rkeys.storyboard(d.id) })
-          qc.invalidateQueries({ queryKey: rkeys.tracks(d.id) })
+          soon(`reel:${d.id}`, REFETCH_MS.item, () => {
+            qc.invalidateQueries({ queryKey: rkeys.reel(d.id) })
+            qc.invalidateQueries({ queryKey: rkeys.storyboard(d.id) })
+            qc.invalidateQueries({ queryKey: rkeys.tracks(d.id) })
+          })
         }
       } catch {}
     })
     es.addEventListener("worker.changed", () => qc.invalidateQueries({ queryKey: rkeys.health }))
-    es.addEventListener("queue.changed", () => qc.invalidateQueries({ queryKey: rkeys.queue }))
-    return () => es.close()
+    es.addEventListener("queue.changed", () => soon("queue", REFETCH_MS.small, () => qc.invalidateQueries({ queryKey: rkeys.queue })))
+    return () => {
+      es.close()
+      clear()
+    }
   }, [qc])
 }

@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { footage } from "@/lib/api"
 import { useHydrated } from "@/lib/queries"
+import { REFETCH_MS, throttler } from "@/lib/throttle"
 
 export const fkeys = {
   all: ["footage"] as const,
@@ -62,17 +63,23 @@ export function useFootageEvents() {
   const qc = useQueryClient()
   useEffect(() => {
     const es = new EventSource(footage.eventsUrl(), { withCredentials: true })
+    const { soon, clear } = throttler()
     es.addEventListener("project.changed", (ev) => {
-      qc.invalidateQueries({ queryKey: fkeys.projects })
+      soon("projects", REFETCH_MS.list, () => qc.invalidateQueries({ queryKey: fkeys.projects }))
       try {
         const d = JSON.parse((ev as MessageEvent).data || "{}")
         if (typeof d.id === "string") {
-          qc.invalidateQueries({ queryKey: fkeys.project(d.id) })
-          qc.invalidateQueries({ queryKey: fkeys.log(d.id) })
+          soon(`project:${d.id}`, REFETCH_MS.item, () => {
+            qc.invalidateQueries({ queryKey: fkeys.project(d.id) })
+            qc.invalidateQueries({ queryKey: fkeys.log(d.id) })
+          })
         }
       } catch {}
     })
     es.addEventListener("worker.changed", () => qc.invalidateQueries({ queryKey: fkeys.health }))
-    return () => es.close()
+    return () => {
+      es.close()
+      clear()
+    }
   }, [qc])
 }

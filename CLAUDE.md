@@ -116,8 +116,8 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
 - «Ролики», step 2: the format on top — «16:9 · длинный» / «9:16 · Shorts» (`d.format`). Shorts: length in seconds (15–180,
   default 60, `script.seconds`), no «Графика» row (`shortShares` moves its share to AI — fl-api cards are 16:9 only), no
   pauses / chapter titles / intro (hidden, not sent); step 6 shows the chosen format. Picking a niche or switching the
-  format loads the niche preset of that format (`usePresetLoader`; a Short without its own — the 16:9 one); a ready script
-  over 3 min in 9:16 — a warning. The reel list and the reel screen mark 9:16.
+  format loads the niche preset of that format (`usePresetLoader`; a Short without its own — the 16:9 one); a ready voiceover
+  over 3 min in 9:16 — a warning and «Далее» blocked (the brain refuses longer Shorts: 400 `too_long`). The reel list and the reel screen mark 9:16.
 - «Ролики» list header: brain queue (`QueueControl`) — running / waiting, «одновременно» 1/2/3/5 (`PUT /api/reels/queue/limits`);
   waiting reels show their place (`queue.queued`).
 - «Ролики», step 5 (`reels/wizard-text.tsx`): «Модель ИИ-кадров» (`ai.mode`: i2v | flash_i2v, `/options` `ai_modes`, the

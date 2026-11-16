@@ -8,7 +8,7 @@ import { toast } from "sonner"
 
 import { shareText, sharesSum } from "@/components/reels/parts"
 import { rkeys, useReelOptions, useReelVoiceSources } from "@/components/reels/queries"
-import { EMPTY, clearDraft, loadDraft, saveDraft, shortSecondsOk, type Draft } from "@/components/reels/wizard-draft"
+import { EMPTY, SHORT_SECONDS, clearDraft, loadDraft, saveDraft, shortSecondsOk, type Draft } from "@/components/reels/wizard-draft"
 import { footageBody, introBody, introOk } from "@/components/reels/wizard-advanced"
 import { allowedTypes, infoLookText, infoShareOf, infoTypeList, infoTypesOk } from "@/components/reels/info-look"
 import {
@@ -19,6 +19,7 @@ import {
   StoryboardStep,
   SummaryStep,
   VoiceStep,
+  useReelSeconds,
   type StepProps,
 } from "@/components/reels/wizard-steps"
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/components/script/ui"
@@ -69,11 +70,17 @@ export function ReelWizard({ onCreated }: { onCreated: (id: string) => void }) {
   const s = d.script
   const fromVoice = s.mode === "ready" && s.from === "voice"
   const short = d.format === "9:16"
+  /** Shorts — strictly up to 3 minutes: a longer ready voiceover is not taken (the brain refuses it too). */
+  const reelSec = useReelSeconds(d)
   /** Older brains send no info list — nothing to choose and nothing sent. */
   const infoTypes = allowedTypes(infoTypeList(options), d.storyboard.infoOff)
   const ok = [
     !!d.niche,
-    s.mode === "topic" ? !!s.topic.trim() && (short ? shortSecondsOk(s.seconds) : Number(s.minutes) > 0) : s.from === "voice" ? !!s.voiceJob : !!file,
+    s.mode === "topic"
+      ? !!s.topic.trim() && (short ? shortSecondsOk(s.seconds) : Number(s.minutes) > 0)
+      : s.from === "voice"
+        ? !!s.voiceJob && !(short && reelSec > SHORT_SECONDS[1])
+        : !!file,
     s.mode === "topic" ? !!d.voice.profile : true,
     !d.host.on || !!d.host.id,
     sharesSum(d.storyboard.shares) === 100 && introOk(d) && (!options?.info || infoTypesOk(infoShareOf(d.storyboard.shares.infographics, d.intro), infoTypes)),

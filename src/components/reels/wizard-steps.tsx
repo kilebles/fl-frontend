@@ -435,7 +435,7 @@ export function ScriptStep({ d, up, file, setFile }: StepProps) {
         </div>
       )}
       {short && s.mode === "ready" && seconds > SHORT_SECONDS[1] && (
-        <Note tone="warn">Озвучка длиннее 3 минут ({clock(seconds)}) — YouTube покажет такой ролик как обычное видео, не как Shorts.</Note>
+        <Note tone="warn">Озвучка {clock(seconds)} — для Shorts нужна не длиннее 3 минут: длиннее YouTube выложит обычным видео.</Note>
       )}
     </div>
   )

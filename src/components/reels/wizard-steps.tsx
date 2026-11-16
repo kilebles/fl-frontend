@@ -29,9 +29,11 @@ import { VoiceProfileDialog } from "@/components/reels/voice-profile-dialog"
 import {
   DEFAULT_FONT,
   DEFAULT_LOOK,
+  DEFAULT_SHORT,
   DEFAULT_SOUNDS,
   EMPTY_PAUSES,
   SHORT_SECONDS,
+  SHORT_STYLE,
   pausesFrom,
   shortSecondsOk,
   shortShares,
@@ -112,7 +114,9 @@ function usePresetLoader(up: Up) {
         .fetchQuery({ queryKey: ["reels", "preset", n.slug, f], queryFn: () => reels.preset(n.slug, f), staleTime: 0 })
         .catch(() => ({}) as Partial<ReelSettings>)
     let preset = await get(format)
-    if (format === "9:16" && !preset.storyboard) preset = await get("16:9")
+    const own = !!preset.storyboard
+    if (format === "9:16" && !own) preset = await get("16:9")
+    const o = qc.getQueryData<ReelOptions>(rkeys.options)
     up((x) => {
       const def = n.defaults ?? {}
       const next: Draft = { ...x, niche: n.slug, nicheName: n.name, presetFrom: "", format }
@@ -150,18 +154,63 @@ function usePresetLoader(up: Up) {
           quality: preset.montage?.quality ?? "",
           sounds: { ...DEFAULT_SOUNDS, ...(preset.montage?.sounds ?? {}) },
           info: { ...DEFAULT_LOOK, ...(preset.montage?.info ?? {}) },
+          short: { ...DEFAULT_SHORT, ...(preset.montage?.short ?? {}) },
         }
         Object.assign(next, fromPreset(preset, x))
         Object.assign(next, textFromPreset(preset))
       }
-      return format === "9:16" ? toShort(next) : next
+      return format === "9:16" ? toShort(next, o, !own) : toLong(next, o)
     })
   }
 }
 
-/** The Shorts limits on a draft: no «Графика» share, no intro (pauses and chapter titles are only not sent). */
-export function toShort(x: Draft): Draft {
-  return { ...x, format: "9:16", storyboard: { ...x.storyboard, shares: shortShares(x.storyboard.shares) }, intro: { ...x.intro, on: false } }
+/** Montage styles of the format: Shorts have their own, «Влог» fits both; older brains send no formats — all. */
+export function stylesFor(o: ReelOptions | undefined, format: Draft["format"]) {
+  const list = (o?.montage ?? []).filter((m) => !m.formats || m.formats.includes(format))
+  // Shorts: свои стили впереди, общие («Влог») — после
+  return format === "9:16" ? [...list.filter((m) => m.formats?.length === 1), ...list.filter((m) => m.formats?.length !== 1)] : list
+}
+
+/** Music choices of the format: Shorts — one track by mood; older brains — the 16:9 list. */
+export function musicFor(o: ReelOptions | undefined, format: Draft["format"]) {
+  return (format === "9:16" && o?.music_short?.length ? o.music_short : o?.music) ?? []
+}
+
+/** The Shorts rules on a draft: no «Графика» share and no intro (pauses and chapter titles are only not sent), a Shorts
+ *  montage style and music mood, no 4K; fromLong — coming from 16:9 settings: more sounds, as Shorts usually have. */
+export function toShort(x: Draft, o?: ReelOptions, fromLong = true): Draft {
+  const styles = stylesFor(o, "9:16").map((m) => m.value)
+  const music = musicFor(o, "9:16").map((m) => m.value)
+  const m = x.montage
+  return {
+    ...x,
+    format: "9:16",
+    storyboard: { ...x.storyboard, shares: shortShares(x.storyboard.shares) },
+    intro: { ...x.intro, on: false },
+    montage: {
+      ...m,
+      style: styles.length && !styles.includes(m.style) ? o?.montage_default_short || SHORT_STYLE : m.style,
+      music: music.length && !music.includes(m.music) ? "chapters" : m.music,
+      quality: m.quality === "4k" ? "sharp" : m.quality,
+      sounds: fromLong && m.sounds.density === "normal" ? { ...m.sounds, density: "high" } : m.sounds,
+    },
+  }
+}
+
+/** Back to 16:9: a Shorts-only style or music mood goes back to the defaults. */
+export function toLong(x: Draft, o?: ReelOptions): Draft {
+  const styles = stylesFor(o, "16:9").map((m) => m.value)
+  const music = musicFor(o, "16:9").map((m) => m.value)
+  const m = x.montage
+  return {
+    ...x,
+    format: "16:9",
+    montage: {
+      ...m,
+      style: styles.length && !styles.includes(m.style) ? o?.montage_default || "classic" : m.style,
+      music: music.length && !music.includes(m.music) ? "chapters" : m.music,
+    },
+  }
 }
 
 export function NicheStep({ d, up }: StepProps) {
@@ -269,6 +318,7 @@ export function ScriptStep({ d, up, file, setFile }: StepProps) {
   const { data: options } = useScenarioOptions()
   const { data: voices, error: voiceError, isLoading: voicesLoading } = useReelVoiceSources(d.script.mode === "ready" && d.script.from === "voice")
   const { data: niches } = useNiches()
+  const { data: ro } = useReelOptions()
   const load = usePresetLoader(up)
   const fileRef = useRef<HTMLInputElement>(null)
   const s = d.script
@@ -277,7 +327,7 @@ export function ScriptStep({ d, up, file, setFile }: StepProps) {
   const set = (patch: Partial<Draft["script"]>) => up((x) => ({ ...x, script: { ...x.script, ...patch } }))
   const setFormat = (f: Draft["format"]) => {
     if (f === d.format) return
-    up((x) => (f === "9:16" ? toShort(x) : { ...x, format: f }))
+    up((x) => (f === "9:16" ? toShort(x, ro) : toLong(x, ro)))
     const n = niches?.find((x) => x.slug === d.niche)
     if (n) void load(n, f)
   }
@@ -435,7 +485,10 @@ export function ScriptStep({ d, up, file, setFile }: StepProps) {
         </div>
       )}
       {short && s.mode === "ready" && seconds > SHORT_SECONDS[1] && (
-        <Note tone="warn">Озвучка {clock(seconds)} — для Shorts нужна не длиннее 3 минут: длиннее YouTube выложит обычным видео.</Note>
+        <Note>
+          Озвучка {clock(seconds)} — длиннее 3 минут. Мозг сам сделает Shorts:{" "}
+          {seconds > SHORT_SECONDS[1] * 1.15 ? "«Сценарий» сократит текст, «Озвучка» озвучит его тем же голосом и языками." : "уберёт лишние абзацы, первый и последний останутся."}
+        </Note>
       )}
     </div>
   )
@@ -978,13 +1031,15 @@ export const qualityLabel = (q: string | undefined) => QUALITY_OPTIONS.find(([v]
 export function MontageStep({ d, up }: StepProps) {
   const { data: options } = useReelOptions()
   const sec = useReelSeconds(d)
+  const short = d.format === "9:16"
   const style = options?.montage.find((m) => m.value === d.montage.style)
+  const styles = stylesFor(options, d.format)
   return (
     <div className="space-y-5">
       <div>
-        <Label>Стиль монтажа</Label>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {(options?.montage ?? []).map((m) => {
+        <Label>{short ? "Стиль монтажа Shorts" : "Стиль монтажа"}</Label>
+        <div className={cn("grid grid-cols-1 gap-3 sm:grid-cols-2", styles.length === 4 ? "xl:grid-cols-4" : "xl:grid-cols-3")}>
+          {styles.map((m) => {
             const avg = (m.shot_sec[0] + m.shot_sec[1]) / 2
             return (
               <Choice key={m.value} on={d.montage.style === m.value} onClick={() => up((x) => ({ ...x, montage: { ...x.montage, style: m.value } }))}>
@@ -1000,9 +1055,18 @@ export function MontageStep({ d, up }: StepProps) {
           })}
         </div>
       </div>
+      {short && <ShortsPick d={d} up={up} />}
       <div>
-        <Label aside={style && style.titles === false ? <span className="font-mono text-[11px] text-warn">в стиле «{style.label}» титров нет</span> : undefined}>
-          Шрифт титров
+        <Label
+          aside={
+            short ? (
+              <span className="font-mono text-[11px] text-faint">цифры и даты</span>
+            ) : style && style.titles === false ? (
+              <span className="font-mono text-[11px] text-warn">в стиле «{style.label}» титров нет</span>
+            ) : undefined
+          }
+        >
+          {short ? "Шрифт надписей" : "Шрифт титров"}
         </Label>
         <FontPick
           value={d.montage.font}
@@ -1013,11 +1077,13 @@ export function MontageStep({ d, up }: StepProps) {
       </div>
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-12">
         <div className="xl:col-span-4">
-          <Label aside={<span className="font-mono text-[11px] text-faint">Epidemic · по главам</span>}>Стиль музыки</Label>
+          <Label aside={<span className="font-mono text-[11px] text-faint">{short ? "Epidemic · один трек" : "Epidemic · по главам"}</span>}>
+            {short ? "Настроение музыки" : "Стиль музыки"}
+          </Label>
           <Pick
             value={d.montage.music}
             onChange={(v) => up((x) => ({ ...x, montage: { ...x.montage, music: v } }))}
-            options={(options?.music ?? []).map((m) => ({ value: m.value, label: m.label }))}
+            options={musicFor(options, d.format).map((m) => ({ value: m.value, label: m.label }))}
           />
         </div>
         <div className="xl:col-span-3">
@@ -1037,7 +1103,11 @@ export function MontageStep({ d, up }: StepProps) {
           <Seg
             value={d.montage.quality}
             onChange={(v) => up((x) => ({ ...x, montage: { ...x.montage, quality: v } }))}
-            options={[...QUALITY_OPTIONS]}
+            options={
+              short
+                ? QUALITY_OPTIONS.filter(([v]) => v !== "4k").map(([v, label, hint]) => [v, label, hint.replace("1920×1080", "1080×1920")] as const)
+                : [...QUALITY_OPTIONS]
+            }
           />
         </div>
       </div>
@@ -1050,6 +1120,44 @@ export function MontageStep({ d, up }: StepProps) {
       />
     </div>
   )
+}
+
+const SHORT_TOGGLES: { key: keyof Draft["montage"]["short"]; label: string; hint: string }[] = [
+  { key: "hook", label: "Крючок в начале", hint: "Первые 1–2 секунды — самый сильный кадр, сразу, без плавного появления из чёрного." },
+  {
+    key: "loop",
+    label: "Бесшовный повтор",
+    hint: "Shorts крутятся по кругу: последняя фраза подводит к первой, последний кадр — к первому, в конце нет затемнения и ухода музыки.",
+  },
+]
+
+/** Shorts only: the hook at the start and the seamless loop (the end flows into the start). */
+function ShortsPick({ d, up }: Pick<StepProps, "d" | "up">) {
+  const sh = d.montage.short
+  return (
+    <div>
+      <Label>Shorts</Label>
+      <div className="flex flex-wrap gap-x-8 gap-y-3">
+        {SHORT_TOGGLES.map((t) => (
+          <label key={t.key} className="flex cursor-pointer items-center gap-2.5 text-sm">
+            <input
+              type="checkbox"
+              checked={sh[t.key]}
+              onChange={(e) => up((x) => ({ ...x, montage: { ...x.montage, short: { ...x.montage.short, [t.key]: e.target.checked } } }))}
+              className="size-4 accent-[var(--pick)]"
+            />
+            <span className={sh[t.key] ? "font-medium text-foreground" : "text-muted-foreground"}>{t.label}</span>
+            <Hint text={t.hint} />
+          </label>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** «крючок · повтор» for the summary and the reel's settings line. */
+export function shortText(sh: Partial<Draft["montage"]["short"]> | undefined) {
+  return [sh?.hook === false ? "" : "крючок", sh?.loop === false ? "" : "повтор"].filter(Boolean).join(" · ") || "без крючка и повтора"
 }
 
 const DENSITY_HINT: Record<string, string> = {
@@ -1069,7 +1177,7 @@ function SoundsPick({ d, up }: Pick<StepProps, "d" | "up">) {
   const set = (patch: Partial<typeof snd>) => up((x) => ({ ...x, montage: { ...x.montage, sounds: { ...x.montage.sounds, ...patch } } }))
   const mult = { low: 0.5, normal: 1, high: 1.6 }[snd.density] ?? 1
   const perMin = (options?.sounds?.per_min[d.montage.style] ?? 3) * mult
-  const trans = options?.sounds?.transitions[d.montage.style]
+  const trans = d.format !== "9:16" && options?.sounds?.transitions[d.montage.style]  // у Shorts одна глава — переходов нет
   const density = options?.sounds?.density ?? [
     { value: "low", label: "Реже" },
     { value: "normal", label: "Обычно" },
@@ -1177,8 +1285,8 @@ export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & {
     ],
     [
       "Монтаж",
-      `${montageLabel} · шрифт: ${fontLabel(fonts, d.montage.font)} · ${d.format} · ${qualityLabel(d.montage.quality)} · музыка: ${
-        options?.music.find((m) => m.value === d.montage.music)?.label.toLowerCase() ?? d.montage.music
+      `${montageLabel}${short ? ` · ${shortText(d.montage.short)}` : ""} · шрифт: ${fontLabel(fonts, d.montage.font)} · ${d.format} · ${qualityLabel(d.montage.quality)} · музыка: ${
+        musicFor(options, d.format).find((m) => m.value === d.montage.music)?.label.toLowerCase() ?? d.montage.music
       } · ${soundsText(d.montage.sounds)}${
         infoShareOf(d.storyboard.shares.infographics, d.intro) > 0 && options?.info
           ? ` · инфографика: ${infoLookText(d.montage.info, options)}${infoTypes ? `, ${infoTypes}` : ""}`

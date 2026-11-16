@@ -8,7 +8,7 @@ import { toast } from "sonner"
 
 import { shareText, sharesSum } from "@/components/reels/parts"
 import { rkeys, useReelOptions, useReelVoiceSources } from "@/components/reels/queries"
-import { EMPTY, SHORT_SECONDS, clearDraft, loadDraft, saveDraft, shortSecondsOk, type Draft } from "@/components/reels/wizard-draft"
+import { EMPTY, clearDraft, loadDraft, saveDraft, shortSecondsOk, type Draft } from "@/components/reels/wizard-draft"
 import { footageBody, introBody, introOk } from "@/components/reels/wizard-advanced"
 import { allowedTypes, infoLookText, infoShareOf, infoTypeList, infoTypesOk } from "@/components/reels/info-look"
 import {
@@ -19,7 +19,6 @@ import {
   StoryboardStep,
   SummaryStep,
   VoiceStep,
-  useReelSeconds,
   type StepProps,
 } from "@/components/reels/wizard-steps"
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/components/script/ui"
@@ -70,8 +69,6 @@ export function ReelWizard({ onCreated }: { onCreated: (id: string) => void }) {
   const s = d.script
   const fromVoice = s.mode === "ready" && s.from === "voice"
   const short = d.format === "9:16"
-  /** Shorts — strictly up to 3 minutes: a longer ready voiceover is not taken (the brain refuses it too). */
-  const reelSec = useReelSeconds(d)
   /** Older brains send no info list — nothing to choose and nothing sent. */
   const infoTypes = allowedTypes(infoTypeList(options), d.storyboard.infoOff)
   const ok = [
@@ -79,7 +76,7 @@ export function ReelWizard({ onCreated }: { onCreated: (id: string) => void }) {
     s.mode === "topic"
       ? !!s.topic.trim() && (short ? shortSecondsOk(s.seconds) : Number(s.minutes) > 0)
       : s.from === "voice"
-        ? !!s.voiceJob && !(short && reelSec > SHORT_SECONDS[1])
+        ? !!s.voiceJob
         : !!file,
     s.mode === "topic" ? !!d.voice.profile : true,
     !d.host.on || !!d.host.id,
@@ -131,7 +128,7 @@ export function ReelWizard({ onCreated }: { onCreated: (id: string) => void }) {
             pauses: { modes: short ? [] : d.storyboard.pauses.modes, sec: d.storyboard.pauses.sec, every_sec: d.storyboard.pauses.everySec },
             ...(options?.info ? { info_types: infoTypes as InfoType[] } : {}),
           },
-          montage: options?.info ? d.montage : { ...d.montage, info: undefined },
+          montage: { ...d.montage, info: options?.info ? d.montage.info : undefined, short: short ? d.montage.short : undefined },
           footage: {
             video: footageBody(d.footage.video, !!options?.image_motions?.length),
             history: footageBody(d.footage.history, !!options?.image_motions?.length),

@@ -34,7 +34,7 @@ import { MaterialsCard, ResultCard } from "@/components/reels/result"
 import { ReviewCard, reviewCaption } from "@/components/reels/review"
 import { fontLabel, useFontList } from "@/components/reels/fonts"
 import { pausesFrom } from "@/components/reels/wizard-draft"
-import { pausesText, qualityLabel, soundsText } from "@/components/reels/wizard-steps"
+import { pausesText, qualityLabel, shortText, soundsText } from "@/components/reels/wizard-steps"
 import { infoLine } from "@/components/reels/info-look"
 import { MOTION_SHORT } from "@/components/footage/parts"
 import { AudioCard } from "@/components/reels/audio"
@@ -282,7 +282,9 @@ export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number
         <div className="mt-4 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-4">
           <span className="min-w-0 flex-1 truncate text-xs text-faint">
             {[
-              r.settings.format === "9:16" ? `9:16 · Shorts${r.settings.script?.seconds ? ` · ${r.settings.script.seconds} с` : ""}` : "",
+              r.settings.format === "9:16"
+                ? `9:16 · Shorts${r.settings.script?.seconds ? ` · ${r.settings.script.seconds} с` : ""} · ${shortText(r.settings.montage?.short)}`
+                : "",
               montage
                 ? `Монтаж: ${montage} · шрифт: ${fontLabel(fonts, r.settings.montage?.font)} · ${qualityLabel(r.settings.montage?.quality)} · ${soundsText(r.settings.montage?.sounds)}`
                 : "",

@@ -172,7 +172,7 @@ export function AudioCard({ reel: r }: { reel: Reel }) {
                   ))}
                 </div>
               )}
-              {s.transition && (
+              {s.transition && r.settings.format !== "9:16" && (
                 <div className="flex min-w-0 items-center gap-2.5 text-sm">
                   <PlayBtn item={s.transition.sfx} player={player} />
                   <span className="min-w-0 truncate">

@@ -1400,7 +1400,8 @@ export const scenario = {
   /** The niche goes (passport, notes, settings); script projects of the niche stay. */
   deleteNiche: (slug: string) => request<{ slug: string; deleted: boolean }>(nid(slug), { method: "DELETE" }),
 
-  projects: () => request<ScenarioProject[]>("/api/scenario/projects"),
+  /** The list for the page: without the brief and the materials (they come with the project itself). */
+  projects: () => request<ScenarioProject[]>("/api/scenario/projects?light=1"),
   project: (id: string) => request<ScenarioProject>(pid(id)),
   createProject: (body: ProjectCreate) => request<ScenarioProject>("/api/scenario/projects", json("POST", body)),
   patchProject: (id: string, body: ProjectPatch) => request<ScenarioProject>(pid(id), json("PATCH", body)),
@@ -1571,7 +1572,8 @@ export const footage = {
   options: () => request<FootageOptions>("/api/footage/options"),
   sources: (fresh = false) => request<FootageSources>(`/api/footage/sources${fresh ? "?fresh=true" : ""}`),
   voiceSources: () => request<VoiceSource[]>("/api/footage/voice-sources"),
-  projects: () => request<FootageProject[]>("/api/footage/projects"),
+  /** The list for the page: stats without timing, model usage and sources (the project itself has them). */
+  projects: () => request<FootageProject[]>("/api/footage/projects?light=1"),
   project: (id: string) => request<FootageProject>(fid(id)),
   create: (body: FootageCreate, script?: File | null, audio?: File | null) => {
     const form = new FormData()
@@ -2359,7 +2361,8 @@ export const montage = {
   health: () =>
     request<{ status: string; worker_online: boolean; renderer: boolean; renderer_note: string }>("/api/montage/health"),
   options: () => request<InfoOptions>("/api/montage/options"),
-  list: () => request<InfoJob[]>("/api/montage/infographics"),
+  /** The list for the page: items carry only their type and status (files and captions — in the job itself). */
+  list: () => request<InfoJob[]>("/api/montage/infographics?light=1"),
   get: (id: string) => request<InfoJob>(mid(id)),
   create: (body: InfoCreate, file?: File | null) => {
     const form = new FormData()

@@ -118,6 +118,21 @@ export function TextDialog({ title, text, onClose }: { title: string; text: stri
   )
 }
 
+/** Long lists are shown in parts: the first LIST_STEP rows, then «Показать ещё». */
+export const LIST_STEP = 40
+
+export function ShowMore({ left, onClick }: { left: number; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="mt-2 w-full rounded-[3px] border border-line bg-surface py-2.5 text-[13px] text-muted-foreground transition hover:bg-elev hover:text-foreground"
+    >
+      Показать ещё {Math.min(left, LIST_STEP)} <span className="font-mono text-[11px] text-faint">· осталось {left}</span>
+    </button>
+  )
+}
+
 export function ConfirmDialog({
   open,
   title,

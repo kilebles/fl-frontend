@@ -135,6 +135,7 @@ export function McpDocsView() {
 
   useEffect(() => {
     const base = apiBase() || window.location.origin
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the origin is known only in the browser (the page is prerendered)
     setEndpointUrl(`${base.replace(/\/$/, "")}/api/mcp`)
   }, [])
 

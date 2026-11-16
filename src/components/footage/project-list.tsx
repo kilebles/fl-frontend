@@ -6,7 +6,7 @@ import { Download, Loader2, Mic, Paperclip, Trash2 } from "lucide-react"
 
 import { ENGINE_LABEL, MOTION_SHORT, StageBars, shotsText } from "@/components/footage/parts"
 import { fkeys, useFootageProjects } from "@/components/footage/queries"
-import { ConfirmDialog, useNow } from "@/components/script/parts"
+import { ConfirmDialog, LIST_STEP, ShowMore, useNow } from "@/components/script/parts"
 import { footage, type FootageProject } from "@/lib/api"
 import { timeAgo } from "@/lib/format"
 
@@ -105,6 +105,7 @@ export function ProjectList({ onOpen }: { onOpen: (id: string) => void }) {
   const { data, isLoading, error } = useFootageProjects()
   const now = useNow()
   const [del, setDel] = useState<FootageProject | null>(null)
+  const [shown, setShown] = useState(LIST_STEP)
   if (isLoading)
     return (
       <div className="flex justify-center py-10">
@@ -116,10 +117,11 @@ export function ProjectList({ onOpen }: { onOpen: (id: string) => void }) {
   return (
     <>
       <div className="overflow-hidden rounded-[4px] border border-line bg-surface">
-        {data.map((p) => (
+        {data.slice(0, shown).map((p) => (
           <Row key={p.id} p={p} now={now} onOpen={() => onOpen(p.id)} onDelete={() => setDel(p)} />
         ))}
       </div>
+      {data.length > shown && <ShowMore left={data.length - shown} onClick={() => setShown((n) => n + LIST_STEP)} />}
       <ConfirmDialog
         open={del !== null}
         title={`Удалить «${del?.title || "проект"}»?`}

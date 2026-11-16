@@ -123,7 +123,7 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
   over 3 min in 9:16 — a note that the brain fits it itself (rewrite through «Сценарий» or drop extra paragraphs).
   Step 6 in 9:16: the Shorts styles (`/options` montage `formats`, «Влог» in both; `stylesFor`), «Shorts» — «Крючок в
   начале», «Бесшовный повтор» and «Субтитры» (`montage.short = {hook, loop, subtitles}`, subtitles off by default), «Настроение музыки» (`music_short`, one track),
-  «Шрифт надписей» (numbers and dates), no 4K; `toShort` / `toLong` move a style or mood of the other format to the
+  «Шрифт надписей» (numbers and dates), no 4K; the reel screen's «Доли материала» has no «Графика» row in 9:16 either; `toShort` / `toLong` move a style or mood of the other format to the
   defaults (and more sounds when coming from 16:9). The reel list and the reel screen mark 9:16.
 - «Ролики» list header: brain queue (`QueueControl`) — running / waiting, «одновременно» 1/2/3/5 (`PUT /api/reels/queue/limits`);
   waiting reels show their place (`queue.queued`).
@@ -132,6 +132,13 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
   «Сценарий» languages) with «Цифры и даты» → `text = {lang, numbers, chapters}`; under «Паузы» chapter pauses take their
   own length (`storyboard.pauses.modes[].sec`, «общая» — none) and «Надписи глав» (`text.chapters`, null — as the montage
   style's `titles`). The brain picks the numbers and dates and their look; the summary and the reel's settings line show `textLine`.
+- Lists for the pages are light: `/api/scenario/projects?light=1` (no brief / materials), `/api/footage/projects?light=1`
+  (stats without timing / usage / sources), `/api/montage/infographics?light=1` (items: key, type, status) — list rows
+  must not read the dropped fields (the project / job query has them). Long lists are shown in parts (`LIST_STEP`,
+  `ShowMore` in `script/parts.tsx`: «Поиск видео», «Промпты»). SSE refetches go through `throttler()` (`lib/throttle.ts`),
+  «Промпты» included.
+- Security headers for the pages — `next.config.ts` `headers()` (HSTS, X-Frame-Options SAMEORIGIN, nosniff,
+  Referrer-Policy), `poweredByHeader: false`; the APIs answer through Caddy and are not covered.
 - Projects (ролики): the current project lives in localStorage; screens filter by it and new jobs/runs carry `project_id`.
   The project's style line is appended to every prompt (composer, batch, «В производство», avatar scene).
 - Credits/balance are a UI stub (`— кр.`) — no billing yet.

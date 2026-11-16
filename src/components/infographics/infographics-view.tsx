@@ -25,7 +25,8 @@ export function stageText(run: InfographicRun): string {
     case "rendering":
       return `Рендер · ${run.done} из ${run.total}`
     case "done":
-      return `${run.total} ${plural(run.total, "карточка", "карточки", "карточек")}`
+      // nothing to draw: the detector found no people, battles or arms in the text — not «0 карточек · Готово»
+      return run.total ? `${run.total} ${plural(run.total, "карточка", "карточки", "карточек")}` : "В тексте не нашлось героев"
     case "failed":
       return "Ошибка"
   }

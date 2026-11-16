@@ -1123,11 +1123,20 @@ export function MontageStep({ d, up }: StepProps) {
 }
 
 const SHORT_TOGGLES: { key: keyof Draft["montage"]["short"]; label: string; hint: string }[] = [
-  { key: "hook", label: "Крючок в начале", hint: "Первые 1–2 секунды — самый сильный кадр, сразу, без плавного появления из чёрного." },
+  {
+    key: "hook",
+    label: "Крючок в начале",
+    hint: "Первые 1–2 секунды — самый сильный кадр (ИИ-кадр), сразу, без плавного появления из чёрного.",
+  },
   {
     key: "loop",
     label: "Бесшовный повтор",
-    hint: "Shorts крутятся по кругу: последняя фраза подводит к первой, последний кадр — к первому, в конце нет затемнения и ухода музыки.",
+    hint: "Shorts крутятся по кругу: последняя фраза подводит к первой, ролик кончается началом первого кадра — повтор без скачка, без затемнения и ухода музыки.",
+  },
+  {
+    key: "subtitles",
+    label: "Субтитры",
+    hint: "Текст озвучки фразами в кадре, на языке ролика. Дорожки других языков в YouTube звучат иначе — для многоязычных роликов лучше без субтитров.",
   },
 ]
 
@@ -1142,7 +1151,7 @@ function ShortsPick({ d, up }: Pick<StepProps, "d" | "up">) {
           <label key={t.key} className="flex cursor-pointer items-center gap-2.5 text-sm">
             <input
               type="checkbox"
-              checked={sh[t.key]}
+              checked={!!sh[t.key]}
               onChange={(e) => up((x) => ({ ...x, montage: { ...x.montage, short: { ...x.montage.short, [t.key]: e.target.checked } } }))}
               className="size-4 accent-[var(--pick)]"
             />
@@ -1157,7 +1166,8 @@ function ShortsPick({ d, up }: Pick<StepProps, "d" | "up">) {
 
 /** «крючок · повтор» for the summary and the reel's settings line. */
 export function shortText(sh: Partial<Draft["montage"]["short"]> | undefined) {
-  return [sh?.hook === false ? "" : "крючок", sh?.loop === false ? "" : "повтор"].filter(Boolean).join(" · ") || "без крючка и повтора"
+  const parts = [sh?.hook === false ? "" : "крючок", sh?.loop === false ? "" : "повтор"].filter(Boolean)
+  return [parts.join(" · ") || "без крючка и повтора", sh?.subtitles ? "субтитры" : ""].filter(Boolean).join(" · ")
 }
 
 const DENSITY_HINT: Record<string, string> = {

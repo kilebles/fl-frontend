@@ -77,7 +77,10 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
   storyboard the brain orders materials from the modules (`reels/result.tsx` → «Материалы» by category) and assembles
   the reel: «Готовый ролик» — player, mp4 and the DaVinci montage project (`/api/reels/{id}/result/mp4|montage`).
   Step 3: the translation model on top — one list of family × level (`flatModels` in `lib/voice-models.ts`, same list in
-  «Озвучка»), voice profiles created and edited in place (`reels/voice-profile-dialog.tsx`). Step 5: the storyboard model —
+  «Озвучка»), voice profiles as cards (`reels/voice-profile-cards.tsx`): pick, the base voice's sample, «Изменить» / «Удалить» on
+  the card (delete warns about reels not voiced yet with it — «Озвучка» would take its default profile), the dashed «Новый профиль» tile
+  (a copy of the chosen one; `reels/voice-profile-dialog.tsx`); samples of the translation voices in their rows. One player for
+  every sample (`reels/voice-sample.tsx`: `useVoiceSample`, `SampleButton`) — «Озвучка» serves the sample from the voice's Fish page, else a synthesized phrase. Step 5: the storyboard model —
   one list «engine:model» from fl-reel (`options.models`); «Паузы» under the shares — several variants at once (chapter ends /
   ~every N s at a fitting place / auto), each with an optional «Затухание», hints on hover; pause length; «Типы инфографики»
   (`reels/info-look.tsx` `InfoTypesPick`: chips grouped by `/options` `info.types`, «Инфографика 2» — journey / units /

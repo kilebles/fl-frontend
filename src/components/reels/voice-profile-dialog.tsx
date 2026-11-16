@@ -1,13 +1,14 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { Loader2, Pause, Play, Plus, X } from "lucide-react"
+import { Loader2, Plus, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { BTN_PRIMARY, BTN_SECONDARY, INPUT, Label, Pick } from "@/components/script/ui"
-import { voice, voiceMediaUrl, type VoiceProfile } from "@/lib/api"
+import { SampleButton } from "@/components/reels/voice-sample"
+import { voice, type VoiceProfile } from "@/lib/api"
 import { langCode } from "@/lib/langs"
 import { cn } from "@/lib/utils"
 
@@ -105,34 +106,11 @@ function ProfileForm({
   const [adding, setAdding] = useState("")
   const [fish, setFish] = useState({ name: "", url: "", lang: "EN" })
   const [fishBusy, setFishBusy] = useState(false)
-  const [playing, setPlaying] = useState("")
-  const audio = useRef<HTMLAudioElement | null>(null)
-
-  useEffect(() => () => audio.current?.pause(), [])
 
   const voiceName = (id: string) => entries?.find((e) => e.id === id)?.name ?? id
   const defaultNorm = (code: string) => langInfo?.find((l) => api(l.code) === code)?.norm ?? [75, 80]
   const free = LANGS.filter(([c]) => !rows.some((r) => api(r.lang) === c))
   const set = (i: number, patch: Partial<Row>) => setRows((rs) => rs.map((r, k) => (k === i ? { ...r, ...patch } : r)))
-
-  const play = (id: string) => {
-    const e = entries?.find((x) => x.id === id)
-    const url = voiceMediaUrl(e?.sample_url ?? `/api/voice/voices/${id}/sample`)
-    if (!audio.current) {
-      audio.current = new Audio()
-      audio.current.onended = () => setPlaying("")
-    }
-    if (playing === id) {
-      audio.current.pause()
-      setPlaying("")
-      return
-    }
-    audio.current.src = url
-    void audio.current.play().then(
-      () => setPlaying(id),
-      () => toast.error("Образец не проигрывается"),
-    )
-  }
 
   const save = async () => {
     if (!name.trim()) {
@@ -260,15 +238,7 @@ function ProfileForm({
                     {langCode(code)}
                   </span>
                   <Pick value={r.voice} onChange={(v) => set(i, { voice: v })} options={voiceOptions} placeholder={voiceName(r.voice) || "Голос"} />
-                  <button
-                    type="button"
-                    onClick={() => play(r.voice)}
-                    disabled={!r.voice}
-                    title="Образец"
-                    className="grid size-8 place-items-center rounded-[3px] border border-line-strong text-electric hover:bg-elev disabled:opacity-40"
-                  >
-                    {playing === r.voice ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
-                  </button>
+                  <SampleButton id={r.voice} className="size-8" />
                   {code === "EN" ? (
                     <span className="font-mono text-[11px] text-faint">100 — эталон</span>
                   ) : (

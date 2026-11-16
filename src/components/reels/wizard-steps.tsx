@@ -26,6 +26,8 @@ import { FootageSettings, IntroSettings, footageText, fromPreset, motionOf } fro
 import { InfoLookPick, InfoTypesPick, allowedTypes, infoLookText, infoOffFrom, infoShareOf, infoTypeList, infoTypesText } from "@/components/reels/info-look"
 import { flatModels, modelLabel } from "@/lib/voice-models"
 import { VoiceProfileDialog } from "@/components/reels/voice-profile-dialog"
+import { VoiceProfileCards } from "@/components/reels/voice-profile-cards"
+import { SampleButton } from "@/components/reels/voice-sample"
 import {
   DEFAULT_FONT,
   DEFAULT_LOOK,
@@ -548,7 +550,7 @@ export function VoiceStep({ d, up }: StepProps) {
   const { data: models } = useQuery({ queryKey: ["reels", "voice-models"], queryFn: voice.models, staleTime: 5 * 60_000 })
   const tms = models?.translation_models ?? []
   const model = d.voice.model || tms.find((m) => m.id === "gemini-4-argon-medium")?.id || tms[0]?.id || ""
-  const [dialog, setDialog] = useState<"new" | "edit" | null>(null)
+  const [editing, setEditing] = useState(false)
   const flat = flatModels(tms)
   const current = flat.find((m) => m.value === model)
 
@@ -563,36 +565,18 @@ export function VoiceStep({ d, up }: StepProps) {
       <div>
       <Label
         aside={
-          !isLoading &&
-          !error && (
-            <span className="flex gap-3 text-xs">
-              {profile && (
-                <button type="button" onClick={() => setDialog("edit")} className="flex items-center gap-1 text-muted-foreground hover:text-foreground">
-                  <Pencil className="size-3" />
-                  изменить «{profile.name}»
-                </button>
-              )}
-              {!fromVoice && (
-                <button type="button" onClick={() => setDialog("new")} className="flex items-center gap-1 text-muted-foreground hover:text-foreground">
-                  <Plus className="size-3" />
-                  новый профиль
-                </button>
-              )}
-            </span>
+          fromVoice &&
+          profile && (
+            <button type="button" onClick={() => setEditing(true)} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+              <Pencil className="size-3" />
+              изменить «{profile.name}»
+            </button>
           )
         }
       >
         Профиль озвучки
       </Label>
-      <VoiceProfileDialog
-        open={dialog !== null}
-        profile={dialog === "edit" ? (profile ?? null) : null}
-        base={profile ?? profiles?.[0] ?? null}
-        onClose={() => setDialog(null)}
-        onSaved={(p) => {
-          if (dialog === "new") pickProfile(p.id, p.name)
-        }}
-      />
+      {fromVoice && <VoiceProfileDialog open={editing} profile={profile ?? null} onClose={() => setEditing(false)} onSaved={() => {}} />}
       {fromVoice ? (
         <Note>
           Базовый язык уже озвучен: проект «{job?.title ?? "из «Озвучки»"}»
@@ -605,19 +589,16 @@ export function VoiceStep({ d, up }: StepProps) {
       ) : error ? (
         <Note tone="warn">«Озвучка» недоступна — профили не загрузились: {error.message}</Note>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {(profiles ?? []).map((p) => {
-            const main = Object.entries(p.default).find(([k]) => apiLang(k) === base)?.[1]
-            const n = Object.keys(p.voices).length
-            return (
-              <Choice key={p.id} on={d.voice.profile === p.id} onClick={() => pickProfile(p.id, p.name)}>
-                <span className="pr-6 text-sm font-medium">{p.name}</span>
-                <span className="text-xs text-muted-foreground">{main ? `${base}: ${name(main)}` : `для ${base} голоса нет`}</span>
-                <span className="mt-1 font-mono text-[11px] text-faint">{[`${n} яз.`, ...p.channels].join(" · ")}</span>
-              </Choice>
-            )
-          })}
-        </div>
+        <VoiceProfileCards
+          profiles={profiles ?? []}
+          selected={d.voice.profile}
+          base={base}
+          voiceName={name}
+          onPick={(p) => pickProfile(p.id, p.name)}
+          onDeleted={(id) =>
+            up((x) => (x.voice.profile === id ? { ...x, voice: { profile: "", name: "", targets: [], voices: {}, model: x.voice.model } } : x))
+          }
+        />
       )}
 
       </div>
@@ -685,6 +666,7 @@ export function VoiceStep({ d, up }: StepProps) {
             return (
               <div key={code} className="flex items-center gap-3 border-b border-line px-3 py-2 last:border-b-0">
                 <span className="w-10 font-mono text-xs text-ok">{langCode(code)}</span>
+                <SampleButton id={chosen || main || list[0] || ""} />
                 <div className="min-w-0 flex-1">
                   {list.length > 1 ? (
                     <Pick

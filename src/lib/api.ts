@@ -1920,7 +1920,7 @@ export interface ReelSettings {
   /** font — the title font (`ReelFont.value`); "" — the montage style's font. */
   /** quality: "" — 1080p as before; "sharp" — 1080p + sharpening; "4k" — 2160p + sharpening. */
   /** info — the infographic look (fl-montage style and palette); auto — the film's brief picks, older reels: absent. */
-  montage: { style: string; music: string; font?: string; quality?: string; sounds?: ReelSoundSettings; info?: ReelInfoLook }
+  montage: { style: string; music: string; font?: string; quality?: string; sounds?: ReelSoundSettings; info?: ReelInfoLook; short?: ReelShortMontage }
   /** «Поиск видео» for each real category; null / "" — as set on the module's server. */
   footage?: { video: ReelFootageSettings; history: ReelFootageSettings }
   /** The first minutes apart: own shares, shot length and category score floor. */
@@ -1988,6 +1988,14 @@ export interface ReelMontageStyle {
   /** The style shows chapter titles; font — its own title font (serif | sans | mono). */
   titles?: boolean
   font?: "serif" | "sans" | "mono"
+  /** Formats the style is for: Shorts have their own styles (9:16), «Влог» fits both; older brains: absent — all. */
+  formats?: ("16:9" | "9:16")[]
+}
+
+/** Shorts montage: hook — the strongest shot first, straight in; loop — the end flows into the start. */
+export interface ReelShortMontage {
+  hook: boolean
+  loop: boolean
 }
 
 export interface ReelOptions {
@@ -2002,6 +2010,9 @@ export interface ReelOptions {
   montage: ReelMontageStyle[]
   montage_default: string
   music: { value: string; label: string }[]
+  /** Shorts: the default style and the music moods (one track); older brains: absent — the 16:9 lists. */
+  montage_default_short?: string
+  music_short?: { value: string; label: string }[]
   /** Models of AI shots; older brains: absent — no choice (i2v). */
   ai_modes?: { value: ReelAiMode; label: string }[]
   footage_groups?: { value: FootageGroup; label: string }[]

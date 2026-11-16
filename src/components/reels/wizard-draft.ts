@@ -1,6 +1,6 @@
 "use client"
 
-import type { FootageGroup, ImageMotion, ReelInfoLook, ReelShares, ReelSoundSettings } from "@/lib/api"
+import type { FootageGroup, ImageMotion, ReelInfoLook, ReelShares, ReelShortMontage, ReelSoundSettings } from "@/lib/api"
 import { PRESETS, STYLES, savedShares } from "@/components/reels/parts"
 
 /** «Поиск видео» settings of one real category; empty strings — as set on the module's server. */
@@ -38,6 +38,9 @@ export type PausesDraft = { modes: { mode: PauseMode; fade: boolean; sec?: numbe
 /** The title font of a new reel. */
 export const DEFAULT_FONT = "constantia"
 export const DEFAULT_SOUNDS: ReelSoundSettings = { on: true, density: "normal", veo: "mute" }
+export const DEFAULT_SHORT: ReelShortMontage = { hook: true, loop: true }
+/** Shorts defaults when the brain sends no lists (older brains). */
+export const SHORT_STYLE = "short_cinematic"
 /** Infographic look: style and colours chosen by the film's brief. */
 export const DEFAULT_LOOK: ReelInfoLook = { style: "auto", palette: "auto" }
 
@@ -88,7 +91,7 @@ export type Draft = {
   /** font — the title font; "" — the montage style's font. quality: "" (1080p as before) | "sharp" | "4k". */
   /** sounds — background, short sounds of shots and transitions from Epidemic; veo: mute | keep the Veo clips' sound.
    *  info — the infographic look (fl-montage style and palette, or auto). */
-  montage: { style: string; music: string; font: string; quality: string; sounds: ReelSoundSettings; info: ReelInfoLook }
+  montage: { style: string; music: string; font: string; quality: string; sounds: ReelSoundSettings; info: ReelInfoLook; short: ReelShortMontage }
   footage: { video: FootageDraft; history: FootageDraft }
   intro: IntroDraft
   /** 9:16 — YouTube Shorts: length in seconds, no pauses, intro, chapter titles or «Графика» (its cards are 16:9 only). */
@@ -109,7 +112,7 @@ export const EMPTY: Draft = {
   voice: { profile: "", name: "", targets: [], voices: {}, model: "" },
   host: { on: false, id: "", name: "", voice: "" },
   storyboard: { shares: PRESETS[0].shares, style: STYLES[0].value, notes: "", engine: "", model: "", pauses: EMPTY_PAUSES, infoOff: [] },
-  montage: { style: "classic", music: "chapters", font: DEFAULT_FONT, quality: "", sounds: DEFAULT_SOUNDS, info: DEFAULT_LOOK },
+  montage: { style: "classic", music: "chapters", font: DEFAULT_FONT, quality: "", sounds: DEFAULT_SOUNDS, info: DEFAULT_LOOK, short: DEFAULT_SHORT },
   footage: { video: EMPTY_FOOTAGE, history: EMPTY_FOOTAGE },
   intro: { on: false, sec: 120, shares: PRESETS[0].shares, shot: ["", ""], minFit: "" },
   format: "16:9",
@@ -142,6 +145,7 @@ export function loadDraft(): Draft {
         ...raw.montage,
         sounds: { ...DEFAULT_SOUNDS, ...(raw.montage?.sounds ?? {}) },
         info: { ...DEFAULT_LOOK, ...(raw.montage?.info ?? {}) },
+        short: { ...DEFAULT_SHORT, ...(raw.montage?.short ?? {}) },
       },
       footage: {
         video: { ...EMPTY_FOOTAGE, ...raw.footage?.video },

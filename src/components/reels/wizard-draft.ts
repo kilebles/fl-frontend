@@ -68,6 +68,8 @@ export type Draft = {
     mode: "topic" | "ready"
     topic: string
     minutes: string
+    /** The length of a Short (9:16), seconds. */
+    seconds: string
     language: string
     tone: string
     model: string
@@ -89,6 +91,7 @@ export type Draft = {
   montage: { style: string; music: string; font: string; quality: string; sounds: ReelSoundSettings; info: ReelInfoLook }
   footage: { video: FootageDraft; history: FootageDraft }
   intro: IntroDraft
+  /** 9:16 — YouTube Shorts: length in seconds, no pauses, intro, chapter titles or «Графика» (its cards are 16:9 only). */
   format: "16:9" | "9:16"
   /** On-screen text in one language (infographics, numbers and dates, chapter titles). */
   text: TextDraft
@@ -102,7 +105,7 @@ export const EMPTY: Draft = {
   nicheName: "",
   presetFrom: "",
   title: "",
-  script: { mode: "topic", topic: "", minutes: "20", language: "en", tone: "", model: "", notes: "", from: "voice", voiceJob: "" },
+  script: { mode: "topic", topic: "", minutes: "20", seconds: "60", language: "en", tone: "", model: "", notes: "", from: "voice", voiceJob: "" },
   voice: { profile: "", name: "", targets: [], voices: {}, model: "" },
   host: { on: false, id: "", name: "", voice: "" },
   storyboard: { shares: PRESETS[0].shares, style: STYLES[0].value, notes: "", engine: "", model: "", pauses: EMPTY_PAUSES, infoOff: [] },
@@ -163,4 +166,16 @@ export function clearDraft() {
   try {
     localStorage.removeItem(KEY)
   } catch {}
+}
+
+export const SHORT_SECONDS: [number, number] = [15, 180]
+
+/** Shorts have no «Графика» (fl-api draws its cards 16:9 only): its share goes to AI shots. */
+export function shortShares(s: ReelShares): ReelShares {
+  return s.graphics ? { ...s, ai: s.ai + s.graphics, graphics: 0 } : s
+}
+
+export function shortSecondsOk(v: string) {
+  const n = Number(v)
+  return Number.isInteger(n) && n >= SHORT_SECONDS[0] && n <= SHORT_SECONDS[1]
 }

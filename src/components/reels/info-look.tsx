@@ -183,7 +183,7 @@ export function InfoLookPick({
   const base: InfoStyle = value.style !== "auto" ? value.style : (info.by_montage[montageStyle] ?? "parchment")
   const shown: InfoPalette = value.palette === "auto" ? "default" : value.palette
   const colors = (style: InfoStyle, palette: InfoPalette) => mo?.palettes?.find((p) => p.value === palette)?.swatches?.[style]
-  const styleHint = (s: string) => mo?.styles.find((x) => x.value === s)?.hint
+  const styleHint = (s: string) => mo?.styles?.find((x) => x.value === s)?.hint
   const palettes = info.palettes.filter((p) => p.value !== "auto") as { value: InfoPalette; label: string }[]
   const dots = palettes.map((p) => colors(base, p.value)).filter((c): c is string[] => !!c?.length)
   const grid = "grid max-w-[940px] grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5"

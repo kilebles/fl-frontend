@@ -38,7 +38,7 @@ export type PausesDraft = { modes: { mode: PauseMode; fade: boolean; sec?: numbe
 /** The title font of a new reel. */
 export const DEFAULT_FONT = "constantia"
 export const DEFAULT_SOUNDS: ReelSoundSettings = { on: true, density: "normal", veo: "mute" }
-export const DEFAULT_SHORT: ReelShortMontage = { hook: true, loop: true }
+export const DEFAULT_SHORT: ReelShortMontage = { hook: true, loop: true, subtitles: false }
 /** Shorts defaults when the brain sends no lists (older brains). */
 export const SHORT_STYLE = "short_cinematic"
 /** Infographic look: style and colours chosen by the film's brief. */

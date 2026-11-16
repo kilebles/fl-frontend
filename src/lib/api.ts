@@ -1996,6 +1996,8 @@ export interface ReelMontageStyle {
 export interface ReelShortMontage {
   hook: boolean
   loop: boolean
+  /** Base-language subtitles in the frame; older brains: absent (none). */
+  subtitles?: boolean
 }
 
 export interface ReelOptions {

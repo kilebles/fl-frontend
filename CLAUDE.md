@@ -119,7 +119,7 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
   format loads the niche preset of that format (`usePresetLoader`; a Short without its own — the 16:9 one); a ready voiceover
   over 3 min in 9:16 — a note that the brain fits it itself (rewrite through «Сценарий» or drop extra paragraphs).
   Step 6 in 9:16: the Shorts styles (`/options` montage `formats`, «Влог» in both; `stylesFor`), «Shorts» — «Крючок в
-  начале» and «Бесшовный повтор» (`montage.short = {hook, loop}`), «Настроение музыки» (`music_short`, one track),
+  начале», «Бесшовный повтор» and «Субтитры» (`montage.short = {hook, loop, subtitles}`, subtitles off by default), «Настроение музыки» (`music_short`, one track),
   «Шрифт надписей» (numbers and dates), no 4K; `toShort` / `toLong` move a style or mood of the other format to the
   defaults (and more sounds when coming from 16:9). The reel list and the reel screen mark 9:16.
 - «Ролики» list header: brain queue (`QueueControl`) — running / waiting, «одновременно» 1/2/3/5 (`PUT /api/reels/queue/limits`);

@@ -26,12 +26,23 @@ import { FootageSettings, IntroSettings, footageText, fromPreset, motionOf } fro
 import { InfoLookPick, InfoTypesPick, allowedTypes, infoLookText, infoOffFrom, infoShareOf, infoTypeList, infoTypesText } from "@/components/reels/info-look"
 import { flatModels, modelLabel } from "@/lib/voice-models"
 import { VoiceProfileDialog } from "@/components/reels/voice-profile-dialog"
-import { DEFAULT_FONT, DEFAULT_LOOK, DEFAULT_SOUNDS, EMPTY_PAUSES, pausesFrom, type Draft, type PauseMode } from "@/components/reels/wizard-draft"
+import {
+  DEFAULT_FONT,
+  DEFAULT_LOOK,
+  DEFAULT_SOUNDS,
+  EMPTY_PAUSES,
+  SHORT_SECONDS,
+  pausesFrom,
+  shortSecondsOk,
+  shortShares,
+  type Draft,
+  type PauseMode,
+} from "@/components/reels/wizard-draft"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { FontPick, fontLabel, useFontList } from "@/components/reels/fonts"
 import { skeys, useNiches, useScenarioOptions } from "@/components/script/queries"
 import { BTN_PRIMARY, BTN_SECONDARY, INPUT, Label, ON_BLUE, Pick, Seg } from "@/components/script/ui"
-import { reels, scenario, voice, type ReelOptions, type ReelSettings, type ScenarioNiche } from "@/lib/api"
+import { reels, scenario, voice, type ReelOptions, type ReelSettings, type ReelShares, type ScenarioNiche } from "@/lib/api"
 import { useAvatars } from "@/lib/queries"
 import { cn } from "@/lib/utils"
 import { AiModePick, ChapterTitlesCheck, TextPick, TextSummary, textFromPreset } from "@/components/reels/wizard-text"
@@ -81,7 +92,7 @@ function Choice({ on, onClick, children, className }: { on: boolean; onClick: ()
 /** The reel's length in seconds when it is already known (voice project or topic minutes). */
 export function useReelSeconds(d: Draft): number {
   const { data: voices } = useReelVoiceSources(d.script.mode === "ready" && d.script.from === "voice")
-  if (d.script.mode === "topic") return (Number(d.script.minutes) || 0) * 60
+  if (d.script.mode === "topic") return d.format === "9:16" ? Number(d.script.seconds) || 0 : (Number(d.script.minutes) || 0) * 60
   if (d.script.from !== "voice") return 0
   const v = voices?.find((x) => String(x.id) === d.script.voiceJob)
   return v?.duration_sec ? v.duration_sec + (v.paragraphs || 0) : 0
@@ -89,27 +100,29 @@ export function useReelSeconds(d: Draft): number {
 
 /* ------------------------------------------------------------------ 1. Ниша */
 
-export function NicheStep({ d, up }: StepProps) {
-  const qc = useQueryClient()
-  const { data: niches, isLoading, error } = useNiches()
-  const [creating, setCreating] = useState(false)
-  const [form, setForm] = useState({ name: "", description: "", notes: "" })
-  const [busy, setBusy] = useState(false)
+type NicheRef = Pick<ScenarioNiche, "slug" | "name" | "defaults">
 
-  const choose = async (n: Pick<ScenarioNiche, "slug" | "name" | "defaults">) => {
-    let preset: Partial<ReelSettings> = {}
-    try {
-      preset = await qc.fetchQuery({ queryKey: ["reels", "preset", n.slug], queryFn: () => reels.preset(n.slug), staleTime: 0 })
-    } catch {}
+/** Opens the menu with the niche's last reel in this format; a Short without its own preset starts from the 16:9 one
+ *  (voice, host, style) with the Shorts limits on top. */
+function usePresetLoader(up: Up) {
+  const qc = useQueryClient()
+  return async (n: NicheRef, format: Draft["format"]) => {
+    const get = (f: Draft["format"]) =>
+      qc
+        .fetchQuery({ queryKey: ["reels", "preset", n.slug, f], queryFn: () => reels.preset(n.slug, f), staleTime: 0 })
+        .catch(() => ({}) as Partial<ReelSettings>)
+    let preset = await get(format)
+    if (format === "9:16" && !preset.storyboard) preset = await get("16:9")
     up((x) => {
       const def = n.defaults ?? {}
-      const next: Draft = { ...x, niche: n.slug, nicheName: n.name, presetFrom: "" }
+      const next: Draft = { ...x, niche: n.slug, nicheName: n.name, presetFrom: "", format }
       next.script = {
         ...x.script,
         language: preset.script?.language || def.language || x.script.language,
         model: preset.script?.model || def.model || "",
         tone: preset.script?.tone || def.inputs?.tone || "",
         minutes: String(preset.script?.minutes || def.inputs?.duration_minutes || x.script.minutes),
+        seconds: String(preset.script?.seconds || x.script.seconds || 60),
       }
       if (preset.storyboard) {
         next.presetFrom = n.name
@@ -139,12 +152,26 @@ export function NicheStep({ d, up }: StepProps) {
           info: { ...DEFAULT_LOOK, ...(preset.montage?.info ?? {}) },
         }
         Object.assign(next, fromPreset(preset, x))
-        next.format = preset.format === "9:16" ? "9:16" : "16:9"
         Object.assign(next, textFromPreset(preset))
       }
-      return next
+      return format === "9:16" ? toShort(next) : next
     })
   }
+}
+
+/** The Shorts limits on a draft: no «Графика» share, no intro (pauses and chapter titles are only not sent). */
+export function toShort(x: Draft): Draft {
+  return { ...x, format: "9:16", storyboard: { ...x.storyboard, shares: shortShares(x.storyboard.shares) }, intro: { ...x.intro, on: false } }
+}
+
+export function NicheStep({ d, up }: StepProps) {
+  const qc = useQueryClient()
+  const { data: niches, isLoading, error } = useNiches()
+  const [creating, setCreating] = useState(false)
+  const [form, setForm] = useState({ name: "", description: "", notes: "" })
+  const [busy, setBusy] = useState(false)
+  const load = usePresetLoader(up)
+  const choose = (n: NicheRef) => load(n, d.format)
 
   const create = async () => {
     setBusy(true)
@@ -241,11 +268,31 @@ export function NicheStep({ d, up }: StepProps) {
 export function ScriptStep({ d, up, file, setFile }: StepProps) {
   const { data: options } = useScenarioOptions()
   const { data: voices, error: voiceError, isLoading: voicesLoading } = useReelVoiceSources(d.script.mode === "ready" && d.script.from === "voice")
+  const { data: niches } = useNiches()
+  const load = usePresetLoader(up)
   const fileRef = useRef<HTMLInputElement>(null)
   const s = d.script
+  const short = d.format === "9:16"
+  const seconds = useReelSeconds(d)
   const set = (patch: Partial<Draft["script"]>) => up((x) => ({ ...x, script: { ...x.script, ...patch } }))
+  const setFormat = (f: Draft["format"]) => {
+    if (f === d.format) return
+    up((x) => (f === "9:16" ? toShort(x) : { ...x, format: f }))
+    const n = niches?.find((x) => x.slug === d.niche)
+    if (n) void load(n, f)
+  }
   return (
     <div className="space-y-5">
+      <div className="max-w-md">
+        <Seg
+          value={d.format}
+          onChange={(v) => setFormat(v as Draft["format"])}
+          options={[
+            ["16:9", "16:9 · длинный"],
+            ["9:16", "9:16 · Shorts"],
+          ]}
+        />
+      </div>
       <div className="max-w-md">
         <Seg
           value={s.mode}
@@ -263,13 +310,27 @@ export function ScriptStep({ d, up, file, setFile }: StepProps) {
             <input value={s.topic} onChange={(e) => set({ topic: e.target.value })} placeholder="Например: Битва при Каудпенсе, 1781" className={INPUT} />
           </div>
           <div className="xl:col-span-2">
-            <Label>Длительность, мин</Label>
-            <input
-              value={s.minutes}
-              inputMode="decimal"
-              onChange={(e) => set({ minutes: e.target.value.replace(/[^\d.,]/g, "").replace(",", ".").slice(0, 5) })}
-              className={cn(INPUT, "font-mono")}
-            />
+            {short ? (
+              <>
+                <Label aside={<span className="font-mono text-[11px] text-faint">{SHORT_SECONDS.join("–")}</span>}>Длительность, сек</Label>
+                <input
+                  value={s.seconds}
+                  inputMode="numeric"
+                  onChange={(e) => set({ seconds: e.target.value.replace(/\D/g, "").slice(0, 3) })}
+                  className={cn(INPUT, "font-mono", s.seconds && !shortSecondsOk(s.seconds) && "border-danger/60")}
+                />
+              </>
+            ) : (
+              <>
+                <Label>Длительность, мин</Label>
+                <input
+                  value={s.minutes}
+                  inputMode="decimal"
+                  onChange={(e) => set({ minutes: e.target.value.replace(/[^\d.,]/g, "").replace(",", ".").slice(0, 5) })}
+                  className={cn(INPUT, "font-mono")}
+                />
+              </>
+            )}
           </div>
           <div className="xl:col-span-3">
             <Label>Язык</Label>
@@ -372,6 +433,9 @@ export function ScriptStep({ d, up, file, setFile }: StepProps) {
             )}
           </div>
         </div>
+      )}
+      {short && s.mode === "ready" && seconds > SHORT_SECONDS[1] && (
+        <Note tone="warn">Озвучка длиннее 3 минут ({clock(seconds)}) — YouTube покажет такой ролик как обычное видео, не как Shorts.</Note>
       )}
     </div>
   )
@@ -675,19 +739,25 @@ export function StoryboardStep({ d, up }: StepProps) {
   const realistic = isRealistic(sb.style)
   const clash = !realistic && (sb.shares.video > 0 || sb.shares.history > 0)
   const preset = STYLES.findIndex((s) => s.value === sb.style.trim())
-  const cats = useCategories(d.host.on)
+  const short = d.format === "9:16"
+  const allCats = useCategories(d.host.on)
+  const cats = short ? allCats.filter((c) => c !== "graphics") : allCats
+  const setShares = (v: ReelShares) => set({ shares: short ? shortShares(v) : v })
   const defEngine = options?.engines.find((e) => e.value === options?.defaults.engine)
   const defaultModel = defEngine ? (options?.models?.find((m) => m.engine === defEngine.value && m.model === defEngine.model)?.label ?? defEngine.model) : ""
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-1 gap-x-6 gap-y-5 xl:grid-cols-12">
         <div className="xl:col-span-7">
-          <Label aside={<SharesAside value={sb.shares} onChange={(s) => set({ shares: s })} host={d.host.on} />}>Доли материала, % экранного времени</Label>
-          <SharesRows value={sb.shares} onChange={(s) => set({ shares: s })} seconds={sec} cats={cats} />
+          <Label aside={<SharesAside value={sb.shares} onChange={setShares} host={d.host.on} />}>Доли материала, % экранного времени</Label>
+          <SharesRows value={sb.shares} onChange={setShares} seconds={sec} cats={cats} />
           {sharesSum(sb.shares) !== 100 && <p className="mt-2 text-xs text-danger">Доли должны давать 100% — сейчас {sharesSum(sb.shares)}%.</p>}
-          <div className="mt-6">
-            <PausesPick d={d} up={up} />
-          </div>
+          {short && <p className="mt-2 text-xs text-faint">В 9:16 нет графики — её карточки только 16:9.</p>}
+          {!short && (
+            <div className="mt-6">
+              <PausesPick d={d} up={up} />
+            </div>
+          )}
           <div className="mt-6">
             <InfoTypesPick off={sb.infoOff} onChange={(infoOff) => set({ infoOff })} share={infoShareOf(sb.shares.infographics, d.intro)} />
           </div>
@@ -719,14 +789,14 @@ export function StoryboardStep({ d, up }: StepProps) {
                 type="button"
                 className="font-medium text-pick-text hover:underline"
                 onClick={() =>
-                  set({
-                    shares: d.host.on
+                  setShares(
+                    d.host.on
                       ? { ai: 65, video: 0, history: 0, graphics: 10, infographics: 10, avatar: 15 }
                       : { ai: 80, video: 0, history: 0, graphics: 10, infographics: 10, avatar: 0 },
-                  })
+                  )
                 }
               >
-                Оставить {d.host.on ? "ИИ, ведущего, графику и инфографику" : "ИИ, графику и инфографику"}
+                Оставить {short ? (d.host.on ? "ИИ, ведущего и инфографику" : "ИИ и инфографику") : d.host.on ? "ИИ, ведущего, графику и инфографику" : "ИИ, графику и инфографику"}
               </button>
             </Note>
           )}
@@ -760,7 +830,7 @@ export function StoryboardStep({ d, up }: StepProps) {
         </div>
       </div>
       <div className="space-y-3">
-        <IntroSettings d={d} up={up} />
+        {!short && <IntroSettings d={d} up={up} />}
         <FootageSettings d={d} up={up} />
       </div>
     </div>
@@ -951,14 +1021,13 @@ export function MontageStep({ d, up }: StepProps) {
           />
         </div>
         <div className="xl:col-span-3">
-          <Label>Формат</Label>
-          <div className="flex rounded-[3px] bg-surface-2 p-[3px]">
-            <button type="button" className={cn("flex-1 rounded-[2px] py-2 font-mono text-[13px]", ON_BLUE)}>
-              16:9
-            </button>
-            <button type="button" disabled title="Вертикальное видео — позже" className="flex-1 rounded-[2px] py-2 font-mono text-[13px] text-faint">
-              9:16 · позже
-            </button>
+          <Label aside={<span className="font-mono text-[11px] text-faint">шаг «Сценарий»</span>}>Формат</Label>
+          <div className="flex rounded-[3px] bg-surface-2 p-[3px]" title="Формат выбирается на шаге «Сценарий»">
+            {(["16:9", "9:16"] as const).map((f) => (
+              <span key={f} className={cn("flex-1 rounded-[2px] py-2 text-center font-mono text-[13px]", d.format === f ? ON_BLUE : "text-faint")}>
+                {f === "9:16" ? "9:16 · Shorts" : f}
+              </span>
+            ))}
           </div>
         </div>
         <div className="md:col-span-2 xl:col-span-5">
@@ -1063,15 +1132,17 @@ export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & {
   const tms = vm?.translation_models ?? []
   const sbModel = options?.models?.find((m) => m.engine === d.storyboard.engine && m.model === d.storyboard.model)?.label ?? d.storyboard.engine
   const infoTypes = infoTypesText(allowedTypes(infoTypeList(options), d.storyboard.infoOff), options)
+  const short = d.format === "9:16"
   const rows: [string, React.ReactNode][] = [
     ["Ниша", d.nicheName],
     [
       "Сценарий",
-      s.mode === "topic"
-        ? `${s.topic} · ${s.minutes} мин · ${langCode(s.language)}${s.notes ? " · есть дополнения" : ""}`
-        : s.from === "voice"
-          ? `из «Озвучки»: ${v?.title ?? "проект"}`
-          : `файл ${file?.name ?? "—"}`,
+      (short ? "9:16 · Shorts · " : "") +
+        (s.mode === "topic"
+          ? `${s.topic} · ${short ? `${s.seconds} с` : `${s.minutes} мин`} · ${langCode(s.language)}${s.notes ? " · есть дополнения" : ""}`
+          : s.from === "voice"
+            ? `из «Озвучки»: ${v?.title ?? "проект"}`
+            : `файл ${file?.name ?? "—"}`),
     ],
     [
       "Озвучка",
@@ -1087,9 +1158,9 @@ export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & {
           {d.storyboard.engine ? ` · ${sbModel}` : ""}
         </span>
         <MixBar shares={d.storyboard.shares} className="max-w-xs" />
-        {d.storyboard.pauses.modes.length > 0 && <span className="text-foreground-2">{pausesText(d.storyboard.pauses)}</span>}
+        {!short && d.storyboard.pauses.modes.length > 0 && <span className="text-foreground-2">{pausesText(d.storyboard.pauses)}</span>}
         <TextSummary d={d} />
-        {d.intro.on && (
+        {!short && d.intro.on && (
           <span className="text-foreground-2">
             первые {Math.round(d.intro.sec / 60)} мин: {shareText(d.intro.shares, d.host.on)}
             {d.intro.shot[0] && d.intro.shot[1] ? ` · кадр ${d.intro.shot[0]}–${d.intro.shot[1]} с` : " · кадры чаще"}
@@ -1106,7 +1177,7 @@ export function SummaryStep({ d, up, file, onJump, montageLabel }: StepProps & {
     ],
     [
       "Монтаж",
-      `${montageLabel} · шрифт: ${fontLabel(fonts, d.montage.font)} · 16:9 · ${qualityLabel(d.montage.quality)} · музыка: ${
+      `${montageLabel} · шрифт: ${fontLabel(fonts, d.montage.font)} · ${d.format} · ${qualityLabel(d.montage.quality)} · музыка: ${
         options?.music.find((m) => m.value === d.montage.music)?.label.toLowerCase() ?? d.montage.music
       } · ${soundsText(d.montage.sounds)}${
         infoShareOf(d.storyboard.shares.infographics, d.intro) > 0 && options?.info

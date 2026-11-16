@@ -104,6 +104,7 @@ function Row({
   onDelete: () => void
 }) {
   const meta = [
+    r.settings.format === "9:16" ? "9:16" : "",
     `${r.source.paragraphs} абз.`,
     r.source.timed ? "по озвучке" : "по тексту",
     r.settings.niche_name || "",

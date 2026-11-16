@@ -49,15 +49,19 @@ export function textFromPreset(p: Partial<ReelSettings>): Pick<Draft, "text" | "
 }
 
 /** «Надписи: EN, цифры и даты, главы · ИИ-кадры flash» — for the summary and the reel screen. */
-export function textLine(t: Partial<TextDraft> | undefined, ai: string | undefined, base: string, titles: boolean) {
-  const words = [`надписи ${langCode(t?.lang || base) || "как у ролика"}`, t?.numbers === false ? "" : "цифры и даты", (t?.chapters ?? titles) ? "главы" : "без глав"]
+export function textLine(t: Partial<TextDraft> | undefined, ai: string | undefined, base: string, titles: boolean, short = false) {
+  const words = [
+    `надписи ${langCode(t?.lang || base) || "как у ролика"}`,
+    t?.numbers === false ? "" : "цифры и даты",
+    short ? "" : (t?.chapters ?? titles) ? "главы" : "без глав",
+  ]
   return [words.filter(Boolean).join(", "), ai === "flash_i2v" ? "ИИ-кадры flash" : ""].filter(Boolean).join(" · ")
 }
 
 export function TextSummary({ d }: { d: Draft }) {
   const base = useBaseLang(d)
   const titles = useStyleTitles(d.montage.style)
-  return <span className="text-foreground-2">{textLine(d.text, d.ai.mode, base, titles.on)}</span>
+  return <span className="text-foreground-2">{textLine(d.text, d.ai.mode, base, titles.on, d.format === "9:16")}</span>
 }
 
 /** «Модель ИИ-кадров»: Veo image → video or its flash variant; the host keeps its own model. */
@@ -87,7 +91,7 @@ export function TextPick({ d, up }: { d: Draft; up: Up }) {
   ]
   return (
     <div>
-      <Label aside={<span className="font-mono text-[11px] text-faint">инфографика, цифры, главы</span>}>Язык надписей</Label>
+      <Label aside={<span className="font-mono text-[11px] text-faint">{d.format === "9:16" ? "инфографика, цифры" : "инфографика, цифры, главы"}</span>}>Язык надписей</Label>
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
         <Pick value={code(t.lang)} onChange={(v) => set({ lang: v })} options={options} />
         <label className="flex cursor-pointer items-center gap-2.5 text-sm">

@@ -282,6 +282,7 @@ export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number
         <div className="mt-4 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-4">
           <span className="min-w-0 flex-1 truncate text-xs text-faint">
             {[
+              r.settings.format === "9:16" ? `9:16 · Shorts${r.settings.script?.seconds ? ` · ${r.settings.script.seconds} с` : ""}` : "",
               montage
                 ? `Монтаж: ${montage} · шрифт: ${fontLabel(fonts, r.settings.montage?.font)} · ${qualityLabel(r.settings.montage?.quality)} · ${soundsText(r.settings.montage?.sounds)}`
                 : "",
@@ -305,6 +306,7 @@ export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number
                     r.settings.ai?.mode,
                     (r.source.language || r.settings.script?.language || "").toUpperCase(),
                     options?.montage.find((m) => m.value === r.settings.montage?.style)?.titles !== false,
+                    r.settings.format === "9:16",
                   )
                 : "",
             ]

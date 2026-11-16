@@ -1899,7 +1899,8 @@ export interface ReelStoryboard {
 export interface ReelSettings {
   niche: string
   niche_name?: string
-  script: { mode: "topic" | "ready"; topic?: string; minutes?: number | null; language?: string; tone?: string; model?: string; notes?: string }
+  /** minutes — the length of a 16:9 reel; seconds — of a Short (9:16, 15–180 s). */
+  script: { mode: "topic" | "ready"; topic?: string; minutes?: number | null; seconds?: number | null; language?: string; tone?: string; model?: string; notes?: string }
   /** targets — languages of translation; voices — a voice per language (empty: the profile's default). */
   voice: { profile?: string; name?: string; targets?: string[]; voices?: Record<string, string>; model?: string }
   avatar: { id: string; name?: string; voice?: string }
@@ -2080,7 +2081,9 @@ export const reels = {
     if (script) form.append("script", script)
     return request<Reel>("/api/reels", { method: "POST", body: form })
   },
-  preset: (niche: string) => request<Partial<ReelSettings>>(`/api/reels/presets/${encodeURIComponent(niche)}`),
+  /** The niche's last reel settings in this format (9:16 — Shorts keep their own preset). */
+  preset: (niche: string, format: "16:9" | "9:16" = "16:9") =>
+    request<Partial<ReelSettings>>(`/api/reels/presets/${encodeURIComponent(niche)}${format === "9:16" ? "?format=9:16" : ""}`),
   shares: (id: string, shares: ReelShares, introShares?: ReelShares) =>
     request<Reel>(`${rid(id)}/shares`, json("PUT", introShares ? { shares, intro_shares: introShares } : { shares })),
   rename: (id: string, title: string) => request<Reel>(rid(id), json("PATCH", { title })),

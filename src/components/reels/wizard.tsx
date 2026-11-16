@@ -8,7 +8,7 @@ import { toast } from "sonner"
 
 import { shareText, sharesSum } from "@/components/reels/parts"
 import { rkeys, useReelOptions, useReelVoiceSources } from "@/components/reels/queries"
-import { EMPTY, clearDraft, loadDraft, saveDraft, type Draft } from "@/components/reels/wizard-draft"
+import { EMPTY, clearDraft, loadDraft, saveDraft, shortSecondsOk, type Draft } from "@/components/reels/wizard-draft"
 import { footageBody, introBody, introOk } from "@/components/reels/wizard-advanced"
 import { allowedTypes, infoLookText, infoShareOf, infoTypeList, infoTypesOk } from "@/components/reels/info-look"
 import {
@@ -68,11 +68,12 @@ export function ReelWizard({ onCreated }: { onCreated: (id: string) => void }) {
   const up: StepProps["up"] = (fn) => setD((x) => fn(x))
   const s = d.script
   const fromVoice = s.mode === "ready" && s.from === "voice"
+  const short = d.format === "9:16"
   /** Older brains send no info list — nothing to choose and nothing sent. */
   const infoTypes = allowedTypes(infoTypeList(options), d.storyboard.infoOff)
   const ok = [
     !!d.niche,
-    s.mode === "topic" ? !!s.topic.trim() && Number(s.minutes) > 0 : s.from === "voice" ? !!s.voiceJob : !!file,
+    s.mode === "topic" ? !!s.topic.trim() && (short ? shortSecondsOk(s.seconds) : Number(s.minutes) > 0) : s.from === "voice" ? !!s.voiceJob : !!file,
     s.mode === "topic" ? !!d.voice.profile : true,
     !d.host.on || !!d.host.id,
     sharesSum(d.storyboard.shares) === 100 && introOk(d) && (!options?.info || infoTypesOk(infoShareOf(d.storyboard.shares.infographics, d.intro), infoTypes)),
@@ -83,10 +84,11 @@ export function ReelWizard({ onCreated }: { onCreated: (id: string) => void }) {
   const v = voices?.find((x) => String(x.id) === s.voiceJob)
   const summary = [
     d.nicheName || "не выбрана",
-    s.mode === "topic" ? (s.topic ? `${s.minutes} мин · ${langCode(s.language)}` : "по теме") : fromVoice ? (v?.title ?? "из «Озвучки»") : (file?.name ?? "файл"),
+    (short ? "9:16 · " : "") +
+      (s.mode === "topic" ? (s.topic ? `${short ? `${s.seconds} с` : `${s.minutes} мин`} · ${langCode(s.language)}` : "по теме") : fromVoice ? (v?.title ?? "из «Озвучки»") : (file?.name ?? "файл")),
     `${fromVoice ? "уже озвучено" : d.voice.name || "не выбран"}${d.voice.targets.length ? ` + ${d.voice.targets.length} яз.` : ""}`,
     d.host.on ? d.host.name || "не выбран" : "без ведущего",
-    shareText(d.storyboard.shares, d.host.on) + (d.intro.on ? ` · вступление ${Math.round(d.intro.sec / 60)} мин` : ""),
+    shareText(d.storyboard.shares, d.host.on) + (d.intro.on && !short ? ` · вступление ${Math.round(d.intro.sec / 60)} мин` : ""),
     montageLabel + (options?.info && d.storyboard.shares.infographics > 0 ? ` · инфографика ${infoLookText(d.montage.info, options)}` : ""),
   ]
 
@@ -101,7 +103,16 @@ export function ReelWizard({ onCreated }: { onCreated: (id: string) => void }) {
           voice_job: fromVoice && s.voiceJob ? Number(s.voiceJob) : undefined,
           niche: d.niche,
           niche_name: d.nicheName,
-          script: { mode: s.mode, topic: s.topic, minutes: Number(s.minutes) || null, language: s.language, tone: s.tone, model: s.model, notes: s.notes },
+          script: {
+            mode: s.mode,
+            topic: s.topic,
+            minutes: short ? null : Number(s.minutes) || null,
+            seconds: short ? Number(s.seconds) || null : null,
+            language: s.language,
+            tone: s.tone,
+            model: s.model,
+            notes: s.notes,
+          },
           voice: d.voice,
           avatar: d.host.on ? { id: d.host.id, name: d.host.name, voice: d.host.voice } : { id: "" },
           storyboard: {
@@ -110,7 +121,7 @@ export function ReelWizard({ onCreated }: { onCreated: (id: string) => void }) {
             notes: d.storyboard.notes,
             engine: d.storyboard.engine,
             model: d.storyboard.engine ? d.storyboard.model : "",
-            pauses: { modes: d.storyboard.pauses.modes, sec: d.storyboard.pauses.sec, every_sec: d.storyboard.pauses.everySec },
+            pauses: { modes: short ? [] : d.storyboard.pauses.modes, sec: d.storyboard.pauses.sec, every_sec: d.storyboard.pauses.everySec },
             ...(options?.info ? { info_types: infoTypes as InfoType[] } : {}),
           },
           montage: options?.info ? d.montage : { ...d.montage, info: undefined },
@@ -118,9 +129,9 @@ export function ReelWizard({ onCreated }: { onCreated: (id: string) => void }) {
             video: footageBody(d.footage.video, !!options?.image_motions?.length),
             history: footageBody(d.footage.history, !!options?.image_motions?.length),
           },
-          intro: introBody(d.intro),
+          intro: introBody(short ? { ...d.intro, on: false } : d.intro),
           format: d.format,
-          text: d.text,
+          text: short ? { ...d.text, chapters: false } : d.text,
           ai: d.ai,
         },
         s.mode === "ready" && s.from === "file" ? file : null,

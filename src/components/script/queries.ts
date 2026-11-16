@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { scenario } from "@/lib/api"
 import { useHydrated } from "@/lib/queries"
+import { REFETCH_MS, throttler } from "@/lib/throttle"
 
 export const skeys = {
   all: ["scenario"] as const,
@@ -77,6 +78,7 @@ export function useScenarioEvents() {
   const qc = useQueryClient()
   useEffect(() => {
     const es = new EventSource(scenario.eventsUrl(), { withCredentials: true })
+    const { soon, clear } = throttler()
     const on = (event: string, fn: (data: Record<string, unknown>) => void) =>
       es.addEventListener(event, (ev) => {
         try {
@@ -86,11 +88,14 @@ export function useScenarioEvents() {
         }
       })
     on("project.changed", (d) => {
-      qc.invalidateQueries({ queryKey: skeys.projects })
+      soon("projects", REFETCH_MS.list, () => qc.invalidateQueries({ queryKey: skeys.projects }))
       if (typeof d.id === "string") {
-        qc.invalidateQueries({ queryKey: skeys.project(d.id) })
-        qc.invalidateQueries({ queryKey: skeys.log(d.id) })
-        qc.invalidateQueries({ queryKey: skeys.script(d.id) })
+        const id = d.id
+        soon(`project:${id}`, REFETCH_MS.item, () => {
+          qc.invalidateQueries({ queryKey: skeys.project(id) })
+          qc.invalidateQueries({ queryKey: skeys.log(id) })
+          qc.invalidateQueries({ queryKey: skeys.script(id) })
+        })
       }
     })
     on("niche.changed", (d) => {
@@ -104,7 +109,10 @@ export function useScenarioEvents() {
     })
     on("analytics.changed", () => qc.invalidateQueries({ queryKey: skeys.analytics, exact: true }))
     on("worker.changed", () => qc.invalidateQueries({ queryKey: skeys.health }))
-    return () => es.close()
+    return () => {
+      es.close()
+      clear()
+    }
   }, [qc])
 }
 

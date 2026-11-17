@@ -412,7 +412,12 @@ function Alerts({ items }: { items: LimitAlert[] }) {
             <span className={cn("mt-1.5 size-1.5 shrink-0 rounded-[1px]", ALERT_DOT[a.level])} />
             <span className="inline-flex shrink-0 items-center gap-1.5 font-mono text-xs leading-5 text-muted-foreground sm:w-28">
               {when(a.at)}
-              {a.telegram === "sent" && <Send className="size-3 text-faint" aria-label="отправлено в Telegram" />}
+              {(a.telegram === "sent" || a.telegram === "guard") && (
+                <Send
+                  className="size-3 text-faint"
+                  aria-label={a.telegram === "guard" ? "в Telegram через охранника" : "отправлено в Telegram"}
+                />
+              )}
             </span>
             <span className="min-w-0 basis-full text-foreground-2 sm:flex-1 sm:basis-0">{a.text}</span>
           </div>

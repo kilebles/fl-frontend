@@ -2380,3 +2380,133 @@ export const montage = {
   zipUrl: (id: string) => withToken(`${mid(id)}/zip`),
   eventsUrl: () => withToken("/api/montage/events"),
 }
+
+/* ------------------------------------------------------------------ youtube upload (auto-youtube, /api/youtube/*) */
+
+export type YtMonetization = "auto" | "on" | "off"
+export type YtUploadStatus = "queued" | "running" | "done" | "error" | "stopped"
+export type YtLangState = "pending" | "uploading" | "processing" | "published" | "error" | "skipped"
+
+export interface YtHealth {
+  status: "ok"
+  worker_online: boolean
+  octo_online: boolean
+  octo_note: string
+  queued: number
+  running: number
+}
+
+export interface YtQueue {
+  parallel: number
+  choices: number[]
+  running: number
+  queued: number
+}
+
+export interface YtOctoProfile {
+  uuid: string
+  title: string
+  tags: string[]
+  proxy_label: string
+  metered_proxy: boolean
+  already_added: boolean
+}
+
+export interface YtChannel {
+  id: string
+  title: string
+  octo_uuid: string
+  octo_title: string
+  proxy_label: string
+  metered_proxy: boolean
+  playlist: string
+  publish_time: string
+  monetization: YtMonetization
+  end_screen: boolean
+  enabled: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface YtChannelCreate {
+  title: string
+  octo_uuid: string
+  octo_title?: string
+  proxy_label?: string
+  metered_proxy?: boolean
+  playlist?: string
+  publish_time?: string
+  monetization?: YtMonetization
+  end_screen?: boolean
+  enabled?: boolean
+}
+
+export type YtChannelPatch = Partial<Omit<YtChannelCreate, "octo_uuid">>
+
+export interface YtLangStatus {
+  lang: string
+  studio_name: string
+  state: YtLangState
+  error: string | null
+}
+
+export interface YtUploadJob {
+  id: string
+  reel_id: string
+  reel_title: string
+  channel_id: string
+  channel_title: string
+  status: YtUploadStatus
+  stage: string
+  schedule_date: string
+  schedule_time: string
+  playlist: string
+  monetization: YtMonetization
+  end_screen: boolean
+  format: string
+  base_lang: string
+  video_id: string | null
+  video_url: string | null
+  upload_pct: number
+  eta_text: string | null
+  error: string | null
+  screenshot: string | null
+  created_at: string
+  started_at: string | null
+  finished_at: string | null
+  languages: YtLangStatus[]
+  counts: { total: number; published: number; error: number }
+}
+
+export interface YtUploadCreate {
+  reel_id: string
+  channel_id: string
+  schedule_date: string
+  schedule_time?: string
+  playlist?: string
+  monetization?: YtMonetization
+  end_screen?: boolean
+}
+
+const yid = (id: string) => `/api/youtube/uploads/${encodeURIComponent(id)}`
+const ychid = (id: string) => `/api/youtube/channels/${encodeURIComponent(id)}`
+
+export const ytUpload = {
+  health: () => request<YtHealth>("/api/youtube/health"),
+  queue: () => request<YtQueue>("/api/youtube/queue"),
+  setParallel: (parallel: number) => request<YtQueue>("/api/youtube/queue/limits", json("PUT", { parallel })),
+  octoProfiles: (search = "") =>
+    request<YtOctoProfile[]>(`/api/youtube/octo/profiles${search ? `?search=${encodeURIComponent(search)}` : ""}`),
+  channels: () => request<YtChannel[]>("/api/youtube/channels"),
+  addChannel: (body: YtChannelCreate) => request<YtChannel>("/api/youtube/channels", json("POST", body)),
+  updateChannel: (id: string, body: YtChannelPatch) => request<YtChannel>(ychid(id), json("PATCH", body)),
+  removeChannel: (id: string) => request<void>(ychid(id), { method: "DELETE" }),
+  listForReel: (reelId: string) => request<YtUploadJob[]>(`/api/youtube/uploads?reel_id=${encodeURIComponent(reelId)}`),
+  get: (id: string) => request<YtUploadJob>(yid(id)),
+  create: (body: YtUploadCreate) => request<YtUploadJob>("/api/youtube/uploads", json("POST", body)),
+  stop: (id: string) => request<YtUploadJob>(`${yid(id)}/stop`, json("POST")),
+  retry: (id: string) => request<YtUploadJob>(`${yid(id)}/retry`, json("POST")),
+  remove: (id: string) => request<void>(yid(id), { method: "DELETE" }),
+  screenshotUrl: (id: string) => withToken(`${yid(id)}/screenshot`),
+  eventsUrl: () => withToken("/api/youtube/events"),
+}

@@ -109,6 +109,9 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
   neither — written from the script. The reel carries only
   `youtube` state (`ReelYoutubeView`), the texts — `GET …/youtube`; «Сделать заново» posts a new title, «Скачать JSON»
   saves it; older brains send no `youtube` — no card.
+- «Выкладка на YouTube» on the reel screen (`reels/youtube-upload.tsx`, under «Названия и описания»): talks to `auto-youtube`
+  at `/api/youtube/*` (Octo Browser CDP upload + 16 secondary audio tracks & metadata, SSE `/api/youtube/events`), lets the
+  user bind Octo profiles as channels, pick channel/date/time/monetization, and track per-language upload progress.
 
 - «Админ → Лимиты» talks to fl-limits at `/api/limits/*` (Caddy → Windows :8070, admins only — fl-limits checks the
   role in `X-Fl-Gateway-Auth`): quotas of agy (per Windows login) and Claude Code — buckets week / 5 h with left %,

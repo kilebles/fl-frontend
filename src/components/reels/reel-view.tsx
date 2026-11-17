@@ -40,6 +40,7 @@ import { MOTION_SHORT } from "@/components/footage/parts"
 import { AudioCard } from "@/components/reels/audio"
 import { TracksCard } from "@/components/reels/tracks"
 import { YoutubeCard } from "@/components/reels/youtube"
+import { YoutubeUploadCard } from "@/components/reels/youtube-upload"
 import { ConfirmDialog } from "@/components/script/parts"
 import { setUrlParams } from "@/components/script/queries"
 import { BTN_PRIMARY, BTN_SECONDARY, Card } from "@/components/script/ui"
@@ -392,6 +393,7 @@ export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number
       <AudioCard reel={r} />
       {!filesRemoved(r) && <TracksCard reel={r} />}
       <YoutubeCard reel={r} />
+      {!filesRemoved(r) && <YoutubeUploadCard reel={r} />}
 
       {done && sbError && <div className="py-6 text-center text-sm text-danger">{sbError.message}</div>}
       {done && sb && (

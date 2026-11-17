@@ -268,8 +268,9 @@ export function YoutubeUploadCard({ reel: r }: { reel: Reel }) {
 
   const mp4Ready = !!r.result?.mp4
   const tracksState = r.tracks?.state ?? tracksQ.data?.status.state ?? "none"
-  const tracksReady = tracksState === "done"
   const metaReady = r.youtube?.state === "done"
+  const singleLang = (r.youtube?.langs.length ?? 0) <= 1 && metaReady
+  const tracksReady = tracksState === "done" || singleLang
   const bundleReady = mp4Ready && tracksReady && metaReady
   const canLaunch = online && !!selectedChannel && !!scheduleDate && bundleReady && !startUpload.isPending
 

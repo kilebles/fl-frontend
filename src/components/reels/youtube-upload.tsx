@@ -504,7 +504,7 @@ export function YoutubeUploadCard({ reel: r }: { reel: Reel }) {
                               href={ytUpload.screenshotUrl(u.id)}
                               target="_blank"
                               rel="noreferrer"
-                              title="Открыть финальный скриншот YouTube Studio"
+                              title="Открыть скриншот YouTube Studio"
                               className={BTN_SMALL}
                             >
                               <Camera className="size-3.5" />
@@ -778,12 +778,28 @@ function ChannelEditRow({
   const [playlist, setPlaylist] = useState(channel.playlist)
   const [publishTime, setPublishTime] = useState(channel.publish_time)
   const [monetization, setMonetization] = useState<YtMonetization>(channel.monetization)
+  const [octoPassword, setOctoPassword] = useState("")
 
   const dirty =
     title.trim() !== channel.title ||
     playlist.trim() !== channel.playlist ||
     publishTime !== channel.publish_time ||
-    monetization !== channel.monetization
+    monetization !== channel.monetization ||
+    octoPassword.trim() !== ""
+
+  const handleSave = () => {
+    const patch: YtChannelPatch = {
+      title: title.trim(),
+      playlist: playlist.trim(),
+      publish_time: publishTime,
+      monetization,
+    }
+    if (octoPassword.trim() !== "") {
+      patch.octo_password = octoPassword.trim()
+      setOctoPassword("")
+    }
+    onSave(patch)
+  }
 
   return (
     <div className="space-y-2 rounded-[3px] border border-line bg-background p-3">
@@ -791,13 +807,24 @@ function ChannelEditRow({
         <span className="font-mono text-[11px] text-faint">
           Octo: {channel.octo_title || channel.octo_uuid}
           {channel.proxy_label ? ` · ${channel.proxy_label}` : ""}
+          {channel.has_password ? " · пароль задан" : ""}
         </span>
         <div className="flex items-center gap-1.5">
+          {channel.has_password && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onSave({ octo_password: "" })}
+              className="rounded-[3px] border border-line-strong px-2 py-1 text-[11px] text-faint hover:text-foreground"
+            >
+              Сбросить пароль
+            </button>
+          )}
           {dirty && (
             <button
               type="button"
               disabled={busy || !title.trim()}
-              onClick={() => onSave({ title: title.trim(), playlist: playlist.trim(), publish_time: publishTime, monetization })}
+              onClick={handleSave}
               className={BTN_SMALL}
             >
               Сохранить
@@ -829,6 +856,19 @@ function ChannelEditRow({
           ]}
         />
       </div>
+
+      <input
+        type="password"
+        autoComplete="new-password"
+        value={octoPassword}
+        onChange={(e) => setOctoPassword(e.target.value)}
+        placeholder={
+          channel.has_password
+            ? "Пароль профиля Octo задан — введите новый, чтобы заменить"
+            : "Пароль профиля Octo (оставьте пустым, если без пароля)"
+        }
+        className={cn(INPUT, "h-8 text-xs")}
+      />
     </div>
   )
 }

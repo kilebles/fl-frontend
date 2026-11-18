@@ -387,13 +387,13 @@ export function ReelView({ reel: r, updatedAt }: { reel: Reel; updatedAt: number
       </section>
 
       {filesRemoved(r) ? <FilesRemovedCard at={filesRemoved(r)!} /> : <ResultCard reel={r} />}
+      {!filesRemoved(r) && <YoutubeUploadCard reel={r} />}
       <SearchProgressCard reel={r} />
       <MaterialsCard reel={r} />
       <ReviewCard reel={r} />
       <AudioCard reel={r} />
       {!filesRemoved(r) && <TracksCard reel={r} />}
       <YoutubeCard reel={r} />
-      {!filesRemoved(r) && <YoutubeUploadCard reel={r} />}
 
       {done && sbError && <div className="py-6 text-center text-sm text-danger">{sbError.message}</div>}
       {done && sb && (

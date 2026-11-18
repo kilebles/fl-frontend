@@ -109,7 +109,7 @@ src/lib/            api.ts (types + fetchers), queries.ts (React Query + SSE), p
   neither — written from the script. The reel carries only
   `youtube` state (`ReelYoutubeView`), the texts — `GET …/youtube`; «Сделать заново» posts a new title, «Скачать JSON»
   saves it; older brains send no `youtube` — no card.
-- «Выкладка на YouTube» on the reel screen (`reels/youtube-upload.tsx`, under «Названия и описания»): talks to `auto-youtube`
+- «Выкладка на YouTube» on the reel screen (`reels/youtube-upload.tsx`, right under «Готовый ролик»): talks to `auto-youtube`
   at `/api/youtube/*` (Octo Browser CDP upload + 16 secondary audio tracks & metadata, SSE `/api/youtube/events`), lets the
   user bind Octo profiles as channels, pick channel/date/time/monetization, and track per-language upload progress.
 

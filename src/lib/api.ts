@@ -2419,6 +2419,7 @@ export interface YtChannel {
   octo_title: string
   proxy_label: string
   metered_proxy: boolean
+  has_password?: boolean
   playlist: string
   publish_time: string
   monetization: YtMonetization
@@ -2434,6 +2435,7 @@ export interface YtChannelCreate {
   octo_title?: string
   proxy_label?: string
   metered_proxy?: boolean
+  octo_password?: string
   playlist?: string
   publish_time?: string
   monetization?: YtMonetization
